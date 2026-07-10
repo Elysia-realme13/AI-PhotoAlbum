@@ -1,0 +1,93 @@
+# ============================================================
+#       AI-PhotoAlbum 应用服务编排 (MVP)
+# ============================================================
+
+services:
+  # ── PostgreSQL + pgvector ─────────────────────────────
+  postgres:
+    image: pgvector/pgvector:pg18
+    container_name: album-postgres
+    restart: unless-stopped
+    ports:
+      - "5433:5432"   # 主机5433 → 容器5432，避免与本地PG冲突
+    environment:
+      TZ: Asia/Shanghai
+      POSTGRES_DB: photo_album
+      POSTGRES_USER: album
+      POSTGRES_PASSWORD: album
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - pg_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U album -d photo_album"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # ── MinIO 对象存储（可选，MVP可先用本地文件）─────────
+  minio:
+    image: minio/minio:latest
+    container_name: album-minio
+    restart: unless-stopped
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    volumes:
+      - minio_data:/data
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── 后端应用 ──────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: album-backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      TZ: Asia/Shanghai
+      DATABASE_URL: postgresql://album:album@postgres:5432/photo_album
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-https://api.openai.com/v1}
+    volumes:
+      - ./data:/app/data
+      - ./data/logs:/app/logs
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 30s
+      timeout: 10s
+      start_period: 10s
+      retries: 3
+
+  # ── 前端应用 ──────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: album-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  pg_data:
+  minio_data:

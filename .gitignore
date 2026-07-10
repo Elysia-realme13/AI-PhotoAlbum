@@ -1,0 +1,61 @@
+# ── Python ──────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+dist/
+build/
+*.egg
+.eggs/
+
+# ── Virtual Environment ─────────────────────────────────
+.venv/
+venv/
+env/
+.env
+*.env.local
+*.env.*.local
+
+# ── Node / Frontend ─────────────────────────────────────
+node_modules/
+frontend/dist/
+*.log
+npm-debug.log*
+
+# ── IDE ─────────────────────────────────────────────────
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# ── Docker ──────────────────────────────────────────────
+docker-compose.override.yml
+
+# ── Data / Runtime ──────────────────────────────────────
+data/uploads/
+data/logs/
+data/thumbnails/
+backend/data/uploads/
+backend/data/logs/
+backend/data/thumbnails/
+*.db
+*.sqlite
+*.sqlite3
+
+# ── Model files (too large, download separately) ────────
+data/models/
+backend/data/models/
+*.pth
+*.bin
+*.safetensors
+*.onnx
+*.h5
+*.hdf5
+*.ckpt
+
+# ── OS ──────────────────────────────────────────────────
+*.tmp
+*.temp

@@ -27,6 +27,7 @@ from app.api.face import router as face_router
 from app.api.search import router as search_router
 from app.api.agent import router as agent_router
 from app.api.tasks import router as tasks_router
+from app.api.medias import router as medias_router
 
 # 确保所有模型被导入（使 Base.metadata 注册所有表）
 import app.models  # noqa: F401
@@ -107,6 +108,7 @@ app.include_router(face_router)
 app.include_router(search_router)
 app.include_router(agent_router)
 app.include_router(tasks_router)
+app.include_router(medias_router)
 
 
 @app.get("/")

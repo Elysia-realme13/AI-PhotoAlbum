@@ -1,13 +1,20 @@
 """
 用户 CRUD 操作
 """
+import uuid
 from typing import Optional
 from sqlalchemy.orm import Session
 from app.models.user import User
 from app.core.security import hash_password, verify_password
 
 
-def get_user_by_id(db: Session, user_id: str) -> Optional[User]:
+def get_user_by_id(db: Session, user_id) -> Optional[User]:
+    """根据 ID 获取用户，兼容 str 和 UUID"""
+    if isinstance(user_id, str):
+        try:
+            user_id = uuid.UUID(user_id)
+        except (ValueError, AttributeError):
+            return None
     return db.query(User).filter(User.id == user_id).first()
 
 

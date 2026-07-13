@@ -10,6 +10,7 @@ from pydantic import BaseModel, field_validator
 class PhotoResponse(BaseModel):
     """照片响应"""
     id: str
+    owner_id: Optional[str] = None
     filename: str
     original_name: Optional[str] = None
     file_path: str
@@ -23,9 +24,11 @@ class PhotoResponse(BaseModel):
     is_deleted: bool = False
     processed_tasks: Optional[dict] = {}
 
-    @field_validator("id", mode="before")
+    @field_validator("id", "owner_id", mode="before")
     @classmethod
-    def coerce_uuid(cls, v: Any) -> str:
+    def coerce_uuid(cls, v: Any) -> Optional[str]:
+        if v is None:
+            return None
         return str(v) if isinstance(v, uuid.UUID) else v
 
     model_config = {"from_attributes": True}
@@ -41,8 +44,8 @@ class PhotoListResponse(BaseModel):
 
 class PhotoMetadataResponse(BaseModel):
     """EXIF 元数据响应"""
-    id: str
-    photo_id: str
+    id: Optional[str] = None
+    photo_id: Optional[str] = None
     camera_make: Optional[str] = None
     camera_model: Optional[str] = None
     lens_model: Optional[str] = None
@@ -59,6 +62,13 @@ class PhotoMetadataResponse(BaseModel):
     district: Optional[str] = None
     address: Optional[str] = None
 
+    @field_validator("id", "photo_id", mode="before")
+    @classmethod
+    def coerce_uuid(cls, v: Any) -> Optional[str]:
+        if v is None:
+            return None
+        return str(v) if isinstance(v, uuid.UUID) else v
+
     model_config = {"from_attributes": True}
 
 
@@ -72,4 +82,16 @@ class PhotoDescriptionResponse(BaseModel):
     quality_score: Optional[float] = None
     memory_score: Optional[float] = None
 
+    @field_validator("id", "photo_id", mode="before")
+    @classmethod
+    def coerce_uuid(cls, v: Any) -> Optional[str]:
+        if v is None:
+            return None
+        return str(v) if isinstance(v, uuid.UUID) else v
+
     model_config = {"from_attributes": True}
+
+
+class PhotoDetailResponse(PhotoResponse):
+    """照片详情响应（含元数据）"""
+    metadata: Optional[PhotoMetadataResponse] = None

@@ -63,14 +63,14 @@ class TestDetectObjects:
 
 
 class TestDrawDetections:
-    def test_no_detections(self, synthetic_image, tmp_path):
+    def test_no_detections(self, sample_detections, mock_file, tmp_path):
         out = tmp_path / "out.jpg"
-        result = draw_detections(synthetic_image, [], output_path=str(out))
-        assert result is not None  # Should return bytes even with no detections
+        result = draw_detections(mock_file, [], output_path=str(out))
+        assert result is not None  # empty detections = None
 
-    def test_with_detections(self, synthetic_image, sample_detections, tmp_path):
+    def test_with_detections(self, sample_detections, mock_file, tmp_path):
         out = tmp_path / "out.jpg"
-        result = draw_detections(synthetic_image, sample_detections, output_path=str(out))
+        result = draw_detections(mock_file, sample_detections, output_path=str(out))
         assert result is not None
         # Verify output file exists
         assert (tmp_path / 'out.jpg').exists()

@@ -124,7 +124,6 @@ class TestBuildGraph:
 
 
 class TestRunSearchAgent:
-    @pytest.mark.xfail(reason="langgraph node needs db param", run=True)
     def test_basic_flow(self, mock_db):
         """End-to-end agent run (with mocked DB)"""
         with patch.multiple(

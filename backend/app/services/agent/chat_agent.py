@@ -18,7 +18,7 @@ from typing import Any, Dict, List, Optional
 from sqlalchemy.orm import Session
 
 from app.models.agent import AgentSession, AgentMessage, SessionStatus
-from app.agents.search_agent import run_search_agent
+from app.services.agent.search_agent import run_search_agent
 from app.services.name_confirmation_service import create_pending
 
 logger = logging.getLogger(__name__)

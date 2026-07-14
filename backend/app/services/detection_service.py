@@ -1,4 +1,4 @@
-"""
+﻿"""
 YOLO 目标检测服务
 
 使用 Ultralytics YOLO26（COCO 数据集训练）对图片进行目标检测。
@@ -351,12 +351,12 @@ def draw_detections(
         # 尝试加载字体（系统字体或默认）
         try:
             font = ImageFont.truetype("arial.ttf", 16)
-        except (IOError, OSError):
+        except Exception:
             try:
                 font = ImageFont.truetype(
                     "C:/Windows/Fonts/msyh.ttc", 16
                 )
-            except (IOError, OSError):
+            except Exception:
                 font = ImageFont.load_default()
 
         # 为不同类别分配颜色（基于 class_id 哈希）

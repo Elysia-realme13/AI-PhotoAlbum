@@ -1,7 +1,7 @@
-"""
-LangGraph 检索代理
+﻿"""
+LangGraph 妫€绱唬鐞?
 
-实现"描述->照片"混合检索与人脸交互式命名流程。
+瀹炵幇"鎻忚堪->鐓х墖"娣峰悎妫€绱笌浜鸿劯浜や簰寮忓懡鍚嶆祦绋嬨€?
 """
 
 import logging
@@ -92,23 +92,7 @@ def merge_results(state: SearchState, db: Session) -> SearchState:
 
 
 def build_search_graph():
-    try:
-        from langgraph.graph import StateGraph, END
-        workflow = StateGraph(SearchState)
-        workflow.add_node("extract_entities", extract_entities)
-        workflow.add_node("recognize_person", recognize_person)
-        workflow.add_node("clip_search", clip_search)
-        workflow.add_node("merge_results", merge_results)
-        workflow.set_entry_point("extract_entities")
-        workflow.add_edge("extract_entities", "recognize_person")
-        workflow.add_edge("recognize_person", "clip_search")
-        workflow.add_edge("clip_search", "merge_results")
-        workflow.add_edge("merge_results", END)
-        return workflow.compile()
-    except ImportError:
-        return _FallbackGraph()
-
-
+    return _FallbackGraph()
 class _FallbackGraph:
     def invoke(self, input_state: Dict[str, Any], config: Dict = None) -> Dict[str, Any]:
         state = dict(input_state)
@@ -149,3 +133,4 @@ def run_search_agent(
 
 
 __all__ = ["SearchState", "build_search_graph", "run_search_agent"]
+

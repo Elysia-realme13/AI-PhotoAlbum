@@ -1,0 +1,18 @@
+# YOLO LVIS fine-tuning training dependencies
+# Install: pip install -r requirements.txt
+
+# Core framework
+ultralytics>=8.3.0
+torch>=2.1.0
+torchvision>=0.16.0
+
+# Data processing
+numpy>=1.26.0
+Pillow>=10.0.0
+pycocotools>=2.0.7
+tqdm>=4.66.0
+PyYAML>=6.0
+
+# Recommended training tools
+# tensorboard>=2.15.0
+# wandb>=0.16.0

@@ -17,6 +17,7 @@
         :key="photo.id"
         :photo="photo"
         @click="$emit('preview', photo)"
+        @detail="$emit('detail', photo)"
         @delete="$emit('delete', photo)"
       />
     </div>
@@ -35,6 +36,7 @@ defineProps<{
 defineEmits<{
   upload: []
   preview: [photo: PhotoItem]
+  detail: [photo: PhotoItem]
   delete: [photo: PhotoItem]
 }>()
 </script>

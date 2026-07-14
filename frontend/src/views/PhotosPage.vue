@@ -14,6 +14,7 @@
       :loading="store.loading"
       @upload="showUpload = true"
       @preview="handlePreview"
+      @detail="handleDetail"
       @delete="handleDelete"
     />
 
@@ -40,6 +41,9 @@
       @close="previewVisible = false"
       :hide-on-click-modal="true"
     />
+
+    <!-- 详情抽屉 -->
+    <PhotoDetailDrawer v-model:visible="detailVisible" :photo-id="detailPhotoId" />
   </div>
 </template>
 
@@ -51,6 +55,7 @@ import { usePhotoStore } from '@/stores/photo'
 import { photoApi } from '@/api/photo'
 import PhotoGrid from '@/components/photo/PhotoGrid.vue'
 import UploadDialog from '@/components/photo/UploadDialog.vue'
+import PhotoDetailDrawer from '@/components/photo/PhotoDetailDrawer.vue'
 import type { PhotoItem } from '@/types/photo'
 
 const store = usePhotoStore()
@@ -67,6 +72,15 @@ const previewList = computed(() =>
 function handlePreview(photo: PhotoItem) {
   previewIndex.value = store.photos.findIndex((p) => p.id === photo.id)
   previewVisible.value = true
+}
+
+// ── 详情抽屉 ─────────────────
+const detailVisible = ref(false)
+const detailPhotoId = ref<string | null>(null)
+
+function handleDetail(photo: PhotoItem) {
+  detailPhotoId.value = photo.id
+  detailVisible.value = true
 }
 
 // ── 删除确认 ─────────────────────────

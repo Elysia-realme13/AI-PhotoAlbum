@@ -20,7 +20,14 @@
       </div>
     </div>
 
-    <!-- 删除按钮 -->
+    <!-- 操作按钮 -->
+    <button
+      class="absolute top-1 right-9 w-7 h-7 rounded-full bg-black/40 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-blue-500"
+      @click.stop="$emit('detail')"
+      title="详情"
+    >
+      <el-icon :size="14"><InfoFilled /></el-icon>
+    </button>
     <button
       class="absolute top-1 right-1 w-7 h-7 rounded-full bg-black/40 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-500"
       @click.stop="$emit('delete')"
@@ -32,7 +39,7 @@
 </template>
 
 <script setup lang="ts">
-import { Delete } from '@element-plus/icons-vue'
+import { Delete, InfoFilled } from '@element-plus/icons-vue'
 import type { PhotoItem } from '@/types/photo'
 import { photoApi } from '@/api/photo'
 
@@ -42,6 +49,7 @@ const props = defineProps<{
 
 defineEmits<{
   click: []
+  detail: []
   delete: []
 }>()
 

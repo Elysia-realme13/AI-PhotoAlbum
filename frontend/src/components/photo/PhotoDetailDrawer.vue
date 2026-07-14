@@ -1,0 +1,185 @@
+<template>
+  <el-drawer
+    v-model="drawerVisible"
+    title="照片详情"
+    direction="rtl"
+    size="380px"
+  >
+    <!-- 加载态 -->
+    <div v-if="loading" class="px-1">
+      <el-skeleton :rows="8" animated />
+    </div>
+
+    <div v-else-if="detail" class="detail-body">
+      <!-- 顶部大图 -->
+      <div class="preview-box" @click="previewVisible = true">
+        <img :src="fileUrl" :alt="detail.original_name || '照片'" class="preview-img" />
+      </div>
+
+      <!-- 基本信息 -->
+      <el-descriptions title="基本信息" :column="1" border size="small" class="mt-4">
+        <el-descriptions-item label="文件名">
+          {{ detail.original_name || detail.filename }}
+        </el-descriptions-item>
+        <el-descriptions-item label="尺寸">{{ dimensions }}</el-descriptions-item>
+        <el-descriptions-item label="文件大小">{{ formatFileSize(detail.file_size) }}</el-descriptions-item>
+        <el-descriptions-item label="类型">{{ detail.file_type || '—' }}</el-descriptions-item>
+        <el-descriptions-item label="拍摄时间">{{ formatDateTime(detail.photo_time) }}</el-descriptions-item>
+        <el-descriptions-item label="上传时间">{{ formatDateTime(detail.upload_time) }}</el-descriptions-item>
+      </el-descriptions>
+
+      <!-- 相机信息 -->
+      <el-descriptions
+        v-if="hasCameraInfo"
+        title="相机信息"
+        :column="1"
+        border
+        size="small"
+        class="mt-4"
+      >
+        <el-descriptions-item v-if="meta?.camera_make" label="厂商">{{ meta?.camera_make }}</el-descriptions-item>
+        <el-descriptions-item v-if="meta?.camera_model" label="型号">{{ meta?.camera_model }}</el-descriptions-item>
+        <el-descriptions-item v-if="meta?.lens_model" label="镜头">{{ meta?.lens_model }}</el-descriptions-item>
+        <el-descriptions-item v-if="meta?.focal_length" label="焦距">{{ meta?.focal_length }}mm</el-descriptions-item>
+        <el-descriptions-item v-if="meta?.aperture" label="光圈">f/{{ meta?.aperture }}</el-descriptions-item>
+        <el-descriptions-item v-if="meta?.shutter_speed" label="快门">{{ meta?.shutter_speed }}</el-descriptions-item>
+        <el-descriptions-item v-if="meta?.iso" label="ISO">{{ meta?.iso }}</el-descriptions-item>
+      </el-descriptions>
+
+      <!-- 位置信息 -->
+      <el-descriptions title="位置信息" :column="1" border size="small" class="mt-4">
+        <template v-if="hasLocation">
+          <el-descriptions-item v-if="locationText" label="地点">{{ locationText }}</el-descriptions-item>
+          <el-descriptions-item v-if="meta?.address" label="详细地址">{{ meta?.address }}</el-descriptions-item>
+          <el-descriptions-item v-if="hasCoords" label="GPS 坐标">
+            {{ meta?.latitude?.toFixed(6) }}, {{ meta?.longitude?.toFixed(6) }}
+          </el-descriptions-item>
+        </template>
+        <el-descriptions-item v-else label="位置">
+          <span class="text-gray-400">无位置信息</span>
+        </el-descriptions-item>
+      </el-descriptions>
+    </div>
+
+    <!-- 无数据 -->
+    <el-empty v-else description="暂无详情" />
+
+    <!-- 大图预览 -->
+    <el-image-viewer
+      v-if="previewVisible && detail"
+      :url-list="[fileUrl]"
+      @close="previewVisible = false"
+      :hide-on-click-modal="true"
+    />
+  </el-drawer>
+</template>
+
+<script setup lang="ts">
+import { ref, computed, watch } from 'vue'
+import { photoApi } from '@/api/photo'
+import type { PhotoDetail } from '@/types/photo'
+
+const props = defineProps<{
+  visible: boolean
+  photoId: string | null
+}>()
+
+const emit = defineEmits<{
+  'update:visible': [value: boolean]
+}>()
+
+const drawerVisible = computed({
+  get: () => props.visible,
+  set: (v) => emit('update:visible', v),
+})
+
+const loading = ref(false)
+const detail = ref<PhotoDetail | null>(null)
+const previewVisible = ref(false)
+
+const meta = computed(() => detail.value?.metadata)
+const fileUrl = computed(() => (detail.value ? photoApi.fileUrl(detail.value.id) : ''))
+
+const dimensions = computed(() => {
+  if (detail.value?.width && detail.value?.height) {
+    return `${detail.value.width} × ${detail.value.height}`
+  }
+  return '—'
+})
+
+const hasCameraInfo = computed(() => {
+  const m = meta.value
+  if (!m) return false
+  return Boolean(
+    m.camera_make ||
+      m.camera_model ||
+      m.lens_model ||
+      m.focal_length ||
+      m.aperture ||
+      m.shutter_speed ||
+      m.iso
+  )
+})
+
+const hasCoords = computed(() =>
+  meta.value?.latitude != null && meta.value?.longitude != null
+)
+
+const locationText = computed(() => {
+  const m = meta.value
+  if (!m) return ''
+  return [m.country, m.province, m.city, m.district].filter(Boolean).join(' ')
+})
+
+const hasLocation = computed(() => hasCoords.value || Boolean(locationText.value))
+
+/** 字节转可读大小 */
+function formatFileSize(bytes?: number): string {
+  if (!bytes || bytes <= 0) return '—'
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`
+}
+
+/** 格式化时间 */
+function formatDateTime(dateStr?: string): string {
+  if (!dateStr) return '—'
+  const d = new Date(dateStr)
+  if (Number.isNaN(d.getTime())) return '—'
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
+async function fetchDetail(id: string) {
+  loading.value = true
+  detail.value = null
+  try {
+    const res = await photoApi.getById(id)
+    detail.value = res.data
+  } catch {
+    // handled by interceptor
+  } finally {
+    loading.value = false
+  }
+}
+
+watch(
+  () => [props.visible, props.photoId] as const,
+  ([visible, id]) => {
+    if (visible && id) {
+      fetchDetail(id)
+    }
+  },
+  { immediate: true }
+)
+</script>
+
+<style scoped>
+.preview-box {
+  @apply w-full rounded-lg overflow-hidden bg-gray-100 cursor-pointer;
+}
+
+.preview-img {
+  @apply w-full max-h-60 object-contain bg-gray-50;
+}
+</style>

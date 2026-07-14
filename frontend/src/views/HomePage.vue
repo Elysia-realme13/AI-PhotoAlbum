@@ -80,10 +80,17 @@
           <div
             v-for="(photo, index) in recentPhotos"
             :key="photo.id"
-            class="aspect-square bg-gray-100 rounded-lg overflow-hidden cursor-pointer hover:opacity-80 transition-opacity"
+            class="group relative aspect-square bg-gray-100 rounded-lg overflow-hidden cursor-pointer"
             @click="handlePreview(photo, index)"
           >
-            <img :src="photoApi.thumbnailUrl(photo.id)" class="w-full h-full object-cover" />
+            <img :src="photoApi.thumbnailUrl(photo.id)" class="w-full h-full object-cover group-hover:opacity-80 transition-opacity" />
+            <button
+              class="absolute top-1 right-1 w-7 h-7 rounded-full bg-black/40 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-blue-500"
+              @click.stop="handleDetail(photo)"
+              title="详情"
+            >
+              <el-icon :size="14"><InfoFilled /></el-icon>
+            </button>
           </div>
         </div>
       </div>
@@ -97,12 +104,17 @@
       @close="previewVisible = false"
       :hide-on-click-modal="true"
     />
+
+    <!-- 详情抽屉 -->
+    <PhotoDetailDrawer v-model:visible="detailVisible" :photo-id="detailPhotoId" />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { InfoFilled } from '@element-plus/icons-vue'
 import { photoApi } from '@/api/photo'
+import PhotoDetailDrawer from '@/components/photo/PhotoDetailDrawer.vue'
 import type { PhotoItem } from '@/types/photo'
 
 const loading = ref(true)
@@ -126,6 +138,15 @@ const previewList = computed(() =>
 function handlePreview(_photo: PhotoItem, index: number) {
   previewIndex.value = index
   previewVisible.value = true
+}
+
+// ── 详情抽屉 ─────────────────
+const detailVisible = ref(false)
+const detailPhotoId = ref<string | null>(null)
+
+function handleDetail(photo: PhotoItem) {
+  detailPhotoId.value = photo.id
+  detailVisible.value = true
 }
 
 // ── 加载数据 ─────────────────────────

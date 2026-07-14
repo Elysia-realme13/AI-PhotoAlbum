@@ -1,6 +1,165 @@
 <template>
-  <div>
-    <h2 class="text-2xl font-bold text-gray-800 mb-6">足迹地图</h2>
-    <el-empty description="功能开发中，敬请期待..." />
+  <div class="flex flex-col h-full">
+    <!-- 顶部信息栏 -->
+    <div class="flex items-center justify-between mb-4 shrink-0">
+      <h2 class="text-2xl font-bold text-gray-800">足迹地图</h2>
+      <div class="flex items-center gap-4 text-sm text-gray-500">
+        <span v-if="!loading">
+          共 <strong class="text-gray-800">{{ locations.length }}</strong> 张照片有拍摄位置
+        </span>
+        <span v-if="cities.length > 0">
+          覆盖 <strong class="text-gray-800">{{ cities.length }}</strong> 个城市
+        </span>
+      </div>
+    </div>
+
+    <!-- 加载状态 -->
+    <div v-if="loading" class="flex-1 bg-gray-100 rounded-xl animate-pulse flex items-center justify-center">
+      <div class="text-center text-gray-400">
+        <el-icon :size="48" class="mb-2"><Loading /></el-icon>
+        <p>加载地图数据中...</p>
+      </div>
+    </div>
+
+    <!-- 空状态 -->
+    <div v-else-if="locations.length === 0" class="flex-1 bg-gray-50 rounded-xl flex items-center justify-center">
+      <el-empty description="还没有带 GPS 信息的照片，上传照片时会自动提取拍摄位置">
+        <el-button type="primary" @click="$router.push('/photos')">去上传照片</el-button>
+      </el-empty>
+    </div>
+
+    <!-- 地图容器 -->
+    <div v-else ref="mapContainer" class="flex-1 min-h-0 rounded-xl overflow-hidden shadow-sm border border-gray-200" />
   </div>
 </template>
+
+<script setup lang="ts">
+import { ref, onMounted, onUnmounted, computed } from 'vue'
+import { Loading } from '@element-plus/icons-vue'
+import { mapApi } from '@/api/map'
+import { photoApi } from '@/api/photo'
+import type { PhotoLocation } from '@/types/map'
+
+const mapContainer = ref<HTMLElement | null>(null)
+const loading = ref(true)
+const locations = ref<PhotoLocation[]>([])
+
+let mapInstance: any = null
+
+// 统计去重城市数
+const cities = computed(() => {
+  const set = new Set<string>()
+  locations.value.forEach((loc) => {
+    if (loc.city) set.add(loc.city)
+    else if (loc.province) set.add(loc.province)
+  })
+  return [...set]
+})
+
+function formatDate(dateStr?: string): string {
+  if (!dateStr) return ''
+  const d = new Date(dateStr)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+function buildPopupContent(loc: PhotoLocation): string {
+  const thumbUrl = photoApi.thumbnailUrl(loc.id)
+  const name = loc.original_name || '照片'
+  const date = formatDate(loc.photo_time)
+  const locationParts = [loc.country, loc.province, loc.city].filter(Boolean)
+  const locationStr = locationParts.join(' · ')
+
+  return `
+    <div style="width:180px">
+      <img src="${thumbUrl}" style="width:100%;height:120px;object-fit:cover;border-radius:6px 6px 0 0" />
+      <div style="padding:8px 4px 4px">
+        <div style="font-size:13px;font-weight:600;color:#333;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${name}">${name}</div>
+        ${date ? `<div style="font-size:11px;color:#888;margin-top:2px">${date}</div>` : ''}
+        ${locationStr ? `<div style="font-size:11px;color:#666;margin-top:2px">📍 ${locationStr}</div>` : ''}
+      </div>
+    </div>
+  `
+}
+
+async function initMap() {
+  if (!mapContainer.value || locations.value.length === 0) return
+
+  // 动态导入 Leaflet，避免静态导入时的运行时问题
+  const L = await import('leaflet')
+
+  // 初始化地图，默认中心设为中国
+  mapInstance = L.map(mapContainer.value, {
+    center: [35.0, 105.0],
+    zoom: 4,
+    zoomControl: true,
+  })
+
+  // OpenStreetMap 瓦片
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; OpenStreetMap contributors',
+    maxZoom: 19,
+  }).addTo(mapInstance)
+
+  // 添加标记点
+  const bounds = L.latLngBounds([])
+
+  locations.value.forEach((loc) => {
+    const marker = L.marker([loc.latitude, loc.longitude])
+    marker.bindPopup(buildPopupContent(loc), {
+      maxWidth: 220,
+      className: 'photo-popup',
+    })
+    marker.addTo(mapInstance)
+    bounds.extend([loc.latitude, loc.longitude])
+  })
+
+  // 自适应边界
+  if (locations.value.length === 1) {
+    mapInstance.setView([locations.value[0].latitude, locations.value[0].longitude], 12)
+  } else {
+    mapInstance.fitBounds(bounds, { padding: [40, 40], maxZoom: 12 })
+  }
+}
+
+async function fetchLocations() {
+  loading.value = true
+  try {
+    const res = await mapApi.getLocations()
+    locations.value = res.data
+  } catch {
+    // handled by interceptor
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(async () => {
+  await fetchLocations()
+  // 等 DOM 更新后再初始化地图
+  setTimeout(initMap, 0)
+})
+
+onUnmounted(() => {
+  if (mapInstance) {
+    mapInstance.remove()
+    mapInstance = null
+  }
+})
+</script>
+
+<style>
+@import 'leaflet/dist/leaflet.css';
+
+/* 自定义 popup 样式 */
+.photo-popup .leaflet-popup-content-wrapper {
+  padding: 0;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.photo-popup .leaflet-popup-content {
+  margin: 0;
+}
+.photo-popup .leaflet-popup-tip {
+  box-shadow: none;
+}
+</style>

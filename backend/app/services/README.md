@@ -59,7 +59,7 @@ thumb = generate_thumbnail_bytes(original_bytes)
 
 | 项目 | 说明 |
 | --- | --- |
-| 模型 | Ultralytics YOLO11n（COCO 80类，约6MB） |
+| 模型 | Ultralytics YOLO26n（COCO 80类，约6MB） |
 | 依赖 | ultralytics, numpy, Pillow |
 | 缓存 | 全局单例模型实例，避免重复加载 |
 
@@ -89,7 +89,7 @@ thumb = generate_thumbnail_bytes(original_bytes)
     "image_width": 1920,
     "image_height": 1080,
     "total": 3,
-    "model": "yolo11n.pt",
+    "model": "yolo26n.pt",
 }
 ```
 
@@ -247,7 +247,7 @@ else:
 | agents/search_agent | langgraph | uv add langgraph |
 
 > pgvector 和 Pillow 已在 pyproject.toml 中。
-> YOLO模型权重（yolo11n.pt）首次调用时自动下载。
+> YOLO模型权重（yolo26n.pt）首次调用时自动下载。
 > CLIP embedding 模型需额外部署（ai_providers/embedding.py 预留）。
 > 人脸 embedding 由 InsightFace 在 ai_providers/ 中提取。
 

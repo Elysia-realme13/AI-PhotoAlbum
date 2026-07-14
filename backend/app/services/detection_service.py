@@ -1,7 +1,7 @@
 """
 YOLO 目标检测服务
 
-使用 Ultralytics YOLO11（COCO 数据集训练）对图片进行目标检测。
+使用 Ultralytics YOLO26（COCO 数据集训练）对图片进行目标检测。
 支持检测 80 种 COCO 常见物体（人、车、动物、家具等）。
 
 使用方式：
@@ -35,8 +35,8 @@ COCO_CLASSES = [
 _model = None
 _model_name: Optional[str] = None
 
-# 默认模型名称（可用 yolo11n.pt / yolo11s.pt / yolo11m.pt 等）
-DEFAULT_MODEL = "yolo11n.pt"
+# 默认模型名称（可用 yolo26n.pt / yolo26s.pt / yolo26m.pt 等）
+DEFAULT_MODEL = "yolo26n.pt"
 
 
 def _get_model(model_name: str = DEFAULT_MODEL):
@@ -44,7 +44,7 @@ def _get_model(model_name: str = DEFAULT_MODEL):
     获取（缓存）YOLO 模型实例
 
     Args:
-        model_name: 模型名称，如 yolo11n.pt / yolo11s.pt
+        model_name: 模型名称，如 yolo26n.pt / yolo26s.pt
 
     Returns:
         Ultralytics YOLO 模型实例，或 None（加载失败时）

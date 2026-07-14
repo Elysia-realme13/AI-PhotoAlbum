@@ -14,6 +14,15 @@
 - **Docker 依赖锁定** — 修改 `Dockerfile` 中 pip/npm 依赖安装方式，固定版本号，避免依赖浮动导致构建不一致
 - **前后端 Docker 构建优化** — 统一依赖安装策略，确保开发/生产环境一致性
 
+> **2026-07-14** — 回收站功能
+
+### 🗑️ 新增功能（回收站）
+- **软删除恢复** — 照片删除后进入回收站，支持一键恢复
+- **永久删除** — 支持单张/批量彻底删除照片及关联文件
+- **自动清理** — 7 天过期自动清理，后台定时任务每小时检查
+- **回收站页面** — 缩略图网格展示、剩余天数角标、清空回收站
+- **错误提示优化** — 前端请求拦截器区分多种错误类型，提示更友好
+
 ---
 
 # AI-PhotoAlbum — AI 智能相册
@@ -61,16 +70,17 @@
 - [x] 前端 Vue 3 脚手架（路由/布局/状态管理/Element Plus/TailwindCSS）
 - [x] 登录/注册页面 + 首页骨架 + 7 个功能页面占位
 
-### Phase 2 — 照片核心 🚧 待开发
+### Phase 2 — 照片核心 🚧 进行中
 
-- [ ] 照片上传 API（单张/批量，支持 HEIC 格式）
-- [ ] EXIF 元数据提取（GPS 坐标、相机型号、拍摄参数）
-- [ ] 缩略图生成（400px，保持宽高比）
-- [ ] 照片列表/详情/软删除/恢复 API
-- [ ] 媒体文件服务（原始图 + 缩略图）
-- [ ] 前端照片浏览页（瀑布流/网格 + Lightbox 灯箱）
+- [x] 照片上传 API（单张/批量，支持 HEIC 格式）
+- [x] EXIF 元数据提取（GPS 坐标、相机型号、拍摄参数）
+- [x] 缩略图生成（400px，保持宽高比）
+- [x] 照片列表/详情/软删除/恢复 API
+- [x] 媒体文件服务（原始图 + 缩略图）
+- [x] 回收站功能（软删除恢复、7 天自动清理、永久删除）
+- [x] 前端照片浏览页（网格/列表双视图 + Lightbox 灯箱）
 - [ ] 前端照片详情侧边栏（EXIF 信息展示）
-- [ ] 前端上传组件（拖拽上传 + 进度条）
+- [x] 前端上传组件（拖拽上传 + 进度条）
 
 ### Phase 3 — AI 能力集成 🚧 待开发
 
@@ -156,13 +166,16 @@ AI-PhotoAlbum/
 │       │   └── agent.py            # 对话/消息
 │       │
 │       ├── crud/
-│       │   └── user.py             # 用户 CRUD + 认证逻辑
+│       │   ├── user.py             # 用户 CRUD + 认证逻辑
+│       │   └── photo.py            # ✅ 照片 CRUD + 软删除/恢复/清理
 │       │
 │       ├── api/                    # REST API 路由
 │       │   ├── deps.py             # 依赖注入（认证/DB会话）
 │       │   ├── auth.py             # ✅ POST /auth/register, /auth/login, GET /auth/me
 │       │   ├── system.py           # ✅ GET /api/health
-│       │   ├── photo.py            # 🚧 照片 CRUD + 上传
+│       │   ├── photo.py            # ✅ 照片 CRUD + 上传
+│       │   ├── medias.py           # ✅ 媒体文件服务（上传/缩略图/下载）
+│       │   ├── recycle_bin.py      # ✅ 回收站（列表/恢复/清空/永久删除）
 │       │   ├── album.py            # 🚧 相册管理
 │       │   ├── face.py             # 🚧 人脸管理
 │       │   ├── search.py           # 🚧 智能搜索
@@ -170,6 +183,8 @@ AI-PhotoAlbum/
 │       │   └── tasks.py            # 🚧 任务状态
 │       │
 │       ├── services/               # 业务服务层
+│       │   ├── exif_service.py      # ✅ EXIF 元数据提取
+│       │   ├── thumbnail.py         # ✅ 缩略图生成
 │       │   ├── agent/              # 🚧 LangGraph Agent
 │       │   └── ai_providers/       # 🚧 AI 模型封装
 │       │       ├── face.py         # InsightFace
@@ -197,10 +212,12 @@ AI-PhotoAlbum/
 │       │   └── index.ts            # 路由配置 + 登录守卫
 │       │
 │       ├── stores/
-│       │   └── user.ts             # 用户状态（Pinia）
+│       │   ├── user.ts             # 用户状态（Pinia）
+│       │   └── photo.ts            # ✅ 照片状态管理
 │       │
 │       ├── api/
-│       │   └── auth.ts             # ✅ 认证 API 封装
+│       │   ├── auth.ts             # ✅ 认证 API 封装
+│       │   └── photo.ts            # ✅ 照片/上传/回收站 API 封装
 │       │
 │       ├── utils/
 │       │   └── request.ts          # Axios + Token 拦截器
@@ -212,14 +229,19 @@ AI-PhotoAlbum/
 │       │   └── MainLayout.vue      # 主布局（Header + Sidebar + 内容区）
 │       │
 │       ├── components/
-│       │   └── layout/
-│       │       ├── AppHeader.vue   # 顶部导航栏
-│       │       └── AppSidebar.vue  # 侧边菜单栏
+│       │   ├── layout/
+│       │   │   ├── AppHeader.vue   # 顶部导航栏
+│       │   │   └── AppSidebar.vue  # 侧边菜单栏
+│       │   └── photo/
+│       │       ├── PhotoCard.vue   # ✅ 照片卡片
+│       │       ├── PhotoGrid.vue   # ✅ 照片网格/列表视图
+│       │       └── UploadDialog.vue # ✅ 上传对话框（拖拽+进度）
 │       │
 │       └── views/                  # 页面视图
 │           ├── LoginPage.vue       # ✅ 登录/注册（Tab 切换）
 │           ├── HomePage.vue        # ✅ 首页（统计卡片 + 最近照片）
-│           ├── PhotosPage.vue      # 🚧 照片浏览 + 上传
+│           ├── PhotosPage.vue      # ✅ 照片浏览 + 上传
+│           ├── RecycleBinPage.vue  # ✅ 回收站（恢复/彻底删除/清空）
 │           ├── AlbumPage.vue       # 🚧 相册管理
 │           ├── FacePage.vue        # 🚧 人物相册
 │           ├── MapPage.vue         # 🚧 足迹地图
@@ -234,6 +256,7 @@ AI-PhotoAlbum/
 │   │   ├── clip-ViT-B-32/         # CLIP 图文模型
 │   │   └── photo-cls/              # 场景分类模型
 │   ├── uploads/                    # 用户上传照片
+│   ├── thumbnails/                 # 缩略图缓存
 │   └── logs/                       # 应用日志
 │
 └── tests/                          # 测试目录
@@ -279,7 +302,11 @@ AI-PhotoAlbum/
 docker compose up -d
 ```
  
-启动 PostgreSQL（含 pgvector 向量扩展）。
+一键启动全部服务（PostgreSQL + pgvector + MinIO + 后端 + 前端）。
+- 后端 API：`http://localhost:8000`
+- 前端页面：`http://localhost:3000`
+- API 文档：`http://localhost:8000/docs`
+- MinIO 控制台：`http://localhost:9001`
  
 ### 3. 配置并启动后端
  

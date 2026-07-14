@@ -70,6 +70,13 @@ async def upload_photos(
                 continue
 
             photo = result["photo"]
+            # 上传后异步生成 CLIP 向量（不阻塞返回）
+            from app.tasks.vector_tasks import process_photo_vector
+            try:
+                process_photo_vector(str(photo.id), photo.file_path)
+            except Exception:
+                pass  # 向量生成失败不影响上传
+
             # 构造列表项（简化版，不含嵌套数据）
             results.photos.append(UploadResult(
                 photo=PhotoListItem(

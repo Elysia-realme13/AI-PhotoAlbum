@@ -245,6 +245,8 @@ async def upload_single_photo(
     if exif_data:
         create_photo_metadata(db, photo_id=photo.id, **exif_data)
 
+    # TODO: 后续可考虑将 CLIP 向量生成移到此处（create_photo 之后），
+    #       直接使用局部变量 file_path，避免在 api/photo.py 中通过 result["photo"] 间接获取。
     # 7. 创建异步分析任务
     task_types = [
         TaskType.exif_extract,       # EXIF 提取（如果有的话二次提取）

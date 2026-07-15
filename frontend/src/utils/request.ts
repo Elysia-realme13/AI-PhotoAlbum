@@ -19,9 +19,16 @@ request.interceptors.request.use(
   (error) => Promise.reject(error)
 )
 
-// 响应拦截器：统一错误处理
+// 响应拦截器：BaseResponse 解包 + 统一错误处理
 request.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // 后端统一返回 {code, msg, data} 格式，自动解包 data
+    const body = response.data
+    if (body && typeof body === 'object' && 'code' in body && 'data' in body) {
+      response.data = body.data
+    }
+    return response
+  },
   (error) => {
     if (error.response?.status === 401) {
       localStorage.removeItem('token')

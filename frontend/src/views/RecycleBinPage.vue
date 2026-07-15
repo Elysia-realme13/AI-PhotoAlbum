@@ -2,15 +2,6 @@
   <div>
     <div class="flex items-center justify-between mb-6">
       <h2 class="text-2xl font-bold text-gray-800">回收站</h2>
-      <el-button
-        v-if="photos.length > 0"
-        type="danger"
-        :icon="Delete"
-        :loading="emptying"
-        @click="handleEmptyAll"
-      >
-        清空回收站
-      </el-button>
     </div>
 
     <!-- 加载中 -->
@@ -80,7 +71,6 @@ import type { PhotoItem } from '@/types/photo'
 
 const photos = ref<PhotoItem[]>([])
 const loading = ref(false)
-const emptying = ref(false)
 
 function daysLeft(photo: PhotoItem): number {
   return photoApi.daysLeft(photo.deleted_at || '')
@@ -89,8 +79,8 @@ function daysLeft(photo: PhotoItem): number {
 async function fetchRecycleBin() {
   loading.value = true
   try {
-    const res = await photoApi.getRecycleBin()
-    photos.value = res.data.items
+    const res = await photoApi.list({ is_deleted: true } as any)
+    photos.value = res.data.items || []
   } catch {
     // handled by interceptor
   } finally {
@@ -120,24 +110,6 @@ async function handlePermanentDelete(photo: PhotoItem) {
     await fetchRecycleBin()
   } catch {
     // cancelled
-  }
-}
-
-async function handleEmptyAll() {
-  try {
-    await ElMessageBox.confirm(
-      `将永久删除回收站中的 ${photos.value.length} 张照片，此操作不可恢复。`,
-      '确认清空回收站',
-      { confirmButtonText: '清空', cancelButtonText: '取消', type: 'error' }
-    )
-    emptying.value = true
-    await photoApi.emptyRecycleBin()
-    ElMessage.success('回收站已清空')
-    await fetchRecycleBin()
-  } catch {
-    // cancelled
-  } finally {
-    emptying.value = false
   }
 }
 

@@ -5,15 +5,15 @@ export interface PhotoListParams {
   page?: number
   page_size?: number
   sort_by?: string
-  sort_order?: string
+  order?: string
 }
 
 export const photoApi = {
   /** 上传照片 */
   upload(file: File, onProgress?: (pct: number) => void) {
     const formData = new FormData()
-    formData.append('file', file)
-    return request.post<PhotoDetail>('/photos/upload', formData, {
+    formData.append('files', file)
+    return request.post('/photos/upload', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
       onUploadProgress: (e) => {
         if (e.total) onProgress?.(Math.round((e.loaded * 100) / e.total))
@@ -23,15 +23,15 @@ export const photoApi = {
 
   /** 照片列表 */
   list(params: PhotoListParams = {}) {
-    return request.get<PhotoListResponse>('/photos', { params })
+    return request.get('/photos', { params })
   },
 
   /** 照片详情 */
   getById(id: string) {
-    return request.get<PhotoDetail>(`/photos/${id}`)
+    return request.get(`/photos/${id}`)
   },
 
-  /** 软删除 */
+  /** 软删除（移入回收站） */
   delete(id: string) {
     return request.delete(`/photos/${id}`)
   },
@@ -41,6 +41,11 @@ export const photoApi = {
     return request.post(`/photos/${id}/restore`)
   },
 
+  /** 永久删除 */
+  permanentDelete(id: string) {
+    return request.delete(`/photos/${id}?permanent=true`)
+  },
+
   /** 获取 EXIF 元数据 */
   getMetadata(id: string) {
     return request.get(`/photos/${id}/metadata`)
@@ -48,29 +53,12 @@ export const photoApi = {
 
   /** 缩略图 URL */
   thumbnailUrl(id: string) {
-    return `/api/medias/${id}/thumbnail`
+    return `/api/photos/${id}/thumbnail`
   },
 
   /** 原始文件 URL */
   fileUrl(id: string) {
-    return `/api/medias/${id}/file`
-  },
-
-  // ── 回收站 ────────────────────────────
-
-  /** 回收站列表 */
-  getRecycleBin() {
-    return request.get<PhotoListResponse>('/photos/recycle-bin/list')
-  },
-
-  /** 永久删除 */
-  permanentDelete(id: string) {
-    return request.delete(`/photos/recycle-bin/${id}/permanent`)
-  },
-
-  /** 清空回收站 */
-  emptyRecycleBin() {
-    return request.post('/photos/recycle-bin/empty')
+    return `/api/photos/${id}/file`
   },
 
   /** 剩余天数 */

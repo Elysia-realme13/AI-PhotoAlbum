@@ -2,7 +2,12 @@
   <div>
     <!-- 相册列表视图 -->
     <template v-if="view === 'list'">
-      <h2 class="text-2xl font-bold text-gray-800 mb-6">相册</h2>
+      <div class="flex items-center justify-between mb-6">
+        <h2 class="text-2xl font-bold text-gray-800">相册</h2>
+        <el-button type="primary" @click="showCreateDialog = true">
+          创建相册
+        </el-button>
+      </div>
 
       <!-- 加载骨架屏 -->
       <div v-if="loading" class="grid grid-cols-4 gap-4">
@@ -21,7 +26,7 @@
           <div
             v-for="album in albums"
             :key="album.key"
-            class="group bg-white rounded-xl overflow-hidden shadow-sm border border-gray-100 cursor-pointer hover:shadow-md transition-shadow"
+            class="group bg-white rounded-xl overflow-hidden shadow-sm border border-gray-100 cursor-pointer hover:shadow-md transition-shadow relative"
             @click="openAlbum(album)"
           >
             <div class="relative aspect-square bg-gray-100 overflow-hidden">
@@ -37,6 +42,14 @@
               <p class="text-sm font-medium text-gray-800 truncate">{{ album.title }}</p>
               <p class="text-xs text-gray-400 mt-0.5">{{ album.photos.length }} 张照片</p>
             </div>
+            <!-- 删除按钮 -->
+            <button
+              class="absolute top-2 right-2 w-8 h-8 rounded-full bg-black/40 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-500"
+              @click.stop="confirmDeleteAlbum(album)"
+              title="删除相册"
+            >
+              <el-icon :size="16"><Delete /></el-icon>
+            </button>
           </div>
         </div>
       </template>
@@ -88,7 +101,8 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { ArrowLeft, InfoFilled } from '@element-plus/icons-vue'
+import { ArrowLeft, InfoFilled, Delete } from '@element-plus/icons-vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { photoApi } from '@/api/photo'
 import { loadAllPhotos } from '@/api/search'
 import PhotoDetailDrawer from '@/components/photo/PhotoDetailDrawer.vue'
@@ -102,6 +116,7 @@ interface TimeAlbum {
 
 const loading = ref(true)
 const albums = ref<TimeAlbum[]>([])
+const showCreateDialog = ref(false)
 
 // ── 视图切换（列表 / 详情） ─────────────────
 const view = ref<'list' | 'detail'>('list')
@@ -115,6 +130,27 @@ function openAlbum(album: TimeAlbum) {
 function backToList() {
   view.value = 'list'
   currentAlbum.value = null
+}
+
+// ── 删除相册 ─────────────────
+async function confirmDeleteAlbum(album: TimeAlbum) {
+  try {
+    await ElMessageBox.confirm(
+      `确定要删除相册"${album.title}"吗？相册中的照片不会被删除。`,
+      '删除相册',
+      {
+        confirmButtonText: '删除',
+        cancelButtonText: '取消',
+        type: 'warning',
+      }
+    )
+    
+    // 从列表中移除
+    albums.value = albums.value.filter(a => a.key !== album.key)
+    ElMessage.success('相册删除成功')
+  } catch {
+    // 用户取消
+  }
 }
 
 // ── 图片预览 ─────────────────────────

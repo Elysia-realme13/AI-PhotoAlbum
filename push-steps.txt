@@ -1,0 +1,59 @@
+推送到自己的仓库 - 简单步骤
+============================
+
+第1步：Fork 仓库
+----------------
+1. 打开 https://github.com/boneluo/AI-PhotoAlbum
+2. 点击右上角的 "Fork" 按钮
+3. 选择您的 GitHub 账号
+4. 等待 Fork 完成
+
+第2步：添加您的 Fork 作为远程仓库
+--------------------------------
+在终端运行（将 "您的用户名" 替换为您的 GitHub 用户名）：
+
+git remote add myfork git@github.com:您的用户名/AI-PhotoAlbum.git
+
+第3步：推送到您的 Fork
+----------------------
+git push -u myfork feature/album-management
+
+第4步：创建 Pull Request
+------------------------
+1. 访问：https://github.com/您的用户名/AI-PhotoAlbum
+2. 点击 "Compare & pull request" 按钮
+3. 填写标题：feat(album): 新增相册CRUD功能和UI动画优化
+4. 复制 PR_DESCRIPTION.md 的内容作为描述
+5. 点击 "Create pull request" 按钮
+
+如果 SSH 方式有问题
+-------------------
+使用 HTTPS 方式：
+
+git remote add myfork https://github.com/您的用户名/AI-PhotoAlbum.git
+git push -u myfork feature/album-management
+
+推送时需要输入用户名和密码（或 Personal Access Token）。
+
+如果没有 SSH 密钥
+-----------------
+生成 SSH 密钥：
+
+ssh-keygen -t ed25519 -C "z2644276566@163.com"
+cat ~/.ssh/id_ed25519.pub
+
+将输出的公钥添加到 GitHub：
+1. 访问 https://github.com/settings/keys
+2. 点击 "New SSH key"
+3. 粘贴公钥内容
+4. 点击 "Add SSH key"
+
+验证推送成功
+-----------
+推送成功后，访问：
+https://github.com/您的用户名/AI-PhotoAlbum/tree/feature/album-management
+
+确认代码已经推送，然后创建 Pull Request。
+
+当前分支：feature/album-management
+目标仓库：boneluo/AI-PhotoAlbum 的 master 分支

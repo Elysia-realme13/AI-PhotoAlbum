@@ -13,9 +13,11 @@
     <!-- 照片网格 -->
     <div v-else class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
       <PhotoCard
-        v-for="photo in photos"
+        v-for="(photo, index) in photos"
         :key="photo.id"
         :photo="photo"
+        :style="{ animationDelay: `${index * 50}ms` }"
+        class="fade-in"
         @click="$emit('preview', photo)"
         @detail="$emit('detail', photo)"
         @delete="$emit('delete', photo)"

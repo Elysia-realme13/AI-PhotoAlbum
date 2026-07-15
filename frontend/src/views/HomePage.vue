@@ -26,7 +26,7 @@
     <template v-else>
       <!-- 统计卡片 -->
       <div class="grid grid-cols-4 gap-4 mb-6">
-        <div class="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
+        <div class="bg-white rounded-xl p-5 shadow-sm border border-gray-100 hover-scale cursor-pointer">
           <div class="flex items-center justify-between">
             <div>
               <p class="text-gray-500 text-sm">总照片数</p>
@@ -37,7 +37,7 @@
             </div>
           </div>
         </div>
-        <div class="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
+        <div class="bg-white rounded-xl p-5 shadow-sm border border-gray-100 hover-scale cursor-pointer">
           <div class="flex items-center justify-between">
             <div>
               <p class="text-gray-500 text-sm">相册数</p>
@@ -48,7 +48,7 @@
             </div>
           </div>
         </div>
-        <div class="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
+        <div class="bg-white rounded-xl p-5 shadow-sm border border-gray-100 hover-scale cursor-pointer">
           <div class="flex items-center justify-between">
             <div>
               <p class="text-gray-500 text-sm">识别人物</p>
@@ -59,7 +59,7 @@
             </div>
           </div>
         </div>
-        <div class="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
+        <div class="bg-white rounded-xl p-5 shadow-sm border border-gray-100 hover-scale cursor-pointer">
           <div class="flex items-center justify-between">
             <div>
               <p class="text-gray-500 text-sm">足迹城市</p>
@@ -156,7 +156,7 @@ async function fetchData() {
   try {
     const [statsRes, recentRes, locationsRes] = await Promise.all([
       photoApi.list({ page: 1, page_size: 1 }),
-      photoApi.list({ page: 1, page_size: 6, sort_by: 'upload_time', sort_order: 'desc' }),
+      photoApi.list({ page: 1, page_size: 6, sort_by: 'upload_time', order: 'desc' }),
       mapApi.getLocations(),
     ])
     stats.value.photos = statsRes.data.total

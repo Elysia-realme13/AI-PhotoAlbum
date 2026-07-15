@@ -2,11 +2,7 @@ import request from '@/utils/request'
 import type { Album, AlbumPhotosResponse, AlbumCreateParams } from '@/types/album'
 
 /**
- * 相册 API 预留封装。
- *
- * 注意：后端相册接口（Phase 4）尚未实现，当前相册页使用前端按时间分组的
- * 虚拟相册方案。待后端 /api/albums 就绪后，相册页可切换为调用以下接口，
- * 无需改动其余业务代码。
+ * 相册 API
  */
 export interface AlbumPhotosParams {
   page?: number
@@ -14,18 +10,43 @@ export interface AlbumPhotosParams {
 }
 
 export const albumApi = {
-  /** 相册列表 —— 预留 GET /albums */
+  /** 相册列表 */
   list() {
     return request.get<Album[]>('/albums')
   },
 
-  /** 相册内照片 —— 预留 GET /albums/{id}/photos */
+  /** 相册详情 */
+  getById(id: string) {
+    return request.get<Album>(`/albums/${id}`)
+  },
+
+  /** 创建相册 */
+  create(data: AlbumCreateParams) {
+    return request.post<Album>('/albums', data)
+  },
+
+  /** 更新相册 */
+  update(id: string, data: Partial<AlbumCreateParams>) {
+    return request.put<Album>(`/albums/${id}`, data)
+  },
+
+  /** 删除相册 */
+  delete(id: string) {
+    return request.delete(`/albums/${id}`)
+  },
+
+  /** 相册内照片 */
   getPhotos(id: string, params: AlbumPhotosParams = {}) {
     return request.get<AlbumPhotosResponse>(`/albums/${id}/photos`, { params })
   },
 
-  /** 创建相册 —— 预留 POST /albums */
-  create(data: AlbumCreateParams) {
-    return request.post<Album>('/albums', data)
+  /** 将照片添加到相册 */
+  addPhoto(albumId: string, photoId: string) {
+    return request.post(`/albums/${albumId}/photos/${photoId}`)
+  },
+
+  /** 从相册移除照片 */
+  removePhoto(albumId: string, photoId: string) {
+    return request.delete(`/albums/${albumId}/photos/${photoId}`)
   },
 }

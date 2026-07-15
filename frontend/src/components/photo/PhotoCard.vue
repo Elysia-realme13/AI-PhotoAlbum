@@ -1,6 +1,6 @@
 <template>
   <div
-    class="group relative aspect-square rounded-lg overflow-hidden bg-gray-100 cursor-pointer shadow-sm hover:shadow-md transition-shadow"
+    class="group relative aspect-square rounded-lg overflow-hidden bg-gray-100 cursor-pointer shadow-sm hover:shadow-lg transition-all duration-300 hover:-translate-y-1"
     @click="$emit('click')"
   >
     <!-- 缩略图 -->

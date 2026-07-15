@@ -1,6 +1,12 @@
 ## 📝 最近更新
 
-> **2026-07-15** — 集成分支（API + AI/VLM 合并）
+> **2026-07-15** — 相册管理功能 + UI 动画优化
+
+### 📸 相册管理
+- **相册 CRUD API** — 完整的相册创建、读取、更新、删除功能
+- **相册照片管理** — 添加/移除照片，分页查询相册内照片
+- **前端相册页面** — 相册列表、删除确认对话框、创建相册按钮
+- **前端 UI 动画** — 页面过渡动画、卡片悬停效果、导航栏动画
 
 ### 🤖 AI 服务层
 - **YOLO 目标检测** — Ultralytics YOLO11，支持 80 类 COCO 物体识别
@@ -99,9 +105,11 @@
 - [ ] TaskManager 异步任务队列（APScheduler）
 - [ ] AI 分析进度前端展示
 
-### Phase 4 — 相册与人物 🚧 待开发
+### Phase 4 — 相册与人物 🚧 进行中
 
-- [ ] 相册 CRUD API（手动创建/编辑/删除）
+- [x] 相册 CRUD API（手动创建/编辑/删除）
+- [x] 相册照片管理 API（添加/移除照片，分页查询）
+- [x] 前端相册页面（列表视图 + 删除功能）
 - [ ] 智能相册（按时间/地点/标签/人物条件自动聚合）
 - [ ] 人物管理 API（人脸列表/详情/合并/重命名/隐藏）
 - [ ] 照片标签系统（AI 自动标签 + 手动编辑）
@@ -174,7 +182,8 @@ AI-PhotoAlbum/
 │       │
 │       ├── crud/
 │       │   ├── user.py             # 用户 CRUD + 认证逻辑
-│       │   └── photo.py            # ✅ 照片 CRUD + 软删除/恢复/清理
+│       │   ├── photo.py            # ✅ 照片 CRUD + 软删除/恢复/清理
+│       │   └── album.py            # ✅ 相册 CRUD + 照片关联管理
 │       │
 │       ├── api/                    # REST API 路由
 │       │   ├── deps.py             # 依赖注入（认证/DB会话）
@@ -182,7 +191,7 @@ AI-PhotoAlbum/
 │       │   ├── system.py           # ✅ GET /api/health
       │       │   ├── photo.py            # ✅ 照片 CRUD + 上传 + 文件 + 回收站
       │       │   ├── tasks.py            # ✅ 异步任务查询 + 统计
-      │       │   ├── album.py            # 🚧 相册管理
+      │       │   ├── album.py            # ✅ 相册管理 CRUD
       │       │   ├── face.py             # 🚧 人脸管理
       │       │   ├── search.py           # 🚧 智能搜索
       │       │   └── agent.py            # 🚧 Agent 对话
@@ -222,7 +231,8 @@ AI-PhotoAlbum/
 │       │
 │       ├── api/
 │       │   ├── auth.ts             # ✅ 认证 API 封装
-│       │   └── photo.ts            # ✅ 照片/上传/回收站 API 封装
+│       │   ├── photo.ts            # ✅ 照片/上传/回收站 API 封装
+│       │   └── album.ts            # ✅ 相册管理 API 封装
 │       │
 │       ├── utils/
 │       │   └── request.ts          # Axios + Token 拦截器
@@ -247,7 +257,7 @@ AI-PhotoAlbum/
 │           ├── HomePage.vue        # ✅ 首页（统计卡片 + 最近照片）
 │           ├── PhotosPage.vue      # ✅ 照片浏览 + 上传
 │           ├── RecycleBinPage.vue  # ✅ 回收站（恢复/彻底删除/清空）
-│           ├── AlbumPage.vue       # 🚧 相册管理
+│           ├── AlbumPage.vue       # ✅ 相册管理（列表 + 删除）
 │           ├── FacePage.vue        # 🚧 人物相册
 │           ├── MapPage.vue         # 🚧 足迹地图
 │           ├── SearchPage.vue      # 🚧 智能搜索
@@ -304,8 +314,7 @@ AI-PhotoAlbum/
 
 | 端口 | 服务 | 说明 |
 |:---:|------|------|
-| `8001` | 后端 FastAPI（开发） | `npm run dev` 时代理到此端口 |
-| `8000` | 后端 FastAPI（Docker） | `docker compose up` 时使用 |
+| `8000` | 后端 FastAPI（开发/Docker） | `uvicorn main:app --port 8000` |
 | `5173` | 前端 Vite 开发服务器 | `npm run dev` |
 | `3000` | 前端 Nginx（Docker） | `docker compose up` |
 | `5433` | PostgreSQL | 避免与本地 PG 冲突 |
@@ -331,11 +340,11 @@ docker compose up -d
 # ① 启动数据库
 docker compose up -d postgres
 
-# ② 后端（新终端，注意端口 8001）
+# ② 后端（新终端）
 cd backend
 cp .env.example .env        # 仅首次，可编辑 OPENAI_API_KEY
 uv sync                     # 仅首次
-uv run uvicorn main:app --reload --host 0.0.0.0 --port 8001
+uv run uvicorn main:app --reload --host 0.0.0.0 --port 8000
 
 # ③ 前端（新终端）
 cd frontend
@@ -346,24 +355,22 @@ npm run dev
 | 服务 | 地址 |
 |------|------|
 | 前端 | `http://localhost:5173` |
-| API 文档 | `http://localhost:8001/docs` |
-
-> **注意**：开发模式下后端必须用 `--port 8001`，因为 `vite.config.ts` 代理目标写的是 `localhost:8001`。
+| API 文档 | `http://localhost:8000/docs` |
 
 ### 验证
 
 ```bash
-# 健康检查（Docker 模式用 8000，开发模式用 8001）
-curl http://localhost:8001/api/health
+# 健康检查
+curl http://localhost:8000/api/health
 # → {"status":"ok","message":"AI-PhotoAlbum service is running"}
 
 # 注册用户
-curl -X POST http://localhost:8001/api/auth/register \
+curl -X POST http://localhost:8000/api/auth/register \
   -H "Content-Type: application/json" \
   -d '{"username":"demo","email":"demo@test.com","password":"123456"}'
 
 # 登录获取 Token
-curl -X POST http://localhost:8001/api/auth/login \
+curl -X POST http://localhost:8000/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{"username":"demo","password":"123456"}'
 ```

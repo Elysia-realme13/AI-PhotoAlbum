@@ -169,6 +169,38 @@ def list_photos(
     ))
 
 
+@router.get("/locations", response_model=BaseResponse[List[dict]])
+def get_photo_locations(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_required_user),
+):
+    """
+    获取所有有 GPS 坐标的照片位置
+    
+    返回所有有 GPS 坐标的照片位置信息，用于地图页展示。
+    """
+    photos = photo_crud.get_map_photos(db, current_user.id)
+    
+    items = []
+    for p in photos:
+        lat = p.metadata_info.latitude if p.metadata_info else None
+        lng = p.metadata_info.longitude if p.metadata_info else None
+        if lat is None or lng is None:
+            continue
+        items.append({
+            "id": str(p.id),
+            "latitude": lat,
+            "longitude": lng,
+            "city": p.metadata_info.city if p.metadata_info else None,
+            "province": p.metadata_info.province if p.metadata_info else None,
+            "country": p.metadata_info.country if p.metadata_info else None,
+            "photo_time": p.photo_time.isoformat() if p.photo_time else None,
+            "original_name": p.original_name,
+        })
+    
+    return BaseResponse(data=items)
+
+
 @router.get("/{photo_id}", response_model=BaseResponse[PhotoDetailResponse])
 def get_photo_detail(
     photo_id: str,

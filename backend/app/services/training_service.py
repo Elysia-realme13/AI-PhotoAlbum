@@ -561,7 +561,6 @@ def delete_training_task(task_id: str, db: Session) -> bool:
             shutil.rmtree(str(chk_dir), ignore_errors=True)
     if task.log_path and Path(task.log_path).exists():
         Path(task.log_path).unlink(missing_ok=True)
-    db.query(TrainingMetric).filter(TrainingMetric.task_id == task.id).delete()
     db.delete(task)
     db.commit()
     cleanup_signals(task_id)
@@ -726,7 +725,6 @@ def delete_model(model_name: str, db: Session) -> bool:
         pt_path.unlink()
     if onnx_path.exists():
         onnx_path.unlink()
-    db.query(TrainingMetric).filter(TrainingMetric.task_id == task.id).delete()
     db.delete(task)
     db.commit()
     return True

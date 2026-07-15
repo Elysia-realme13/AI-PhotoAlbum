@@ -83,7 +83,7 @@ class TrainingTaskCreate(BaseModel):
     task_name: str
     model_name: str
     description: Optional[str] = None
-    dataset_id: Optional[str] = None
+    dataset_id: str
     config: TrainingConfig = TrainingConfig()
 
 

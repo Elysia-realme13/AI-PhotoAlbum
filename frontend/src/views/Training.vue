@@ -39,7 +39,7 @@
 
           <!-- 数据集配置 -->
           <el-divider content-position="left">数据集配置</el-divider>
-          <el-form-item label="数据集">
+          <el-form-item label="数据集" required>
             <el-select v-model="form.dataset_id" placeholder="选择已有数据集" clearable style="width: 100%">
               <el-option v-for="ds in datasetList" :key="ds.id" :label="`${ds.name} (${ds.image_count}张, ${ds.class_count}类)`" :value="ds.id" />
             </el-select>

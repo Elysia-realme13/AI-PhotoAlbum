@@ -73,7 +73,8 @@ const photos = ref<PhotoItem[]>([])
 const loading = ref(false)
 
 function daysLeft(photo: PhotoItem): number {
-  return photoApi.daysLeft(photo.deleted_at || '')
+  if (!photo.deleted_at) return 0
+  return photoApi.daysLeft(photo.deleted_at)
 }
 
 async function fetchRecycleBin() {

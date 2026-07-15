@@ -114,6 +114,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { InfoFilled } from '@element-plus/icons-vue'
 import { photoApi } from '@/api/photo'
+import { mapApi } from '@/api/map'
 import PhotoDetailDrawer from '@/components/photo/PhotoDetailDrawer.vue'
 import type { PhotoItem } from '@/types/photo'
 
@@ -153,12 +154,20 @@ function handleDetail(photo: PhotoItem) {
 async function fetchData() {
   loading.value = true
   try {
-    const [statsRes, recentRes] = await Promise.all([
+    const [statsRes, recentRes, locationsRes] = await Promise.all([
       photoApi.list({ page: 1, page_size: 1 }),
       photoApi.list({ page: 1, page_size: 6, sort_by: 'upload_time', sort_order: 'desc' }),
+      mapApi.getLocations(),
     ])
     stats.value.photos = statsRes.data.total
     recentPhotos.value = recentRes.data.items
+    // 与足迹页相同的去重逻辑：优先用 city，回退 province
+    const citySet = new Set<string>()
+    for (const loc of locationsRes.data || []) {
+      if (loc.city) citySet.add(loc.city)
+      else if (loc.province) citySet.add(loc.province)
+    }
+    stats.value.cities = citySet.size
   } catch {
     // handled by interceptor
   } finally {

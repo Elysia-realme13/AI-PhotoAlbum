@@ -200,6 +200,10 @@ export const trainingApi = {
   getDefaultModel() {
     return request.get('/models/default/info')
   },
+  /** 重置默认模型为 YOLOv26 */
+  resetDefaultModel() {
+    return request.post('/models/default/reset')
+  },
 
   /** 删除模型 */
   deleteModel(modelName: string) {

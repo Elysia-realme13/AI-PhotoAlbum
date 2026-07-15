@@ -3,9 +3,12 @@
     <div class="flex items-center justify-between">
       <div class="flex items-center space-x-3">
         <h2 class="text-xl font-bold text-gray-800">模型管理</h2>
-        <el-tag v-if="defaultModel" type="success" effect="plain" size="small">
+<el-tag v-if="defaultModel" type="success" effect="plain" size="small">
           当前默认: {{ defaultModel }}
         </el-tag>
+        <el-button v-if="defaultModel" link type="warning" size="small" @click="handleResetDefault">
+          重置为YOLO26
+        </el-button>
       </div>
       <div class="flex items-center space-x-3">
         <el-button type="primary" @click="importDialogVisible = true">
@@ -141,6 +144,11 @@ async function handleSetDefault(model: ModelInfo) {
     ElMessage.error(err.response?.data?.detail || '设置失败')
   }
 }
+async function handleResetDefault() {
+  try { await trainingApi.resetDefaultModel(); ElMessage.success("已重置为 YOLOv26 预训练模型"); await loadModels() }
+  catch (err: any) { ElMessage.error(err.response?.data?.detail || "重置失败") }
+}
+
 async function handleDelete(model: ModelInfo) {
   try {
     await trainingApi.deleteModel(model.model_name)

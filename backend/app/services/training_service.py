@@ -726,6 +726,11 @@ def delete_model(model_name: str, db: Session) -> bool:
     task = db.query(TrainingTask).filter(TrainingTask.model_name == model_name).first()
     if not task:
         return False
+    # 如果删除的是默认模型，清除默认设置
+    if _get_default_model() == model_name:
+        config_path = Path(settings.MODELS_DIR) / ".default_model"
+        if config_path.exists():
+            config_path.unlink()
     pt_path = MODELS_DIR / f"{model_name}.pt"
     onnx_path = MODELS_DIR / f"{model_name}.onnx"
     if pt_path.exists():
@@ -739,6 +744,14 @@ def delete_model(model_name: str, db: Session) -> bool:
 
 def set_default_model(model_name: str) -> bool:
     """设置默认检测模型"""
+    # 允许传入空字符串来清除默认设置
+    if not model_name:
+        config_path = Path(settings.MODELS_DIR) / ".default_model"
+        if config_path.exists():
+            config_path.unlink()
+        logger.info("默认模型已清除，将使用 YOLOv26 预训练模型")
+        return True
+
     config_dir = Path(settings.MODELS_DIR)
     config_dir.mkdir(parents=True, exist_ok=True)
     config_path = config_dir / ".default_model"
@@ -754,6 +767,11 @@ def _get_default_model() -> Optional[str]:
     if config_path.exists():
         return config_path.read_text().strip()
     return None
+
+
+def reset_default_model() -> bool:
+    """将默认模型重置为 YOLOv26 预训练模型"""
+    return set_default_model("")
 
 
 # ══════════════════════════════════════════════════════════════════

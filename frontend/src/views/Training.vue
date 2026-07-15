@@ -26,8 +26,11 @@
               最佳 mAP50: <strong>{{ selectedTask.best_metric.toFixed(4) }}</strong>
             </span>
           </div>
-          <div class="flex space-x-2">
-            <el-button v-if="selectedTask.status === 'pending' || selectedTask.status === 'failed'"
+         <div class="flex space-x-2">
+            <el-button size="small" @click="selectedTaskId = null">
+              <el-icon><ArrowLeft /></el-icon> 返回
+            </el-button>
+           <el-button v-if="selectedTask.status === 'pending' || selectedTask.status === 'failed'"
               type="primary" size="small" @click="startTask" :loading="controlLoading">
               <el-icon><VideoPlay /></el-icon> 开始训练
             </el-button>

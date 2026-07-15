@@ -39,6 +39,7 @@ dependencies = [
     "python-dotenv>=1.2.0",
     "httpx>=0.28.0",
     "aiofiles>=24.1.0",
+    "ultralytics>=8.4.95",
 ]
 
 [dependency-groups]

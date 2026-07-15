@@ -11,6 +11,7 @@ import yaml
 import uuid
 import time
 import shutil
+import tarfile
 import zipfile
 import logging
 import threading
@@ -143,13 +144,47 @@ class _MetricCallback(TrainingCallback):
 # ══════════════════════════════════════════════════════════════════
 
 def upload_dataset(file_bytes: bytes, filename: str, db: Session) -> Dataset:
-    """上传并解压数据集 ZIP 包"""
-    name = Path(filename).stem
-    dataset_dir = DATASETS_DIR / f"{name}_{uuid.uuid4().hex[:8]}"
-    dataset_dir.mkdir(parents=True, exist_ok=True)
+    """上传并解压数据集压缩包
 
-    with zipfile.ZipFile(io.BytesIO(file_bytes)) as zf:
-        zf.extractall(str(dataset_dir))
+    支持格式: zip / tar / tar.gz / tgz / tar.bz2 / 7z / rar
+    """
+    stem = Path(filename).stem
+    if filename.lower().endswith(".tar.gz"):
+        stem = Path(filename.replace(".tar.gz", "")).name
+    elif filename.lower().endswith(".tar.bz2"):
+        stem = Path(filename.replace(".tar.bz2", "")).name
+    dataset_dir = DATASETS_DIR / f"{stem}_{uuid.uuid4().hex[:8]}"
+    dataset_dir.mkdir(parents=True, exist_ok=True)
+    ext = filename.lower().rsplit(".", 1)[-1]
+    if ".tar.gz" in filename.lower() or ".tgz" in filename.lower():
+        ext = "tar.gz"
+    elif ".tar.bz2" in filename.lower():
+        ext = "tar.bz2"
+
+    if ext == "zip":
+        with zipfile.ZipFile(io.BytesIO(file_bytes)) as zf:
+            zf.extractall(str(dataset_dir))
+    elif ext in ("tar", "tar.gz", "tgz", "tar.bz2"):
+        mode = "r:gz" if ext in ("tar.gz", "tgz") else "r:bz2" if ext == "tar.bz2" else "r:"
+        with tarfile.open(fileobj=io.BytesIO(file_bytes), mode=mode) as tf:
+            tf.extractall(str(dataset_dir))
+    elif ext == "7z":
+        try:
+            import py7zr
+            with py7zr.SevenZipFile(io.BytesIO(file_bytes), mode="r") as szf:
+                szf.extractall(str(dataset_dir))
+        except ImportError:
+            raise ValueError("解压 .7z 需要 py7zr 库: pip install py7zr")
+    elif ext == "rar":
+        try:
+            import rarfile
+            with rarfile.RarFile(io.BytesIO(file_bytes)) as rf:
+                rf.extractall(str(dataset_dir))
+        except ImportError:
+            raise ValueError("解压 .rar 需要 rarfile 库: pip install rarfile")
+    else:
+        raise ValueError(f"不支持的格式 .{ext}，支持 zip/tar/tar.gz/tgz/tar.bz2/7z/rar")
+
 
     images_dir = dataset_dir / "images"
     labels_dir = dataset_dir / "labels"

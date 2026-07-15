@@ -24,12 +24,22 @@ def upload_dataset(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_required_user),
 ):
-    """上传数据集 ZIP 包（YOLO 格式：images/ 和 labels/ 目录）"""
+    """上传数据集压缩包（YOLO 格式：images/ 和 labels/ 目录）
+
+    支持的格式: .zip / .tar / .tar.gz / .tgz / .tar.bz2 / .7z / .rar
+    """
+    SUPPORTED_EXTS = (".zip", ".tar", ".tar.gz", ".tgz", ".tar.bz2", ".7z", ".rar")
+
     if not file.filename:
         raise HTTPException(status_code=400, detail="请选择要上传的文件")
 
-    if not file.filename.lower().endswith(".zip"):
-        raise HTTPException(status_code=400, detail="仅支持 ZIP 格式的数据集包")
+    fname = file.filename.lower()
+    supported = any(fname.endswith(e) for e in SUPPORTED_EXTS)
+    if not supported:
+         raise HTTPException(
+             status_code=400,
+             detail=f"不支持的格式，支持: {', '.join(SUPPORTED_EXTS)}",
+         )
 
     try:
         file_bytes = file.file.read()

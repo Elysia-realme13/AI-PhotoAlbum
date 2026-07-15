@@ -39,10 +39,35 @@
 
           <!-- 数据集配置 -->
           <el-divider content-position="left">数据集配置</el-divider>
-          <el-form-item label="数据集" required>
+          <el-form-item label="数据来源" required>
+            <el-radio-group v-model="datasetMode">
+              <el-radio value="select">选择已有数据集</el-radio>
+              <el-radio value="upload">上传新数据集</el-radio>
+            </el-radio-group>
+          </el-form-item>
+          <el-form-item v-if="datasetMode === 'select'" label="数据集" required>
             <el-select v-model="form.dataset_id" placeholder="选择已有数据集" clearable style="width: 100%">
               <el-option v-for="ds in datasetList" :key="ds.id" :label="`${ds.name} (${ds.image_count}张, ${ds.class_count}类)`" :value="ds.id" />
             </el-select>
+          </el-form-item>
+          <el-form-item v-if="datasetMode === 'upload'" label="数据集文件" required>
+            <div class="flex items-center space-x-3 w-full">
+              <el-upload
+                ref="uploadRef"
+                :auto-upload="false"
+                :show-file-list="false"
+                :on-change="handleFileChange"
+                accept=".zip,.tar,.tar.gz,.tgz,.tar.bz2,.7z,.rar"
+                :limit="1"
+              >
+                <el-button type="primary">
+                  <el-icon><UploadFilled /></el-icon>
+                  {{ datasetFile ? '重新选择' : '选择文件' }}
+                </el-button>
+              </el-upload>
+              <span v-if="datasetFile" class="text-sm text-gray-600">{{ datasetFile.name }}</span>
+              <span v-else class="text-sm text-gray-400">支持 .zip / .tar / .tar.gz / .7z / .rar</span>
+            </div>
           </el-form-item>
           <el-form-item label="验证集比例">
             <el-slider v-model="form.config.val_split" :min="0" :max="0.5" :step="0.05" show-input style="width: 180px" />
@@ -325,6 +350,9 @@ const datasetList = ref<DatasetItem[]>([])
 const metricsData = ref<MetricItem[]>([])
 const logLines = ref<string[]>([])
 const pollTimer = ref<number | null>(null)
+const datasetMode = ref<'select' | 'upload'>('select')
+const datasetFile = ref<File | null>(null)
+const uploadRef = ref()
 
 const defaultConfig = {
   pretrained_model: 'yolo26n.pt',
@@ -547,10 +575,29 @@ async function createTask() {
     ElMessage.warning('请输入模型名称')
     return
   }
+  if (datasetMode.value === 'select' && !form.value.dataset_id) {
+    ElMessage.warning('请选择数据集')
+    return
+  }
+  if (datasetMode.value === 'upload' && !datasetFile.value) {
+    ElMessage.warning('请选择数据集文件')
+    return
+  }
 
   creating.value = true
   try {
-    const res = await trainingApi.createTask({ ...form.value })
+    let res
+    if (datasetMode.value === 'upload' && datasetFile.value) {
+      res = await trainingApi.createTaskWithDataset({
+        file: datasetFile.value,
+        task_name: form.value.task_name,
+        model_name: form.value.model_name,
+        description: form.value.description || undefined,
+        config: form.value.config,
+      })
+    } else {
+      res = await trainingApi.createTask({ ...form.value })
+    }
     ElMessage.success('训练任务创建成功')
     showCreatePanel.value = false
     await loadTaskList()
@@ -565,13 +612,17 @@ async function createTask() {
       dataset_id: undefined,
       config: { ...defaultConfig },
     }
+    datasetFile.value = null
+    datasetMode.value = 'select'
   } catch (err: any) {
     ElMessage.error(err.response?.data?.detail || '创建任务失败')
   } finally {
     creating.value = false
   }
 }
-
+function handleFileChange(uploadFile: any) {
+  datasetFile.value = uploadFile.raw || null
+}
 async function startTask() {
   if (!selectedTaskId.value) return
   controlLoading.value = true

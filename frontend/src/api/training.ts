@@ -124,6 +124,23 @@ export const trainingApi = {
     return request.post<TrainingTask>('/training/tasks', data)
   },
 
+  /** 创建训练任务并同时上传数据集（multipart/form-data） */
+  createTaskWithDataset(data: {
+    file: File
+    task_name: string
+    model_name: string
+    description?: string
+    config: TrainingConfig
+  }) {
+    const formData = new FormData()
+    formData.append('file', data.file)
+    formData.append('task_name', data.task_name)
+    formData.append('model_name', data.model_name)
+    if (data.description) formData.append('description', data.description)
+    formData.append('config', JSON.stringify(data.config))
+    return request.post<TrainingTask>('/training/tasks/with-dataset', formData)
+  },
+
   /** 获取任务列表 */
   listTasks(status?: string) {
     return request.get<{ total: number; items: TrainingTask[] }>('/training/tasks', {

@@ -376,6 +376,33 @@ def create_task(task_name: str, model_name: str, config: dict, db: Session,
     return task
 
 
+def create_task_with_dataset(
+    task_name: str,
+    model_name: str,
+    config: dict,
+    file_bytes: bytes,
+    filename: str,
+    db: Session,
+    description: Optional[str] = None,
+) -> TrainingTask:
+    """一键上传数据集并创建训练任务
+
+    与先调用 upload_dataset 再调用 create_task 等效，
+    但保证在一次请求中完成，前端无需先切换到“数据集管理”上传。
+    """
+    dataset = upload_dataset(file_bytes, filename, db)
+    task = create_task(
+        task_name=task_name,
+        model_name=model_name,
+        config=config,
+        db=db,
+        description=description,
+        dataset_id=str(dataset.id),
+    )
+    return task
+
+
+
 def start_training(task_id: str, db_factory):
     """异步启动训练任务"""
     db = db_factory()
@@ -834,7 +861,7 @@ def clean_failed_temp_files() -> Dict[str, Any]:
 
 __all__ = [
     "upload_dataset", "create_dataset_yaml", "get_dataset_preview", "delete_dataset",
-    "create_task", "start_training", "pause_training", "resume_training", "stop_training",
+    "create_task", "create_task_with_dataset", "start_training", "pause_training", "resume_training", "stop_training",
     "get_task_status", "get_task_metrics", "delete_training_task",
     "get_models", "get_model_detail", "export_model", "import_model",
     "delete_model", "set_default_model", "get_storage_info", "clean_failed_temp_files",

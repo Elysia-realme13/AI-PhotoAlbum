@@ -6,6 +6,7 @@
 import uuid
 import logging
 from typing import Optional
+import json
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from sqlalchemy.orm import Session
 
@@ -53,6 +54,66 @@ def create_training_task(
     except Exception as e:
         logger.error(f"创建训练任务失败: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"创建训练任务失败: {str(e)}")
+
+
+@router.post("/tasks/with-dataset", response_model=TrainingTaskResponse, status_code=201)
+def create_training_task_with_dataset(
+    file: UploadFile = File(...),
+    task_name: str = Form(...),
+    model_name: str = Form(...),
+    description: Optional[str] = Form(None),
+    dataset_id: Optional[str] = Form(None),
+    config: Optional[str] = Form(None),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_required_user),
+):
+    """创建训练任务并可选同时上传数据集
+
+    与 POST /api/training/tasks 的区别：
+    - 支持 multipart/form-data 格式，可同时上传数据集文件
+    - 既可传入已有的 dataset_id，也可上传新数据集文件
+    - file 与 dataset_id 至少提供一个
+    """
+    try:
+        if file and file.filename:
+            # 读取上传的数据集文件并一键创建任务
+            file_bytes = file.file.read()
+            if len(file_bytes) == 0:
+                raise HTTPException(status_code=400, detail="上传的文件为空")
+            task = training_service.create_task_with_dataset(
+                task_name=task_name,
+                model_name=model_name,
+                config=json.loads(config) if config else {},
+                file_bytes=file_bytes,
+                filename=file.filename,
+                db=db,
+                description=description,
+            )
+        elif dataset_id:
+            task = training_service.create_task(
+                task_name=task_name,
+                model_name=model_name,
+                config=json.loads(config) if config else {},
+                db=db,
+                description=description,
+                dataset_id=dataset_id,
+            )
+        else:
+            raise HTTPException(
+                status_code=400,
+                detail="请提供数据集文件 (file) 或已有数据集 ID (dataset_id)",
+            )
+        return TrainingTaskResponse.model_validate(task)
+    except HTTPException:
+        raise
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="config 参数必须是有效的 JSON 字符串")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"创建训练任务失败: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"创建训练任务失败: {str(e)}")
+
 
 
 @router.get("/tasks", response_model=TrainingTaskListResponse)

@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { authApi } from '@/api/auth'
+import { useChatStore } from '@/stores/chat'
 
 export interface UserInfo {
   id: string
@@ -26,6 +27,7 @@ export const useUserStore = defineStore('user', () => {
     user.value = null
     localStorage.removeItem('token')
     localStorage.removeItem('user')
+    useChatStore().reset()   // 清理聊天数据，避免跨用户串号
   }
 
   async function fetchUser() {

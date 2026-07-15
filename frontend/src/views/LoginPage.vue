@@ -36,7 +36,7 @@
             <el-input v-model="loginForm.password" type="password" placeholder="密码" :prefix-icon="Lock" show-password size="large" />
           </el-form-item>
           <el-form-item>
-            <el-button type="primary" size="large" class="w-full" :loading="loading" @click="handleLogin">
+            <el-button type="primary" size="large" class="w-full" :loading="loading" native-type="submit" @click="handleLogin">
               登 录
             </el-button>
           </el-form-item>
@@ -54,7 +54,7 @@
             <el-input v-model="registerForm.password" type="password" placeholder="密码（至少6位）" :prefix-icon="Lock" show-password size="large" />
           </el-form-item>
           <el-form-item>
-            <el-button type="primary" size="large" class="w-full" :loading="loading" @click="handleRegister">
+            <el-button type="primary" size="large" class="w-full" :loading="loading" native-type="submit" @click="handleRegister">
               注 册
             </el-button>
           </el-form-item>

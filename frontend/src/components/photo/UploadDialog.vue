@@ -8,11 +8,11 @@
   >
     <el-upload
       ref="uploadRef"
+      v-model:file-list="fileList"
       drag
       multiple
       :auto-upload="false"
       :show-file-list="true"
-      :on-change="handleFileChange"
       :before-upload="() => false"
       accept="image/*,.heic,.heif"
       class="upload-dialog"
@@ -43,11 +43,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
+import type { UploadUserFile } from 'element-plus'
 import { UploadFilled } from '@element-plus/icons-vue'
 
 const props = defineProps<{
   visible: boolean
+  initialFiles?: File[]
 }>()
 
 const emit = defineEmits<{
@@ -59,20 +61,32 @@ const uploadRef = ref()
 const uploading = ref(false)
 const progress = ref(0)
 const uploadingFile = ref<File | null>(null)
-const fileQueue = ref<File[]>([])
+const fileList = ref<UploadUserFile[]>([])
 
-function handleFileChange(_file: any, fileList: any[]) {
-  fileQueue.value = fileList.map((f: any) => f.raw).filter(Boolean)
-}
+// 对话框打开且带有预填文件时（来自页面拖拽），填充文件列表
+watch(
+  () => props.visible,
+  (visible) => {
+    if (visible && props.initialFiles && props.initialFiles.length > 0) {
+      fileList.value = props.initialFiles.map((file, index) => ({
+        name: file.name,
+        raw: file as UploadUserFile['raw'],
+        uid: Date.now() + index,
+        status: 'ready' as const,
+      }))
+    }
+  }
+)
 
 async function startUpload() {
-  if (fileQueue.value.length === 0) return
+  const files = fileList.value.map((f) => f.raw).filter(Boolean) as File[]
+  if (files.length === 0) return
 
   uploading.value = true
   const { usePhotoStore } = await import('@/stores/photo')
   const store = usePhotoStore()
 
-  for (const file of fileQueue.value) {
+  for (const file of files) {
     uploadingFile.value = file
     progress.value = 0
     await store.uploadPhoto(file)
@@ -85,7 +99,7 @@ async function startUpload() {
 }
 
 function close() {
-  fileQueue.value = []
+  fileList.value = []
   uploading.value = false
   progress.value = 0
   emit('update:visible', false)

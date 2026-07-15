@@ -30,11 +30,12 @@
 
 <script setup lang="ts">
 import { useRouter } from 'vue-router'
+import { storeToRefs } from 'pinia'
 import { useUserStore } from '@/stores/user'
 
 const router = useRouter()
 const userStore = useUserStore()
-const user = userStore.user
+const { user } = storeToRefs(userStore)
 
 function handleLogout() {
   userStore.logout()

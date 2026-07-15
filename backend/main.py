@@ -28,8 +28,6 @@ from app.api.face import router as face_router
 from app.api.search import router as search_router
 from app.api.agent import router as agent_router
 from app.api.tasks import router as tasks_router
-from app.api.medias import router as medias_router
-from app.api.recycle_bin import router as recycle_bin_router
 
 # 确保所有模型被导入（使 Base.metadata 注册所有表）
 import app.models  # noqa: F401
@@ -69,32 +67,7 @@ async def lifespan(_app: FastAPI):
         logger.error("  2. 或使用 SQLite 测试: DATABASE_URL=sqlite:///./data/app.db uv run uvicorn main:app ...")
         raise
 
-    # 启动 7 天回收站自动清理（每小时检查一次）
-    async def cleanup_loop():
-        from app.crud.photo import cleanup_expired_photos
-        from app.database.session import SessionLocal
-        while True:
-            await asyncio.sleep(3600)  # 每小时
-            try:
-                db = SessionLocal()
-                try:
-                    count = cleanup_expired_photos(db, retention_days=7)
-                    if count > 0:
-                        logger.info(f"回收站自动清理: 已永久删除 {count} 张过期照片")
-                finally:
-                    db.close()
-            except Exception as e:
-                logger.error(f"回收站清理任务异常: {e}")
-
-    cleanup_task = asyncio.create_task(cleanup_loop())
-
     yield
-
-    cleanup_task.cancel()
-    try:
-        await cleanup_task
-    except asyncio.CancelledError:
-        pass
 
     logger.info("服务已关闭")
 
@@ -135,8 +108,6 @@ app.include_router(face_router)
 app.include_router(search_router)
 app.include_router(agent_router)
 app.include_router(tasks_router)
-app.include_router(medias_router)
-app.include_router(recycle_bin_router)
 
 
 @app.get("/")

@@ -5,8 +5,13 @@ from app.schemas.user import (
     UserCreate, UserLogin, UserResponse, UserUpdate, TokenResponse,
 )
 from app.schemas.photo import (
-    PhotoResponse, PhotoListResponse, PhotoMetadataResponse,
+    PhotoDetailResponse, PhotoListItem, PhotoMetadataResponse,
+    PhotoDescriptionResponse, FaceBoxResponse,
+    PhotoUpdateRequest, ReanalyzeRequest, BatchPhotoRequest,
+    BatchUploadResponse, UploadResult, TimelineGroup, MapPhotoItem,
 )
+from app.schemas.task import TaskResponse, TaskStatsResponse
+from app.schemas.response import BaseResponse, PaginatedData
 from app.schemas.album import AlbumCreate, AlbumResponse, AlbumUpdate
 from app.schemas.face import FaceIdentityResponse, FaceResponse
 from app.schemas.agent import (

@@ -1,92 +1,43 @@
 <template>
   <div>
-    <!-- 顶部操作栏 -->
     <div class="flex items-center justify-between mb-6">
       <h2 class="text-2xl font-bold text-gray-800">照片</h2>
-      <el-button type="primary" :icon="Upload" @click="showUpload = true">
-        上传照片
-      </el-button>
-    </div>
-
-    <!-- 照片网格 -->
-    <PhotoGrid
-      :photos="store.photos"
-      :loading="store.loading"
-      @upload="showUpload = true"
-      @preview="handlePreview"
-      @delete="handleDelete"
-    />
-
-    <!-- 分页 -->
-    <div v-if="store.total > store.pageSize" class="flex justify-center mt-6">
-      <el-pagination
-        v-model:current-page="store.currentPage"
-        :page-size="store.pageSize"
-        :total="store.total"
-        layout="prev, pager, next"
-        background
-        @current-change="store.fetchPhotos"
-      />
+      <el-button type="primary" :icon="Upload" @click="showUpload = true">上传照片</el-button>
     </div>
 
     <!-- 上传对话框 -->
-    <UploadDialog v-model:visible="showUpload" @uploaded="onUploaded" />
+    <el-dialog v-model="showUpload" title="上传照片" width="500px">
+      <el-upload
+        drag
+        multiple
+        :auto-upload="false"
+        :on-change="handleFileChange"
+        accept="image/*,.heic,.heif"
+      >
+        <el-icon :size="48" color="#409EFF"><UploadFilled /></el-icon>
+        <div class="mt-3 text-gray-600">拖拽照片到此处，或点击上传</div>
+        <template #tip>
+          <div class="text-xs text-gray-400 mt-1">支持 JPG、PNG、HEIC、GIF 等格式</div>
+        </template>
+      </el-upload>
+      <template #footer>
+        <el-button @click="showUpload = false">取消</el-button>
+        <el-button type="primary" @click="showUpload = false">开始上传</el-button>
+      </template>
+    </el-dialog>
 
-    <!-- 图片预览 -->
-    <el-image-viewer
-      v-if="previewVisible"
-      :url-list="previewList"
-      :initial-index="previewIndex"
-      @close="previewVisible = false"
-      :hide-on-click-modal="true"
-    />
+    <!-- 照片列表（占位） -->
+    <el-empty description="功能开发中，敬请期待..." />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { ElMessageBox } from 'element-plus'
-import { Upload } from '@element-plus/icons-vue'
-import { usePhotoStore } from '@/stores/photo'
-import { photoApi } from '@/api/photo'
-import PhotoGrid from '@/components/photo/PhotoGrid.vue'
-import UploadDialog from '@/components/photo/UploadDialog.vue'
-import type { PhotoItem } from '@/types/photo'
-
-const store = usePhotoStore()
+import { ref } from 'vue'
+import { Upload, UploadFilled } from '@element-plus/icons-vue'
 
 const showUpload = ref(false)
 
-// ── 图片预览 ─────────────────────────
-const previewVisible = ref(false)
-const previewIndex = ref(0)
-const previewList = computed(() =>
-  store.photos.map((p) => photoApi.fileUrl(p.id))
-)
-
-function handlePreview(photo: PhotoItem) {
-  previewIndex.value = store.photos.findIndex((p) => p.id === photo.id)
-  previewVisible.value = true
+function handleFileChange() {
+  // TODO: Phase 2
 }
-
-// ── 删除确认 ─────────────────────────
-function handleDelete(photo: PhotoItem) {
-  ElMessageBox.confirm(
-    `确定要删除照片 "${photo.original_name || photo.filename}" 吗？`,
-    '确认删除',
-    { confirmButtonText: '删除', cancelButtonText: '取消', type: 'warning' }
-  ).then(() => {
-    store.removePhoto(photo.id)
-  }).catch(() => {
-    // 取消
-  })
-}
-
-function onUploaded() {
-  store.fetchPhotos(1)
-}
-
-onMounted(() => {
-  store.fetchPhotos()
-})
 </script>

@@ -605,6 +605,12 @@ def delete_training_task(task_id: str, db: Session) -> bool:
 #  Model Management
 # ══════════════════════════════════════════════════════════════════
 
+def _resolve_model_file(model_name: str) -> Optional[str]:
+    """查找模型文件，优先检查 MODELS_DIR 中的 .pt 文件"""
+    candidate = MODELS_DIR / f"{model_name}.pt"
+    return str(candidate) if candidate.exists() else None
+
+
 def get_models(db: Session) -> List[Dict[str, Any]]:
     """获取所有训练完成的模型列表"""
     tasks = (db.query(TrainingTask)
@@ -613,8 +619,9 @@ def get_models(db: Session) -> List[Dict[str, Any]]:
     default_model = _get_default_model()
     models = []
     for task in tasks:
-        file_size = Path(task.model_path).stat().st_size if (
-            task.model_path and Path(task.model_path).exists()) else 0
+        file_path = task.model_path or _resolve_model_file(task.model_name)
+        file_size = Path(file_path).stat().st_size if (
+            file_path and Path(file_path).exists()) else 0
         mAP50 = mAP50_95 = recall = precision = None
         last_metric = (db.query(TrainingMetric)
                        .filter(TrainingMetric.task_id == task.id)
@@ -665,8 +672,9 @@ def get_model_detail(model_name: str, db: Session) -> Dict[str, Any]:
     if not task:
         return {"error": "模型不存在"}
     metrics = get_task_metrics(str(task.id), db)
-    file_size = Path(task.model_path).stat().st_size if (
-        task.model_path and Path(task.model_path).exists()) else 0
+    file_path = task.model_path or _resolve_model_file(task.model_name)
+    file_size = Path(file_path).stat().st_size if (
+        file_path and Path(file_path).exists()) else 0
     duration = None
     if task.started_at and task.completed_at:
         duration = (task.completed_at - task.started_at).total_seconds()

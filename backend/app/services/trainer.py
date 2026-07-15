@@ -279,9 +279,10 @@ def run_training(
             except Exception:
                 pass
 
-            best_path = str(output_path / "weights" / "best.pt")
+            save_dir = getattr(trainer, "save_dir", output_path)
+            best_path = str(save_dir / "weights" / "best.pt")
             if not Path(best_path).exists():
-                best_path = str(output_path / "weights" / "last.pt")
+                best_path = str(save_dir / "weights" / "last.pt")
 
             try:
                 callback.on_train_end(task_id, final_metrics, best_path)

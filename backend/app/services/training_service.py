@@ -249,6 +249,13 @@ def create_dataset_yaml(dataset: Dataset, val_split: float = 0.2,
     images_dir = dataset_path / "images"
     labels_dir = dataset_path / "labels"
 
+    if not images_dir.exists():
+        for sub in dataset_path.iterdir():
+            if sub.is_dir() and (sub / "images").exists():
+                images_dir = sub / "images"
+                labels_dir = sub / "labels"
+                break
+
     train_img_dir = images_dir / "train" if (images_dir / "train").exists() else images_dir
     val_img_dir = images_dir / "val" if (images_dir / "val").exists() else None
     train_lbl_dir = labels_dir / "train" if (labels_dir / "train").exists() else labels_dir

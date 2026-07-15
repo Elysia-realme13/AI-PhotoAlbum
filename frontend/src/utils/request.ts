@@ -28,6 +28,8 @@ request.interceptors.response.use(
       localStorage.removeItem('user')
       router.push('/login')
       ElMessage.error('登录已过期，请重新登录')
+    } else if (error.response?.data?.detail) {
+      ElMessage.error(error.response.data.detail)
     } else if (error.response?.data?.error) {
       ElMessage.error(error.response.data.error)
     } else {

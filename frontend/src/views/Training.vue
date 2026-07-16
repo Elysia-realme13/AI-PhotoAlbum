@@ -587,18 +587,34 @@ async function createTask() {
     ElMessage.warning('请选择数据集文件')
     return
   }
+  if (datasetMode.value === 'upload' && datasetFile.value) {
+    const fileName = datasetFile.value.name
+    const lower = fileName.toLowerCase()
+    const stem = lower.endsWith('.tar.gz') || lower.endsWith('.tgz') ? fileName.slice(0, -7)
+      : lower.endsWith('.tar.bz2') ? fileName.slice(0, -8)
+      : (fileName.lastIndexOf('.') > 0 ? fileName.slice(0, fileName.lastIndexOf('.')) : fileName)
+    if (datasetList.value.some(ds => ds.name === stem)) {
+      ElMessage.warning('数据集 "' + stem + '" 已存在，请勿重复上传')
+      return
+    }
+  }
 
-  creating.value = true
-  try {
+ creating.value = true
+ try {
     let res
     if (datasetMode.value === 'upload' && datasetFile.value) {
-      res = await trainingApi.createTaskWithDataset({
-        file: datasetFile.value,
-        task_name: form.value.task_name,
-        model_name: form.value.model_name,
-        description: form.value.description || undefined,
-        config: form.value.config,
-      })
+      const uploadMsg = ElMessage({ message: '正在上传数据集，请稍候...', duration: 0 })
+      try {
+        res = await trainingApi.createTaskWithDataset({
+          file: datasetFile.value,
+          task_name: form.value.task_name,
+          model_name: form.value.model_name,
+          description: form.value.description || undefined,
+          config: form.value.config,
+        })
+      } finally {
+        uploadMsg.close()
+      }
     } else {
       res = await trainingApi.createTask({ ...form.value })
     }

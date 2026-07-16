@@ -365,11 +365,19 @@ curl http://localhost:8000/api/health
 # → {"status":"ok","message":"AI-PhotoAlbum service is running"}
 
 # 注册用户
+# Windows PowerShell:
+curl.exe -X POST http://localhost:8000/api/auth/register -H "Content-Type: application/json" -d '{\"username\":\"demo\",\"email\":\"demo@test.com\",\"password\":\"123456\"}'
+
+# Linux / macOS:
 curl -X POST http://localhost:8000/api/auth/register \
   -H "Content-Type: application/json" \
   -d '{"username":"demo","email":"demo@test.com","password":"123456"}'
 
 # 登录获取 Token
+# Windows PowerShell:
+curl.exe -X POST http://localhost:8000/api/auth/login -H "Content-Type: application/json" -d '{\"username\":\"demo\",\"password\":\"123456\"}'
+
+# Linux / macOS:
 curl -X POST http://localhost:8000/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{"username":"demo","password":"123456"}'

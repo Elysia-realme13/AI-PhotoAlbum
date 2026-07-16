@@ -1,6 +1,7 @@
 """
 用户 CRUD 操作
 """
+import uuid
 from typing import Optional
 from sqlalchemy.orm import Session
 from app.models.user import User
@@ -8,7 +9,14 @@ from app.core.security import hash_password, verify_password
 
 
 def get_user_by_id(db: Session, user_id: str) -> Optional[User]:
-    return db.query(User).filter(User.id == user_id).first()
+    """根据ID获取用户（需要UUID转换）"""
+    try:
+        # 将字符串转换为UUID对象
+        user_uuid = uuid.UUID(user_id)
+        return db.query(User).filter(User.id == user_uuid).first()
+    except ValueError:
+        # 如果user_id不是有效的UUID格式
+        return None
 
 
 def get_user_by_username(db: Session, username: str) -> Optional[User]:

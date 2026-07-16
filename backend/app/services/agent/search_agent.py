@@ -1,7 +1,7 @@
-﻿"""
-LangGraph 妫€绱唬鐞?
+"""
+LangGraph search agent
 
-瀹炵幇"鎻忚堪->鐓х墖"娣峰悎妫€绱笌浜鸿劯浜や簰寮忓懡鍚嶆祦绋嬨€?
+Implements "description -> photos" hybrid search with time/location filtering.
 """
 
 import logging
@@ -13,6 +13,8 @@ from app.services.search_service import (
     extract_nouns, extract_person_names, clip_search_by_text,
     clip_search_by_image,
     search_faces_by_name, get_unnamed_candidates,
+    extract_time_range, filter_photos_by_time,
+    extract_location_keywords, filter_photos_by_location,
 )
 
 logger = logging.getLogger(__name__)
@@ -25,6 +27,10 @@ class SearchState(TypedDict):
     image_bytes: Optional[bytes]
     nouns: List[str]
     person_names: List[str]
+    time_start: Optional[str]
+    time_end: Optional[str]
+    location_keywords: List[str]
+    pre_filtered_ids: List[str]
     person_photo_ids: List[str]
     clip_results: List[dict]
     merged_results: List[dict]
@@ -34,7 +40,6 @@ class SearchState(TypedDict):
 
 
 def _get_db(config: Optional[RunnableConfig]) -> Optional[Session]:
-    """从 LangGraph config 中提取 db session"""
     if config and "configurable" in config:
         return config["configurable"].get("db")
     return None
@@ -47,6 +52,53 @@ def extract_entities(state: SearchState, config: RunnableConfig) -> SearchState:
         return state
     state["nouns"] = extract_nouns(query)
     state["person_names"] = extract_person_names(query)
+    return state
+
+
+def extract_time_location(state: SearchState, config: RunnableConfig) -> SearchState:
+    query = state.get("query", "")
+    if not query:
+        return state
+    from datetime import datetime
+    time_start, time_end = extract_time_range(query, datetime.now())
+    state["time_start"] = time_start.isoformat() if time_start else None
+    state["time_end"] = time_end.isoformat() if time_end else None
+    nouns = state.get("nouns", [])
+    state["location_keywords"] = extract_location_keywords(query, nouns)
+    return state
+
+
+def pre_filter(state: SearchState, config: RunnableConfig) -> SearchState:
+    db = _get_db(config)
+    if not db:
+        return state
+    owner_id = state.get("owner_id")
+    state["pre_filtered_ids"] = []
+
+    time_ids = None
+    loc_ids = None
+
+    time_start_str = state.get("time_start")
+    time_end_str = state.get("time_end")
+    if time_start_str or time_end_str:
+        from datetime import datetime
+        ts = datetime.fromisoformat(time_start_str) if time_start_str else None
+        te = datetime.fromisoformat(time_end_str) if time_end_str else None
+        time_ids = filter_photos_by_time(db, owner_id, start=ts, end=te)
+
+    loc_keywords = state.get("location_keywords", [])
+    if loc_keywords:
+        loc_ids = filter_photos_by_location(db, owner_id, loc_keywords)
+
+    # Merge: intersect if both filters applied
+    if time_ids is not None and loc_ids is not None:
+        time_set = set(time_ids)
+        state["pre_filtered_ids"] = [pid for pid in loc_ids if pid in time_set]
+    elif time_ids is not None:
+        state["pre_filtered_ids"] = time_ids
+    elif loc_ids is not None:
+        state["pre_filtered_ids"] = loc_ids
+
     return state
 
 
@@ -79,17 +131,22 @@ def clip_search(state: SearchState, config: RunnableConfig) -> SearchState:
     nouns = state.get("nouns", [])
     owner_id = state.get("owner_id")
     image_bytes = state.get("image_bytes")
+    pre_filtered = state.get("pre_filtered_ids")
 
+    photo_ids = pre_filtered if pre_filtered else None
     if image_bytes:
-        state["clip_results"] = clip_search_by_image(db, image_bytes, top_k=100, owner_id=owner_id)
+        state["clip_results"] = clip_search_by_image(
+            db, image_bytes, top_k=100, owner_id=owner_id, photo_ids=photo_ids
+        )
     else:
         search_text = " ".join(nouns[:5]) if nouns else query
-        state["clip_results"] = clip_search_by_text(db, search_text, top_k=100, owner_id=owner_id)
+        state["clip_results"] = clip_search_by_text(
+            db, search_text, top_k=100, owner_id=owner_id, photo_ids=photo_ids
+        )
     return state
 
 
 def merge_results(state: SearchState, config: RunnableConfig) -> SearchState:
-    db = _get_db(config)
     person_ids = set(state.get("person_photo_ids", []))
     clip_results = state.get("clip_results", [])
     if not clip_results:
@@ -111,6 +168,8 @@ def merge_results(state: SearchState, config: RunnableConfig) -> SearchState:
 
 def build_search_graph():
     return _FallbackGraph()
+
+
 class _FallbackGraph:
     def invoke(self, input_state: Dict[str, Any], config: Dict = None) -> Dict[str, Any]:
         state = dict(input_state)
@@ -118,7 +177,15 @@ class _FallbackGraph:
         if not db:
             state["error"] = "missing db session"
             return state
-        for node in [extract_entities, recognize_person, clip_search, merge_results]:
+        nodes = [
+            extract_entities,
+            extract_time_location,
+            pre_filter,
+            recognize_person,
+            clip_search,
+            merge_results,
+        ]
+        for node in nodes:
             state = node(state, config)
             if state.get("error"):
                 break
@@ -143,6 +210,8 @@ def run_search_agent(
         "session_id": session_id,
         "image_bytes": image_bytes,
         "nouns": [], "person_names": [],
+        "time_start": None, "time_end": None,
+        "location_keywords": [], "pre_filtered_ids": [],
         "person_photo_ids": [], "clip_results": [],
         "merged_results": [],
         "needs_confirmation": False,
@@ -153,4 +222,3 @@ def run_search_agent(
 
 
 __all__ = ["SearchState", "build_search_graph", "run_search_agent"]
-

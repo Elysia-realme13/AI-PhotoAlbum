@@ -13,6 +13,7 @@ import re
 import uuid as _uuid
 import logging
 from typing import List, Optional, Tuple
+from datetime import datetime, timedelta
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 from app.models.face import Face, FaceIdentity
@@ -29,7 +30,8 @@ PERSON_PATTERNS = [
     r"侄子|侄女|外甥|外甥女|叔叔|阿姨|伯伯|伯母|"
     r"舅舅|舅妈|姑姑|姑父|岳父|岳母|公公|婆婆|"
     r"堂哥|堂姐|堂弟|堂妹|表哥|表姐|表弟|表妹|"
-    r"干爹|干妈|养父|养母|继父|继母"
+    r"干爹|干妈|养父|养母|继父|继母"
+
     r")",
 ]
 
@@ -134,6 +136,7 @@ def clip_search_by_text(
     query_text: str,
     top_k: int = 50,
     owner_id=None,
+    photo_ids=None,
 ) -> List[dict]:
     """
     使用文本查询向量在 ImageVector 表中检索相似照片
@@ -148,7 +151,7 @@ def clip_search_by_text(
         return _tag_fallback_search(db, query_text, top_k, owner_id)
 
     vector_str = "[" + ",".join(str(v) for v in query_vector) + "]"
-    return _vector_search(db, vector_str, top_k, owner_id)
+    return _vector_search(db, vector_str, top_k, owner_id, photo_ids=photo_ids)
 
 
 def _get_query_embedding(text: str) -> Optional[List[float]]:
@@ -163,7 +166,7 @@ def _get_query_embedding(text: str) -> Optional[List[float]]:
         return None
 
 
-def _vector_search(db: Session, vector_str: str, top_k: int, owner_id) -> List[dict]:
+def _vector_search(db: Session, vector_str: str, top_k: int, owner_id, photo_ids=None) -> List[dict]:
     """通用的 pgvector cosine 相似度检索"""
     sql_str = """
         SELECT iv.photo_id,
@@ -183,6 +186,13 @@ def _vector_search(db: Session, vector_str: str, top_k: int, owner_id) -> List[d
         """
         params["owner_id"] = owner_str
 
+    if photo_ids and len(photo_ids) > 0:
+        from sqlalchemy import bindparam
+        placeholders = ","".join(f":pid_{i}" for i in range(len(photo_ids)))
+        sql_str += f" AND iv.photo_id IN ({placeholders})"
+        for i, pid in enumerate(photo_ids):
+            params[f"pid_{i}"] = pid
+
     sql_str += " ORDER BY cosine_similarity DESC LIMIT :limit_val"
     params["limit_val"] = top_k
 
@@ -200,6 +210,7 @@ def clip_search_by_image(
     image_bytes: bytes,
     top_k: int = 50,
     owner_id=None,
+    photo_ids=None,
 ) -> List[dict]:
     """使用图片查询向量在 ImageVector 表中检索相似照片"""
     try:
@@ -213,7 +224,7 @@ def clip_search_by_image(
         return []
 
     vector_str = "[" + ",".join(str(v) for v in query_vector) + "]"
-    return _vector_search(db, vector_str, top_k, owner_id)
+    return _vector_search(db, vector_str, top_k, owner_id, photo_ids=photo_ids)
 
 
 def _tag_fallback_search(
@@ -281,6 +292,310 @@ def get_unnamed_candidates(
     from app.services.face_cluster_service import get_unamed_clusters
     return get_unamed_clusters(db, owner_id, min_face_count, top_k)
 
+_SEASON_MONTHS = {"春": (3, 5), "夏": (6, 8), "秋": (9, 11), "冬": (12, 2)}
+_RELATIVE_YEARS = {"去年": (-1, 0), "前年": (-2, 0), "今年": (0, 0), "上一年": (-1, 0), "前一年": (-1, 0)}
+_RELATIVE_MONTHS = {"上个月": (0, -1), "这个月": (0, 0), "本月": (0, 0)}
+_RE_N_YEARS_AGO = _re.compile(r"(\d{1,2})\s*年前")
+_RE_YEAR = _re.compile(r"(\d{4})\s*年")
+_RE_MONTH = _re.compile(r"(\d{1,2})\s*月")
+_RE_SEASON = _re.compile(r"(春|夏|秋|冬)(?:天|季)?")
+
+# Location suffixes for recognizing place names
+_LOCATION_SUFFIXES = {
+    "省", "市", "县", "区", "镇", "乡", "村",
+    "路", "街", "巷", "弄", "道",
+    "公园", "广场", "大厦", "中心", "大楼",
+    "山", "河", "湖", "海", "岛", "湾",
+    "北京", "上海", "天津", "重庆",
+}
+
+
+def extract_time_range(text, reference_date=None):
+    # Extract time range from Chinese query text.
+    # Supports: "去年夏天", "2024年", "上个月", "前年", "今年春天", "3月", "三年前"
+    # Returns (start_datetime, end_datetime) or (None, None)
+    if reference_date is None:
+        reference_date = datetime.now()
+    now = reference_date
+    year = now.year
+    month = now.month
+
+    # 1. "N年前"
+    m = _RE_N_YEARS_AGO.search(text)
+    if m:
+        n = int(m.group(1))
+        ty = year - n
+        return (datetime(ty, 1, 1), datetime(ty, 12, 31, 23, 59, 59))
+
+    # 2. Relative year + season (e.g. "去年夏天")
+    for kw, (dy, dm) in _RELATIVE_YEARS.items():
+        if kw in text:
+            ty = year + dy
+            sm = _RE_SEASON.search(text)
+            if sm:
+                season = sm.group(1)
+                sm_val, em_val = _SEASON_MONTHS[season]
+                if season == "冬":
+                    return (datetime(ty, sm_val, 1), datetime(ty + 1, em_val, 28, 23, 59, 59))
+                return (datetime(ty, sm_val, 1), datetime(ty, em_val, 30, 23, 59, 59))
+            return (datetime(ty, 1, 1), datetime(ty, 12, 31, 23, 59, 59))
+
+    # 3. Relative month (e.g. "上个月")
+    for kw, (dy, dm) in _RELATIVE_MONTHS.items():
+        if kw in text:
+            target = datetime(year + dy, month + dm, 1)
+            if target.month == 12:
+                end = datetime(target.year + 1, 1, 1) - timedelta(seconds=1)
+            else:
+                end = datetime(target.year, target.month + 1, 1) - timedelta(seconds=1)
+            return (target, end)
+
+    # 4. Season (current year, e.g. "夏天")
+    sm = _RE_SEASON.search(text)
+    if sm:
+        season = sm.group(1)
+        sm_val, em_val = _SEASON_MONTHS[season]
+        ym = _RE_YEAR.search(text)
+        ty = int(ym.group(1)) if ym else year
+        if season == "冬":
+            return (datetime(ty, sm_val, 1), datetime(ty + 1, em_val, 28, 23, 59, 59))
+        return (datetime(ty, sm_val, 1), datetime(ty, em_val, 30, 23, 59, 59))
+
+    # 5. Absolute year "2024年"
+    ym = _RE_YEAR.search(text)
+    if ym:
+        ty = int(ym.group(1))
+        mm = _RE_MONTH.search(text)
+        if mm:
+            tm = int(mm.group(1))
+            if tm == 12:
+                end = datetime(ty + 1, 1, 1) - timedelta(seconds=1)
+            else:
+                end = datetime(ty, tm + 1, 1) - timedelta(seconds=1)
+            return (datetime(ty, tm, 1), end)
+        return (datetime(ty, 1, 1), datetime(ty, 12, 31, 23, 59, 59))
+
+    # 6. Month only "3月" (current year)
+    mm = _RE_MONTH.search(text)
+    if mm:
+        tm = int(mm.group(1))
+        if tm == 12:
+            end = datetime(year + 1, 1, 1) - timedelta(seconds=1)
+        else:
+            end = datetime(year, tm + 1, 1) - timedelta(seconds=1)
+        return (datetime(year, tm, 1), end)
+
+    return (None, None)
+
+
+def filter_photos_by_time(db, owner_id, start=None, end=None):
+    # Filter photos by photo_time range, return matching photo IDs
+    if start is None and end is None:
+        return []
+    from app.models.photo import Photo
+    import uuid as _uuid
+    owner_uuid = _uuid.UUID(str(owner_id))
+    q = db.query(Photo.id).filter(Photo.owner_id == owner_uuid, Photo.is_deleted == False)
+    if start:
+        q = q.filter(Photo.photo_time >= start)
+    if end:
+        q = q.filter(Photo.photo_time <= end)
+    return [str(row[0]) for row in q.all()]
+
+
+def extract_location_keywords(text, nouns):
+    # Extract likely location keywords from nouns list
+    locations = []
+    for loc in _LOCATION_SUFFIXES:
+        if loc in text:
+            locations.append(loc)
+    for noun in nouns:
+        for suffix in _LOCATION_SUFFIXES:
+            if len(suffix) > 1 and noun.endswith(suffix):
+                if noun not in locations:
+                    locations.append(noun)
+                break
+    return locations[:5]
+
+
+def filter_photos_by_location(db, owner_id, keywords):
+    # Filter photos by location keywords in photo_metadata
+    if not keywords:
+        return []
+    from app.models.photo import Photo, PhotoMetadata
+    import uuid as _uuid
+    owner_uuid = _uuid.UUID(str(owner_id))
+    conditions = []
+    for kw in keywords:
+        pattern = "%" + kw + "%"
+        conditions.append(PhotoMetadata.country.like(pattern))
+        conditions.append(PhotoMetadata.province.like(pattern))
+        conditions.append(PhotoMetadata.city.like(pattern))
+        conditions.append(PhotoMetadata.district.like(pattern))
+        conditions.append(PhotoMetadata.address.like(pattern))
+    rows = (
+        db.query(PhotoMetadata.photo_id)
+        .join(Photo, Photo.id == PhotoMetadata.photo_id)
+        .filter(Photo.owner_id == owner_uuid, Photo.is_deleted == False, or_(*conditions))
+        .distinct()
+        .all()
+    )
+    return [str(row[0]) for row in rows]
+
+# ------------------------------------------------------------------
+#  时间表达式解析与过滤
+# ------------------------------------------------------------------
+
+_SEASON_MONTHS = {"春": (3, 5), "夏": (6, 8), "秋": (9, 11), "冬": (12, 2)}
+_RELATIVE_YEARS = {"去年": (-1, 0), "前年": (-2, 0), "今年": (0, 0)}
+_RELATIVE_MONTHS = {"上个月": (0, -1), "这个月": (0, 0), "本月": (0, 0)}
+_RE_N_YEARS_AGO = _re.compile(r"(\d{1,2}|[一二三四五六七八九十]{1,2})\s*年前")
+_RE_YEAR = _re.compile(r"(\d{4})\s*年")
+_RE_MONTH = _re.compile(r"(\d{1,2})\s*月")
+_RE_SEASON = _re.compile(r"(春|夏|秋|冬)(?:天|季)?")
+_CN_DIGITS = {"一": 1, "二": 2, "三": 3, "四": 4, "五": 5, "六": 6, "七": 7, "八": 8, "九": 9, "十": 10}
+
+
+def _parse_cn_number(raw):
+    if raw.isdigit():
+        return int(raw)
+    if len(raw) == 1:
+        return _CN_DIGITS.get(raw, 0)
+    if raw[0] == "十":
+        return 10 + _CN_DIGITS.get(raw[1], 0)
+    if raw[1] == "十":
+        return _CN_DIGITS.get(raw[0], 0) * 10
+    return 0
+
+
+def extract_time_range(text, reference_date=None):
+    if reference_date is None:
+        reference_date = datetime.now()
+    now = reference_date
+    year = now.year
+    month = now.month
+    m = _RE_N_YEARS_AGO.search(text)
+    if m:
+        n = _parse_cn_number(m.group(1))
+        if n > 0:
+            ty = year - n
+            return (datetime(ty, 1, 1), datetime(ty, 12, 31, 23, 59, 59))
+    for kw, (dy, dm) in _RELATIVE_YEARS.items():
+        if kw in text:
+            ty = year + dy
+            sm = _RE_SEASON.search(text)
+            if sm:
+                season = sm.group(1)
+                sm_val, em_val = _SEASON_MONTHS[season]
+                if season == "冬":
+                    return (datetime(ty, sm_val, 1), datetime(ty + 1, em_val, 28, 23, 59, 59))
+                return (datetime(ty, sm_val, 1), datetime(ty, em_val, 30, 23, 59, 59))
+            return (datetime(ty, 1, 1), datetime(ty, 12, 31, 23, 59, 59))
+    for kw, (dy, dm) in _RELATIVE_MONTHS.items():
+        if kw in text:
+            target = datetime(year + dy, month + dm, 1)
+            if target.month == 12:
+                end = datetime(target.year + 1, 1, 1) - timedelta(seconds=1)
+            else:
+                end = datetime(target.year, target.month + 1, 1) - timedelta(seconds=1)
+            return (target, end)
+    sm = _RE_SEASON.search(text)
+    if sm:
+        season = sm.group(1)
+        sm_val, em_val = _SEASON_MONTHS[season]
+        ym = _RE_YEAR.search(text)
+        ty = int(ym.group(1)) if ym else year
+        if season == "冬":
+            return (datetime(ty, sm_val, 1), datetime(ty + 1, em_val, 28, 23, 59, 59))
+        return (datetime(ty, sm_val, 1), datetime(ty, em_val, 30, 23, 59, 59))
+    ym = _RE_YEAR.search(text)
+    if ym:
+        ty = int(ym.group(1))
+        mm = _RE_MONTH.search(text)
+        if mm:
+            tm = int(mm.group(1))
+            if tm == 12:
+                end = datetime(ty + 1, 1, 1) - timedelta(seconds=1)
+            else:
+                end = datetime(ty, tm + 1, 1) - timedelta(seconds=1)
+            return (datetime(ty, tm, 1), end)
+        return (datetime(ty, 1, 1), datetime(ty, 12, 31, 23, 59, 59))
+    mm = _RE_MONTH.search(text)
+    if mm:
+        tm = int(mm.group(1))
+        if tm == 12:
+            end = datetime(year + 1, 1, 1) - timedelta(seconds=1)
+        else:
+            end = datetime(year, tm + 1, 1) - timedelta(seconds=1)
+        return (datetime(year, tm, 1), end)
+    return (None, None)
+
+
+def filter_photos_by_time(db, owner_id, start=None, end=None):
+    if start is None and end is None:
+        return []
+    from app.models.photo import Photo
+    import uuid as _uuid
+    owner_uuid = _uuid.UUID(str(owner_id))
+    q = db.query(Photo.id).filter(Photo.owner_id == owner_uuid, Photo.is_deleted == False)
+    if start:
+        q = q.filter(Photo.photo_time >= start)
+    if end:
+        q = q.filter(Photo.photo_time <= end)
+    return [str(row[0]) for row in q.all()]
+
+
+# ------------------------------------------------------------------
+#  地点提取与过滤
+# ------------------------------------------------------------------
+
+_LOCATION_SUFFIXES = {
+    "省", "市", "县", "区", "镇", "乡", "村",
+    "路", "街", "巷", "弄", "道",
+    "公园", "广场", "大厦", "中心", "大楼",
+    "山", "河", "湖", "海", "岛", "湾",
+    "北京", "上海", "天津", "重庆",
+}
+
+
+def extract_location_keywords(text, nouns):
+    locations = []
+    for loc in _LOCATION_SUFFIXES:
+        if loc in text:
+            locations.append(loc)
+    for noun in nouns:
+        for suffix in _LOCATION_SUFFIXES:
+            if len(suffix) > 1 and noun.endswith(suffix):
+                if noun not in locations:
+                    locations.append(noun)
+                break
+    return locations[:5]
+
+
+def filter_photos_by_location(db, owner_id, keywords):
+    if not keywords:
+        return []
+    from app.models.photo import Photo, PhotoMetadata
+    from sqlalchemy import or_
+    import uuid as _uuid
+    owner_uuid = _uuid.UUID(str(owner_id))
+    conditions = []
+    for kw in keywords:
+        pattern = "%" + kw + "%"
+        conditions.append(PhotoMetadata.country.like(pattern))
+        conditions.append(PhotoMetadata.province.like(pattern))
+        conditions.append(PhotoMetadata.city.like(pattern))
+        conditions.append(PhotoMetadata.district.like(pattern))
+        conditions.append(PhotoMetadata.address.like(pattern))
+    rows = (
+        db.query(PhotoMetadata.photo_id)
+        .join(Photo, Photo.id == PhotoMetadata.photo_id)
+        .filter(Photo.owner_id == owner_uuid, Photo.is_deleted == False, or_(*conditions))
+        .distinct()
+        .all()
+    )
+    return [str(row[0]) for row in rows]
+
 
 __all__ = [
     "extract_person_names",
@@ -290,4 +605,8 @@ __all__ = [
     "clip_search_by_image",
     "search_faces_by_name",
     "get_unnamed_candidates",
+    "extract_time_range",
+    "filter_photos_by_time",
+    "extract_location_keywords",
+    "filter_photos_by_location",
 ]

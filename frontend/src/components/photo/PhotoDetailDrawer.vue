@@ -52,13 +52,20 @@
           <el-descriptions-item v-if="locationText" label="地点">{{ locationText }}</el-descriptions-item>
           <el-descriptions-item v-if="meta?.address" label="详细地址">{{ meta?.address }}</el-descriptions-item>
           <el-descriptions-item v-if="hasCoords" label="GPS 坐标">
-            {{ meta?.latitude?.toFixed(6) }}, {{ meta?.longitude?.toFixed(6) }}
+            {{ Number(meta?.latitude).toFixed(6) }}, {{ Number(meta?.longitude).toFixed(6) }}
           </el-descriptions-item>
         </template>
         <el-descriptions-item v-else label="位置">
           <span class="text-gray-400">无位置信息</span>
         </el-descriptions-item>
       </el-descriptions>
+
+      <!-- 添加到相册 -->
+      <div class="mt-4">
+        <el-button type="primary" plain size="small" @click="openAddToAlbumDialog">
+          添加到相册
+        </el-button>
+      </div>
     </div>
 
     <!-- 无数据 -->
@@ -71,13 +78,41 @@
       @close="previewVisible = false"
       :hide-on-click-modal="true"
     />
+
+    <!-- 添加到相册对话框 -->
+    <el-dialog v-model="addToAlbumVisible" title="添加到相册" width="380px" append-to-body>
+      <div v-if="albumsLoading" class="py-4">
+        <el-skeleton :rows="3" animated />
+      </div>
+      <div v-else-if="userAlbums.length === 0" class="py-4 text-center text-gray-400">
+        还没有相册，请先在相册页面创建
+      </div>
+      <div v-else class="space-y-2">
+        <div
+          v-for="album in userAlbums"
+          :key="album.id"
+          class="flex items-center justify-between px-3 py-2 rounded-lg border border-gray-200 hover:bg-gray-50 cursor-pointer"
+          @click="handleAddToAlbum(album)"
+        >
+          <div>
+            <p class="text-sm font-medium">{{ album.name }}</p>
+            <p class="text-xs text-gray-400">{{ album.photo_count }} 张照片</p>
+          </div>
+          <el-icon v-if="addedAlbumIds.has(album.id)" color="#67C23A" :size="18"><Check /></el-icon>
+        </div>
+      </div>
+    </el-dialog>
   </el-drawer>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
+import { ElMessage } from 'element-plus'
+import { Check } from '@element-plus/icons-vue'
 import { photoApi } from '@/api/photo'
+import { albumApi } from '@/api/album'
 import type { PhotoDetail } from '@/types/photo'
+import type { Album } from '@/types/album'
 
 const props = defineProps<{
   visible: boolean
@@ -96,6 +131,37 @@ const drawerVisible = computed({
 const loading = ref(false)
 const detail = ref<PhotoDetail | null>(null)
 const previewVisible = ref(false)
+
+// ── 添加到相册 ─────────────
+const addToAlbumVisible = ref(false)
+const albumsLoading = ref(false)
+const userAlbums = ref<Album[]>([])
+const addedAlbumIds = ref<Set<string>>(new Set())
+
+async function openAddToAlbumDialog() {
+  addToAlbumVisible.value = true
+  albumsLoading.value = true
+  addedAlbumIds.value = new Set()
+  try {
+    const res = await albumApi.list()
+    userAlbums.value = res.data.filter(a => !a.is_system)
+  } catch {
+    // handled by interceptor
+  } finally {
+    albumsLoading.value = false
+  }
+}
+
+async function handleAddToAlbum(album: Album) {
+  if (!detail.value) return
+  try {
+    await albumApi.addPhoto(album.id, detail.value.id)
+    addedAlbumIds.value.add(album.id)
+    ElMessage.success(`已添加到「${album.name}」`)
+  } catch {
+    // handled by interceptor
+  }
+}
 
 const meta = computed(() => detail.value?.metadata)
 const fileUrl = computed(() => (detail.value ? photoApi.fileUrl(detail.value.id) : ''))

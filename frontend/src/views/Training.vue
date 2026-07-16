@@ -25,8 +25,11 @@
         <div class="bg-white dark:bg-dark-card rounded-lg border border-gray-100 dark:border-dark-border p-3 flex items-center justify-between">
           <div class="flex items-center space-x-4">
             <span class="font-semibold text-gray-800 dark:text-dark-text">{{ selectedTask.task_name }}</span>
-            <el-tag :type="statusType(selectedTask.status)" size="small">{{ statusLabel(selectedTask.status) }}</el-tag>
-            <span class="text-sm text-gray-500 dark:text-dark-text-secondary">Epoch: {{ epochDisplay(selectedTask.current_epoch, selectedTask.total_epochs, selectedTask.status) }}</span>
+           <el-tag :type="statusType(selectedTask.status)" size="small">{{ statusLabel(selectedTask.status) }}</el-tag>
+            <span class="text-sm text-gray-500 dark:text-dark-text-secondary" v-if="selectedTask.dataset_name">
+              数据集: <strong>{{ selectedTask.dataset_name }}</strong>
+            </span>
+           <span class="text-sm text-gray-500 dark:text-dark-text-secondary">Epoch: {{ epochDisplay(selectedTask.current_epoch, selectedTask.total_epochs, selectedTask.status) }}</span>
             <span class="text-sm text-gray-500 dark:text-dark-text-secondary" v-if="selectedTask.best_metric !== null">
               最佳 mAP50: <strong>{{ selectedTask.best_metric.toFixed(4) }}</strong>
             </span>
@@ -103,8 +106,9 @@
           <h4 class="text-sm font-semibold text-gray-700 dark:text-dark-text mb-3">最近训练任务</h4>
           <el-table :data="taskList.slice(0, 6)" empty-text="暂无训练任务" style="width: 100%"
             @row-click="(row:any) => onTaskSelect(row.id)" highlight-current-row>
-            <el-table-column prop="task_name" label="任务" min-width="120" />
-            <el-table-column label="状态" width="80">
+           <el-table-column prop="task_name" label="任务" min-width="120" />
+            <el-table-column prop="dataset_name" label="数据集" min-width="120" />
+           <el-table-column label="状态" width="80">
               <template #default="{ row }">
                 <el-tag :type="statusType(row.status)" size="small">{{ statusLabel(row.status) }}</el-tag>
               </template>

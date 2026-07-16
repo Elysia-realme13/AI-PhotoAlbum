@@ -129,7 +129,22 @@ def list_training_tasks(
             query = query.filter(TrainingTask.status == status)
         tasks = query.all()
 
-        items = [TrainingTaskResponse.model_validate(t) for t in tasks]
+        # 查询数据集名称映射
+        from app.models.training import Dataset
+        ds_ids = [str(t.dataset_id) for t in tasks if t.dataset_id]
+        datasets = []
+        if ds_ids:
+            from uuid import UUID
+            datasets = db.query(Dataset).filter(Dataset.id.in_([UUID(id) for id in ds_ids])).all()
+        ds_map = {str(d.id): d.name for d in datasets}
+ 
+        items = []
+        for t in tasks:
+            item = TrainingTaskResponse.model_validate(t)
+            if t.dataset_id:
+                item.dataset_name = ds_map.get(str(t.dataset_id))
+            items.append(item)
+ 
         return TrainingTaskListResponse(total=len(items), items=items)
     except Exception as e:
         logger.error(f"获取训练任务列表失败: {e}", exc_info=True)
@@ -153,8 +168,15 @@ def get_training_task(
 
     metrics = training_service.get_task_metrics(task_id, db)
 
+    # 填充数据集名称
+    from app.models.training import Dataset
+    task_resp = TrainingTaskResponse.model_validate(task)
+    if task.dataset_id:
+        ds = db.query(Dataset).filter(Dataset.id == uuid.UUID(str(task.dataset_id))).first()
+        task_resp.dataset_name = ds.name if ds else None
+ 
     return TrainingTaskDetailResponse(
-        task=TrainingTaskResponse.model_validate(task),
+        task=task_resp,
         metrics=[TrainingMetricResponse.model_validate(m) for m in metrics],
     )
 

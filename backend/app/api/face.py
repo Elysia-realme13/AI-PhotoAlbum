@@ -1,22 +1,33 @@
 """
-Face API - cluster naming, merging, and unamed list
-GET  /api/faces/unamed   -  unnamed cluster list
-POST /api/faces/name     -  bind name to cluster
-POST /api/faces/merge    -  merge two clusters
+Face API — identity CRUD and clustering
+GET   /api/faces/identities            — list all identities
+GET   /api/faces/identities/{id}/photos — identity photos
+PUT   /api/faces/identities/{id}       — update identity
+POST  /api/faces/identities/merge      — merge identities
+POST  /api/faces/identities/name       — bind name (agent confirmation)
 """
 import uuid as _uuid
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from typing import List, Optional
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 from app.database.session import get_db
 from app.api.deps import get_required_user
 from app.models.user import User
 from app.models.face import Face, FaceIdentity
-from app.services.face_cluster_service import get_unamed_clusters, get_representative_faces
+from app.services.face_cluster_service import get_representative_faces, get_cluster_face_photos
 from app.services.name_confirmation_service import confirm_name, find_clusters_by_name
 
-router = APIRouter(prefix="/api/faces", tags=["faces"])
+router = APIRouter(prefix="/api/faces/identities", tags=["faces"])
+
+
+# ── Pydantic models ───────────────────────────────────────
+
+class FaceIdentityUpdate(BaseModel):
+    identity_name: Optional[str] = None
+    description: Optional[str] = None
+    is_hidden: Optional[bool] = None
 
 
 class NameBindRequest(BaseModel):
@@ -28,27 +39,189 @@ class NameBindRequest(BaseModel):
 
 
 class MergeRequest(BaseModel):
-    source_cluster_id: str
-    target_cluster_id: str
+    source_ids: List[str]
+    target_id: str
 
 
-class ClusterInfo(BaseModel):
-    cluster_id: str
+class IdentityResponse(BaseModel):
+    id: str
     identity_name: Optional[str] = None
+    description: Optional[str] = None
     face_count: int
-    representative_faces: List[dict]
+    representative_faces: List[dict] = []
+    is_hidden: bool = False
+
+    class Config:
+        from_attributes = True
 
 
-@router.get("/unamed", response_model=List[ClusterInfo])
-def list_unamed_clusters(
+# ── Helpers ───────────────────────────────────────────────
+
+def _get_identity_or_404(db: Session, identity_id: str, owner_id: str) -> FaceIdentity:
+    try:
+        iid = _uuid.UUID(identity_id)
+    except ValueError:
+        raise HTTPException(400, "无效的身份ID")
+    identity = db.query(FaceIdentity).filter(
+        FaceIdentity.id == iid,
+        FaceIdentity.owner_id == _uuid.UUID(owner_id),
+    ).first()
+    if not identity:
+        raise HTTPException(404, "身份不存在")
+    return identity
+
+
+# ── GET / — 列出所有 identities ────────────────────────────
+
+@router.get("")
+def list_identities(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_required_user),
 ):
-    clusters = get_unamed_clusters(
-        db=db, owner_id=str(current_user.id), top_k=20,
+    """返回当前用户的所有人脸身份（含命名和未命名）"""
+    owner_uuid = _uuid.UUID(str(current_user.id))
+    rows = (
+        db.query(
+            FaceIdentity,
+            func.count(Face.id).label("face_count"),
+        )
+        .outerjoin(Face, Face.face_identity_id == FaceIdentity.id)
+        .filter(
+            FaceIdentity.owner_id == owner_uuid,
+            FaceIdentity.is_hidden == False,
+        )
+        .group_by(FaceIdentity.id)
+        .order_by(func.count(Face.id).desc())
+        .all()
     )
-    return [ClusterInfo(**c) for c in clusters]
 
+    result = []
+    for identity, face_count in rows:
+        reps = get_representative_faces(db, identity.id, top_k=3)
+        result.append({
+            "id": str(identity.id),
+            "identity_name": identity.identity_name,
+            "description": identity.description,
+            "face_count": face_count,
+            "representative_faces": reps,
+            "is_hidden": identity.is_hidden,
+        })
+    return result
+
+
+# ── GET /{identity_id}/photos ──────────────────────────────
+
+@router.get("/{identity_id}/photos")
+def identity_photos(
+    identity_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_required_user),
+):
+    """返回指定身份下的所有照片"""
+    identity = _get_identity_or_404(db, identity_id, str(current_user.id))
+    photo_ids = get_cluster_face_photos(db, identity.id)
+
+    if not photo_ids:
+        return []
+
+    from app.models.photo import Photo
+    from app.schemas.photo import PhotoListResponse
+
+    photos = (
+        db.query(Photo)
+        .filter(Photo.id.in_([_uuid.UUID(pid) for pid in photo_ids]))
+        .order_by(Photo.photo_time.desc())
+        .all()
+    )
+    return [
+        {
+            "id": str(p.id),
+            "filename": p.filename,
+            "original_name": p.original_name,
+            "file_type": p.file_type,
+            "file_size": p.file_size,
+            "photo_time": str(p.photo_time) if p.photo_time else None,
+            "upload_time": str(p.upload_time) if p.upload_time else None,
+            "is_deleted": p.is_deleted,
+        }
+        for p in photos
+    ]
+
+
+# ── PUT /{identity_id} ────────────────────────────────────
+
+@router.put("/{identity_id}")
+def update_identity(
+    identity_id: str,
+    data: FaceIdentityUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_required_user),
+):
+    """更新身份信息（名称、描述、隐藏状态）"""
+    identity = _get_identity_or_404(db, identity_id, str(current_user.id))
+
+    if data.identity_name is not None:
+        identity.identity_name = data.identity_name
+    if data.description is not None:
+        identity.description = data.description
+    if data.is_hidden is not None:
+        identity.is_hidden = data.is_hidden
+
+    db.commit()
+    db.refresh(identity)
+    return {
+        "id": str(identity.id),
+        "identity_name": identity.identity_name,
+        "description": identity.description,
+        "is_hidden": identity.is_hidden,
+    }
+
+
+# ── POST /merge ───────────────────────────────────────────
+
+@router.post("/merge")
+def merge_identities(
+    req: MergeRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_required_user),
+):
+    """将多个来源身份合并到目标身份"""
+    try:
+        tgt = _uuid.UUID(req.target_id)
+    except ValueError:
+        raise HTTPException(400, "无效的目标ID")
+
+    target = db.query(FaceIdentity).filter(FaceIdentity.id == tgt).first()
+    if not target:
+        raise HTTPException(404, "目标身份不存在")
+
+    merged_count = 0
+    for sid in req.source_ids:
+        try:
+            src = _uuid.UUID(sid)
+        except ValueError:
+            continue
+        if src == tgt:
+            continue
+        source = db.query(FaceIdentity).filter(FaceIdentity.id == src).first()
+        if not source:
+            continue
+        # 迁移所有人脸到目标身份
+        db.query(Face).filter(Face.face_identity_id == src).update(
+            {"face_identity_id": tgt}
+        )
+        source.is_hidden = True
+        merged_count += 1
+
+    db.commit()
+    return {
+        "message": f"已合并 {merged_count} 个身份",
+        "target_id": req.target_id,
+        "merged_count": merged_count,
+    }
+
+
+# ── POST /name — 绑定名称（agent 确认流程）────────────────
 
 @router.post("/name")
 def bind_name(
@@ -56,19 +229,24 @@ def bind_name(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_required_user),
 ):
+    """绑定身份名称（支持 agent 会话确认流程）"""
     if req.session_id and req.query:
         success = confirm_name(
             db=db, session_id=req.session_id, query=req.query,
             cluster_id=req.cluster_id, name=req.name, aliases=req.aliases,
         )
         if not success:
-            raise HTTPException(400, "name confirmation failed: pending session expired")
+            raise HTTPException(400, "名称确认失败：pending 会话已过期")
         return {"message": "name confirmed", "cluster_id": req.cluster_id, "name": req.name}
 
-    cid = _uuid.UUID(req.cluster_id)
+    try:
+        cid = _uuid.UUID(req.cluster_id)
+    except ValueError:
+        raise HTTPException(400, "无效的聚类ID")
+
     identity = db.query(FaceIdentity).filter(FaceIdentity.id == cid).first()
     if not identity:
-        raise HTTPException(404, "cluster not found")
+        raise HTTPException(404, "聚类不存在")
 
     identity.identity_name = req.name
     faces = db.query(Face).filter(Face.face_identity_id == cid).all()
@@ -78,25 +256,3 @@ def bind_name(
             face.face_aliases = req.aliases
     db.commit()
     return {"message": "name set", "cluster_id": req.cluster_id, "name": req.name}
-
-
-@router.post("/merge")
-def merge_clusters(
-    req: MergeRequest,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_required_user),
-):
-    src = _uuid.UUID(req.source_cluster_id)
-    tgt = _uuid.UUID(req.target_cluster_id)
-    source_identity = db.query(FaceIdentity).filter(FaceIdentity.id == src).first()
-    target_identity = db.query(FaceIdentity).filter(FaceIdentity.id == tgt).first()
-    if not source_identity or not target_identity:
-        raise HTTPException(404, "cluster not found")
-    db.query(Face).filter(Face.face_identity_id == src).update({"face_identity_id": tgt})
-    source_identity.is_hidden = True
-    db.commit()
-    return {
-        "message": "merged",
-        "source_cluster_id": req.source_cluster_id,
-        "target_cluster_id": req.target_cluster_id,
-    }

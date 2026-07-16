@@ -138,7 +138,11 @@ export const trainingApi = {
     formData.append('model_name', data.model_name)
     if (data.description) formData.append('description', data.description)
     formData.append('config', JSON.stringify(data.config))
-    return request.post<TrainingTask>('/training/tasks/with-dataset', formData)
+    return request.post<TrainingTask>('/training/tasks/with-dataset', formData, {
+      timeout: 600000,
+      maxContentLength: Infinity,
+      maxBodyLength: Infinity,
+    })
   },
 
   /** 获取任务列表 */
@@ -233,7 +237,11 @@ export const trainingApi = {
   uploadDataset(file: File) {
     const formData = new FormData()
     formData.append('file', file)
-    return request.post<DatasetItem>('/datasets/upload', formData)
+    return request.post<DatasetItem>('/datasets/upload', formData, {
+      timeout: 600000,
+      maxContentLength: Infinity,
+      maxBodyLength: Infinity,
+    })
   },
 
   /** 获取数据集列表 */

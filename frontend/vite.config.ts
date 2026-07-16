@@ -11,10 +11,15 @@ export default defineConfig({
   },
   server: {
     port: 5173,
+    watch: {
+      usePolling: true,
+    },
     proxy: {
       '/api': {
-        target: 'http://localhost:8001',
-        changeOrigin: true,
+      target: process.env.VITE_API_PROXY || 'http://localhost:8000',
+      changeOrigin: true,
+      timeout: 600000,
+      proxyTimeout: 600000,
       },
     },
   },

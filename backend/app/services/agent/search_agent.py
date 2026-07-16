@@ -112,7 +112,7 @@ class _FallbackGraph:
             state["error"] = "missing db session"
             return state
         for node in [extract_entities, recognize_person, clip_search, merge_results]:
-            state = node(state, db)
+            state = node(state, config)
             if state.get("error"):
                 break
         return state

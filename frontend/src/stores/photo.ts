@@ -29,11 +29,11 @@ export const usePhotoStore = defineStore('photo', () => {
   async function uploadPhoto(file: File): Promise<PhotoDetail | null> {
     try {
       const res = await photoApi.upload(file)
-      ElMessage.success('上传成功')
       clearPhotosCache()
       await fetchPhotos(currentPage.value)
       return res.data
-    } catch {
+    } catch (e) {
+      console.error('[photo store] 上传失败:', file.name, e)
       return null
     }
   }

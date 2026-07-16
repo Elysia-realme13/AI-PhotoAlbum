@@ -16,11 +16,14 @@
         v-for="(photo, index) in photos"
         :key="photo.id"
         :photo="photo"
+        :selectable="selectable"
+        :selected="selectedIds.has(photo.id)"
         :style="{ animationDelay: `${index * 50}ms` }"
         class="fade-in"
         @click="$emit('preview', photo)"
         @detail="$emit('detail', photo)"
         @delete="$emit('delete', photo)"
+        @select="$emit('select', $event)"
       />
     </div>
   </div>
@@ -33,6 +36,8 @@ import type { PhotoItem } from '@/types/photo'
 defineProps<{
   photos: PhotoItem[]
   loading: boolean
+  selectable?: boolean
+  selectedIds: Set<string>
 }>()
 
 defineEmits<{
@@ -40,5 +45,6 @@ defineEmits<{
   preview: [photo: PhotoItem]
   detail: [photo: PhotoItem]
   delete: [photo: PhotoItem]
+  select: [id: string]
 }>()
 </script>

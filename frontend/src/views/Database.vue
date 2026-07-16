@@ -147,8 +147,25 @@ async function loadStorageInfo() {
 }
 async function onDatasetUpload(f: any) {
   if (!f.raw) return
-  try { await trainingApi.uploadDataset(f.raw); ElMessage.success('上传成功'); await loadDatasets() }
-  catch (e: any) { ElMessage.error(e.response?.data?.detail || '上传失败') }
+  const fileName = f.raw.name
+  const lower = fileName.toLowerCase()
+  const stem = lower.endsWith(".tar.gz") || lower.endsWith(".tgz") ? fileName.slice(0, -7)
+    : lower.endsWith(".tar.bz2") ? fileName.slice(0, -8)
+    : (fileName.lastIndexOf(".") > 0 ? fileName.slice(0, fileName.lastIndexOf(".")) : fileName)
+  if (datasetList.value.some(ds => ds.name === stem)) {
+    ElMessage.warning(`数据集 "${stem}" 已存在，请勿重复上传`)
+    return
+}
+  const uploadMsg = ElMessage({ message: '正在上传数据集，请稍候...', duration: 0 })
+  try {
+    await trainingApi.uploadDataset(f.raw)
+    uploadMsg.close()
+    ElMessage.success('上传成功')
+    await loadDatasets()
+  } catch (e: any) {
+    uploadMsg.close()
+    ElMessage.error(e.response?.data?.detail || '上传失败')
+  }
 }
 async function previewDataset(ds: DatasetItem) {
   try { const r = await trainingApi.previewDataset(ds.id); console.log('数据集预览:', r.data) }

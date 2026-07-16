@@ -1,4 +1,4 @@
-## 📝 最近更新
+﻿## 📝 最近更新
 
 > **2026-07-15** — 相册管理功能 + UI 动画优化
 
@@ -146,7 +146,7 @@ AI-PhotoAlbum/
 ├── docker-compose.yml              # 基础设施编排（PG + MinIO）
 ├── README.md                       # 本文件
 │
-├── backend/                        # Python 后端 (FastAPI :8001 开发 / :8000 Docker)
+├── backend/                        # Python 后端 (FastAPI :8000)
 │   ├── main.py                     # 应用入口 + 生命周期管理
 │   ├── pyproject.toml              # 依赖管理 (uv)
 │   ├── .env / .env.example         # 环境变量配置
@@ -314,9 +314,8 @@ AI-PhotoAlbum/
 
 | 端口 | 服务 | 说明 |
 |:---:|------|------|
-| `8000` | 后端 FastAPI（开发/Docker） | `uvicorn main:app --port 8000` |
-| `5173` | 前端 Vite 开发服务器 | `npm run dev` |
-| `3000` | 前端 Nginx（Docker） | `docker compose up` |
+| `8000` | 后端 FastAPI | `docker compose up -d backend` 或 `uvicorn main:app --port 8000` |
+| `5173` | 前端 Vite 开发服务器 | `docker compose up -d frontend` 或 `npm run dev` |
 | `5433` | PostgreSQL | 避免与本地 PG 冲突 |
 | `9000` | MinIO S3 API | 对象存储 |
 | `9001` | MinIO 控制台 | Web 管理界面 |
@@ -328,35 +327,25 @@ cd AI-PhotoAlbum
 docker compose up -d
 ```
 
-| 服务 | 地址 |
-|------|------|
-| 前端 | `http://localhost:3000` |
-| API 文档 | `http://localhost:8000/docs` |
-| MinIO | `http://localhost:9001` |
-
-### 方式二：开发模式（前后端分离）
-
-```bash
-# ① 启动数据库
-docker compose up -d postgres
-
-# ② 后端（新终端）
-cd backend
-cp .env.example .env        # 仅首次，可编辑 OPENAI_API_KEY
-uv sync                     # 仅首次
-uv run uvicorn main:app --reload --host 0.0.0.0 --port 8000
-
-# ③ 前端（新终端）
-cd frontend
-npm install                 # 仅首次
-npm run dev
-```
+> 所有服务均支持**源码热同步**：修改后端代码自动重启 uvicorn，修改前端代码自动 Vite HMR。
 
 | 服务 | 地址 |
 |------|------|
 | 前端 | `http://localhost:5173` |
 | API 文档 | `http://localhost:8000/docs` |
+| MinIO | `http://localhost:9001` |
 
+### 方式二：开发模式（本地运行前端）
+
+```bash
+# 启动数据库 + 后端（Docker，热重载）
+docker compose up -d postgres backend
+
+# 前端（新终端，Vite HMR）
+cd frontend
+npm install                 # 仅首次
+npm run dev
+```
 ### 验证
 
 ```bash

@@ -37,6 +37,9 @@ def setup_logger(name: str = "app") -> logging.Logger:
     file_handler.setFormatter(formatter)
     logger.addHandler(file_handler)
 
+    # 关闭 SQLAlchemy 数据库查询日志，避免轮询输出淹没控制台
+    logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
+
     return logger
 
 

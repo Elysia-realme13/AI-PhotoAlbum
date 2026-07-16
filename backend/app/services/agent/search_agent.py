@@ -107,7 +107,7 @@ def build_search_graph():
 class _FallbackGraph:
     def invoke(self, input_state: Dict[str, Any], config: Dict = None) -> Dict[str, Any]:
         state = dict(input_state)
-        db = config.get("db") if config else None
+        db = config.get("configurable", {}).get("db") if config else None
         if not db:
             state["error"] = "missing db session"
             return state

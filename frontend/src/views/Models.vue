@@ -100,6 +100,27 @@
       </div>
     </div>
   </el-dialog>
+
+  <!-- 导入模型对话框 -->
+  <el-dialog v-model="importDialogVisible" title="导入模型" width="480px">
+    <el-form label-width="90px">
+      <el-form-item label="模型名称" required>
+        <el-input v-model="importModelName" placeholder="输入模型名称（如 my-yolo）" />
+      </el-form-item>
+      <el-form-item label="模型文件" required>
+        <el-upload :auto-upload="false" :show-file-list="false" accept=".pt,.onnx" :on-change="onImportFileChange">
+          <el-button type="primary" plain>
+            <el-icon><Upload /></el-icon> 选择文件
+          </el-button>
+        </el-upload>
+        <span v-if="importFile" class="ml-2 text-sm text-gray-500">{{ importFile.name }}</span>
+      </el-form-item>
+    </el-form>
+    <template #footer>
+      <el-button @click="importDialogVisible = false">取消</el-button>
+      <el-button type="primary" :loading="importLoading" @click="handleImport">导入</el-button>
+    </template>
+  </el-dialog>
 </template>
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
@@ -119,7 +140,7 @@ const importModelName = ref('')
 const importFile = ref<File | null>(null)
 const importLoading = ref(false)
 const detailVisible = ref(false)
-const detailData = ref<any>(null)
+const detailData = ref<{model: ModelInfo; metrics: MetricItem[]; task_detail?: {current_epoch?: number; total_epochs?: number; status?: string; description?: string}} | null>(null)
 const detailMetrics = ref<MetricItem[]>([])
 const detailChartOption = computed(() => {
   if (detailMetrics.value.length === 0) return {}

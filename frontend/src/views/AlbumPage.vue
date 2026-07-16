@@ -1,15 +1,15 @@
-﻿<template>
+<template>
   <div>
-    <!-- 鐩稿唽鍒楄〃瑙嗗浘 -->
+    <!-- 相册列表视图 -->
     <template v-if="view === 'list'">
       <div class="flex items-center justify-between mb-6">
-        <h2 class="text-2xl font-bold text-gray-800">鐩稿唽</h2>
+        <h2 class="text-2xl font-bold text-gray-800">相册</h2>
         <el-button type="primary" @click="openCreateDialog">
-          鍒涘缓鐩稿唽
+          创建相册
         </el-button>
       </div>
 
-      <!-- 鍔犺浇楠ㄦ灦灞?-->
+      <!-- 加载骨架屏 -->
       <div v-if="loading" class="grid grid-cols-4 gap-4">
         <div v-for="i in 8" :key="i" class="bg-white rounded-xl overflow-hidden shadow-sm border border-gray-100">
           <div class="aspect-square bg-gray-200 animate-pulse" />
@@ -21,7 +21,7 @@
       </div>
 
       <template v-else>
-        <el-empty v-if="albums.length === 0" description="杩樻病鏈夌浉鍐岋紝鐐瑰嚮銆愬垱寤虹浉鍐屻€戝紑濮嬫暣鐞嗙収鐗囧惂锛? />
+        <el-empty v-if="albums.length === 0" description="还没有相册，点击【创建相册】开始整理照片吧！" />
         <div v-else class="grid grid-cols-4 gap-4">
           <div
             v-for="album in albums"
@@ -39,20 +39,21 @@
                 <el-icon :size="48"><PictureFilled /></el-icon>
               </div>
               <span class="absolute bottom-2 right-2 px-2 py-0.5 rounded-full bg-black/50 text-white text-xs">
-                {{ album.photo_count }} 寮?              </span>
+                {{ album.photo_count }} 张
+              </span>
             </div>
             <div class="p-3">
               <p class="text-sm font-medium text-gray-800 truncate">{{ album.name }}</p>
               <p class="text-xs text-gray-400 mt-0.5">
-                {{ album.description || '鏃犳弿杩? }}
+                {{ album.description || '无描述' }}
               </p>
             </div>
-            <!-- 鎿嶄綔鎸夐挳 -->
+            <!-- 操作按钮 -->
             <div class="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
               <button
                 class="w-8 h-8 rounded-full bg-black/40 text-white flex items-center justify-center hover:bg-blue-500"
                 @click.stop="openEditDialog(album)"
-                title="缂栬緫"
+                title="编辑"
               >
                 <el-icon :size="14"><Edit /></el-icon>
               </button>
@@ -60,7 +61,7 @@
                 v-if="!album.is_system"
                 class="w-8 h-8 rounded-full bg-black/40 text-white flex items-center justify-center hover:bg-red-500"
                 @click.stop="confirmDeleteAlbum(album)"
-                title="鍒犻櫎鐩稿唽"
+                title="删除相册"
               >
                 <el-icon :size="16"><Delete /></el-icon>
               </button>
@@ -70,23 +71,23 @@
       </template>
     </template>
 
-    <!-- 鐩稿唽璇︽儏瑙嗗浘 -->
+    <!-- 相册详情视图 -->
     <template v-else>
       <div class="flex items-center gap-3 mb-6">
-        <el-button :icon="ArrowLeft" circle @click="backToList" aria-label="杩斿洖鐩稿唽鍒楄〃" />
+        <el-button :icon="ArrowLeft" circle @click="backToList" aria-label="返回相册列表" />
         <h2 class="text-2xl font-bold text-gray-800">{{ currentAlbum?.name }}</h2>
-        <span class="text-sm text-gray-400">{{ albumPhotos.length }} 寮?/span>
+        <span class="text-sm text-gray-400">{{ albumPhotos.length }} 张</span>
         <el-button v-if="currentAlbum && !currentAlbum.is_system" size="small" @click="openEditDialog(currentAlbum)" class="ml-auto">
-          <el-icon><Edit /></el-icon> 缂栬緫
+          <el-icon><Edit /></el-icon> 编辑
         </el-button>
       </div>
 
-      <!-- 璇︽儏鍔犺浇 -->
+      <!-- 详情加载 -->
       <div v-if="detailLoading" class="grid grid-cols-6 gap-3">
         <div v-for="i in 12" :key="i" class="aspect-square bg-gray-200 rounded-lg animate-pulse" />
       </div>
 
-      <el-empty v-else-if="albumPhotos.length === 0" description="鐩稿唽涓繕娌℃湁鐓х墖" />
+      <el-empty v-else-if="albumPhotos.length === 0" description="相册中还没有照片" />
 
       <div v-else class="grid grid-cols-6 gap-3">
         <div
@@ -102,21 +103,21 @@
           <button
             class="absolute top-1 right-1 w-7 h-7 rounded-full bg-black/40 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-blue-500"
             @click.stop="handleDetail(photo)"
-            title="璇︽儏"
+            title="详情"
           >
             <el-icon :size="14"><InfoFilled /></el-icon>
           </button>
           <button
             class="absolute top-1 left-1 w-7 h-7 rounded-full bg-black/40 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-500"
             @click.stop="handleRemovePhoto(photo)"
-            title="浠庣浉鍐岀Щ闄?
+            title="从相册移除"
           >
             <el-icon :size="14"><Close /></el-icon>
           </button>
         </div>
       </div>
 
-      <!-- 鍒嗛〉 -->
+      <!-- 分页 -->
       <div v-if="detailTotal > detailPageSize" class="mt-4 flex justify-center">
         <el-pagination
           :current-page="detailPage"
@@ -127,25 +128,25 @@
       </div>
     </template>
 
-    <!-- 鍒涘缓/缂栬緫鐩稿唽瀵硅瘽妗?-->
-    <el-dialog v-model="formDialogVisible" :title="editingAlbum ? '缂栬緫鐩稿唽' : '鍒涘缓鐩稿唽'" width="420px">
+    <!-- 创建/编辑相册对话框 -->
+    <el-dialog v-model="formDialogVisible" :title="editingAlbum ? '编辑相册' : '创建相册'" width="420px">
       <el-form :model="albumForm" label-width="70px">
-        <el-form-item label="鍚嶇О" required>
-          <el-input v-model="albumForm.name" placeholder="杈撳叆鐩稿唽鍚嶇О" maxlength="200" show-word-limit />
+        <el-form-item label="名称" required>
+          <el-input v-model="albumForm.name" placeholder="输入相册名称" maxlength="200" show-word-limit />
         </el-form-item>
-        <el-form-item label="鎻忚堪">
-          <el-input v-model="albumForm.description" type="textarea" :rows="3" placeholder="杈撳叆鐩稿唽鎻忚堪锛堝彲閫夛級" />
+        <el-form-item label="描述">
+          <el-input v-model="albumForm.description" type="textarea" :rows="3" placeholder="输入相册描述（可选）" />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="formDialogVisible = false">鍙栨秷</el-button>
+        <el-button @click="formDialogVisible = false">取消</el-button>
         <el-button type="primary" :loading="formLoading" @click="handleSubmitForm">
-          {{ editingAlbum ? '淇濆瓨' : '鍒涘缓' }}
+          {{ editingAlbum ? '保存' : '创建' }}
         </el-button>
       </template>
     </el-dialog>
 
-    <!-- 鍥剧墖棰勮 -->
+    <!-- 图片预览 -->
     <el-image-viewer
       v-if="previewVisible"
       :url-list="previewList"
@@ -154,7 +155,7 @@
       :hide-on-click-modal="true"
     />
 
-    <!-- 璇︽儏鎶藉眽 -->
+    <!-- 详情抽屉 -->
     <PhotoDetailDrawer v-model:visible="detailVisible" :photo-id="detailPhotoId" />
   </div>
 </template>
@@ -169,11 +170,11 @@ import PhotoDetailDrawer from '@/components/photo/PhotoDetailDrawer.vue'
 import type { Album } from '@/types/album'
 import type { PhotoItem } from '@/types/photo'
 
-// 鈹€鈹€ 鍒楄〃鐘舵€?鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+// ── 列表状态 ─────────────────
 const loading = ref(true)
 const albums = ref<Album[]>([])
 
-// 鈹€鈹€ 瑙嗗浘鍒囨崲锛堝垪琛?/ 璇︽儏锛?鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+// ── 视图切换（列表 / 详情） ─────────────────
 const view = ref<'list' | 'detail'>('list')
 const currentAlbum = ref<Album | null>(null)
 const albumPhotos = ref<PhotoItem[]>([])
@@ -217,7 +218,7 @@ function handleDetailPageChange(page: number) {
   fetchAlbumPhotos()
 }
 
-// 鈹€鈹€ 鍒涘缓/缂栬緫瀵硅瘽妗?鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+// ── 创建/编辑对话框 ─────────────────
 const formDialogVisible = ref(false)
 const formLoading = ref(false)
 const editingAlbum = ref<Album | null>(null)
@@ -240,7 +241,7 @@ function openEditDialog(album: Album) {
 
 async function handleSubmitForm() {
   if (!albumForm.value.name.trim()) {
-    ElMessage.warning('璇疯緭鍏ョ浉鍐屽悕绉?)
+    ElMessage.warning('请输入相册名称')
     return
   }
   formLoading.value = true
@@ -250,17 +251,18 @@ async function handleSubmitForm() {
         name: albumForm.value.name,
         description: albumForm.value.description || undefined,
       })
-      ElMessage.success('鐩稿唽鏇存柊鎴愬姛')
+      ElMessage.success('相册更新成功')
     } else {
       await albumApi.create({
         name: albumForm.value.name,
         description: albumForm.value.description || undefined,
       })
-      ElMessage.success('鐩稿唽鍒涘缓鎴愬姛')
+      ElMessage.success('相册创建成功')
     }
     formDialogVisible.value = false
     await fetchAlbums()
-    // 濡傛灉鍦ㄨ鎯呴〉锛屼笖缂栬緫鐨勬槸褰撳墠鐩稿唽锛屾洿鏂版爣棰?    if (editingAlbum.value && currentAlbum.value?.id === editingAlbum.value.id) {
+    // 如果在详情页，且编辑的是当前相册，更新标题
+    if (editingAlbum.value && currentAlbum.value?.id === editingAlbum.value.id) {
       currentAlbum.value = { ...currentAlbum.value, name: albumForm.value.name, description: albumForm.value.description || null }
     }
   } catch {
@@ -270,45 +272,46 @@ async function handleSubmitForm() {
   }
 }
 
-// 鈹€鈹€ 鍒犻櫎鐩稿唽 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+// ── 删除相册 ─────────────────
 async function confirmDeleteAlbum(album: Album) {
   try {
     await ElMessageBox.confirm(
-      `纭畾瑕佸垹闄ょ浉鍐?${album.name}"鍚楋紵鐩稿唽涓殑鐓х墖涓嶄細琚垹闄ゃ€俙,
-      '鍒犻櫎鐩稿唽',
+      `确定要删除相册"${album.name}"吗？相册中的照片不会被删除。`,
+      '删除相册',
       {
-        confirmButtonText: '鍒犻櫎',
-        cancelButtonText: '鍙栨秷',
+        confirmButtonText: '删除',
+        cancelButtonText: '取消',
         type: 'warning',
       }
     )
     await albumApi.delete(album.id)
-    ElMessage.success('鐩稿唽鍒犻櫎鎴愬姛')
+    ElMessage.success('相册删除成功')
     await fetchAlbums()
   } catch {
-    // 鐢ㄦ埛鍙栨秷鎴栨帴鍙ｉ敊璇紙interceptor 澶勭悊锛?  }
+    // 用户取消或接口错误（interceptor 处理）
+  }
 }
 
-// 鈹€鈹€ 浠庣浉鍐岀Щ闄ょ収鐗?鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+// ── 从相册移除照片 ─────────────────
 async function handleRemovePhoto(photo: PhotoItem) {
   if (!currentAlbum.value) return
   try {
     await ElMessageBox.confirm(
-      `纭畾瑕佸皢"${photo.original_name || photo.filename}"浠庣浉鍐屼腑绉婚櫎鍚楋紵`,
-      '绉婚櫎鐓х墖',
-      { confirmButtonText: '绉婚櫎', cancelButtonText: '鍙栨秷', type: 'warning' }
+      `确定要将"${photo.original_name || photo.filename}"从相册中移除吗？`,
+      '移除照片',
+      { confirmButtonText: '移除', cancelButtonText: '取消', type: 'warning' }
     )
     await albumApi.removePhoto(currentAlbum.value.id, photo.id)
-    ElMessage.success('宸蹭粠鐩稿唽绉婚櫎')
+    ElMessage.success('已从相册移除')
     await fetchAlbumPhotos()
-    // 鏇存柊 photo_count
+    // 更新 photo_count
     currentAlbum.value = { ...currentAlbum.value, photo_count: currentAlbum.value.photo_count - 1 }
   } catch {
-    // 鐢ㄦ埛鍙栨秷
+    // 用户取消
   }
 }
 
-// 鈹€鈹€ 鍥剧墖棰勮 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+// ── 图片预览 ─────────────────────────
 const previewVisible = ref(false)
 const previewIndex = ref(0)
 const previewList = computed(() =>
@@ -320,7 +323,7 @@ function handlePreview(index: number) {
   previewVisible.value = true
 }
 
-// 鈹€鈹€ 璇︽儏鎶藉眽 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+// ── 详情抽屉 ─────────────────
 const detailVisible = ref(false)
 const detailPhotoId = ref<string | null>(null)
 
@@ -329,7 +332,7 @@ function handleDetail(photo: PhotoItem) {
   detailVisible.value = true
 }
 
-// 鈹€鈹€ 鍔犺浇鐩稿唽鍒楄〃 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+// ── 加载相册列表 ─────────────────
 async function fetchAlbums() {
   loading.value = true
   try {

@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import type { RouteRecordRaw } from 'vue-router'
+import { useUserStore } from '@/stores/user'
 
 const routes: RouteRecordRaw[] = [
   {
@@ -102,7 +103,14 @@ const router = createRouter({
 
 // 路由守卫：检查登录状态
 router.beforeEach((to, _from, next) => {
-  const token = localStorage.getItem('token')
+  const userStore = useUserStore()
+  const token = userStore.token
+
+  // 设置页面标题
+  if (to.meta.title) {
+    document.title = `${to.meta.title} - AI智能相册`
+  }
+
   if (!to.meta.noAuth && !token) {
     next('/login')
   } else if (to.path === '/login' && token) {

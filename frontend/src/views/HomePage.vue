@@ -1,24 +1,24 @@
 <template>
   <div>
-    <h2 class="text-2xl font-bold text-gray-800 dark:text-dark-text mb-6">首页</h2>
+    <h2 class="text-2xl font-bold text-gray-800 mb-6">首页</h2>
 
     <!-- 加载骨架屏 -->
     <div v-if="loading">
       <div class="grid grid-cols-4 gap-4 mb-6">
-        <div v-for="i in 4" :key="i" class="bg-white dark:bg-dark-card rounded-xl p-5 shadow-sm border border-gray-100 dark:border-dark-border">
+        <div v-for="i in 4" :key="i" class="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
           <div class="flex items-center justify-between">
             <div class="flex-1">
-              <div class="h-3 bg-gray-200 dark:bg-dark-hover rounded w-16 mb-3 animate-pulse" />
-              <div class="h-8 bg-gray-200 dark:bg-dark-hover rounded w-12 animate-pulse" />
+              <div class="h-3 bg-gray-200 rounded w-16 mb-3 animate-pulse" />
+              <div class="h-8 bg-gray-200 rounded w-12 animate-pulse" />
             </div>
-            <div class="w-12 h-12 rounded-lg bg-gray-200 dark:bg-dark-hover animate-pulse" />
+            <div class="w-12 h-12 rounded-lg bg-gray-200 animate-pulse" />
           </div>
         </div>
       </div>
-      <div class="bg-white dark:bg-dark-card rounded-xl shadow-sm border border-gray-100 dark:border-dark-border p-5">
-        <div class="h-5 bg-gray-200 dark:bg-dark-hover rounded w-24 mb-4 animate-pulse" />
+      <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+        <div class="h-5 bg-gray-200 rounded w-24 mb-4 animate-pulse" />
         <div class="grid grid-cols-6 gap-3">
-          <div v-for="i in 6" :key="i" class="aspect-square bg-gray-200 dark:bg-dark-hover rounded-lg animate-pulse" />
+          <div v-for="i in 6" :key="i" class="aspect-square bg-gray-200 rounded-lg animate-pulse" />
         </div>
       </div>
     </div>
@@ -26,46 +26,46 @@
     <template v-else>
       <!-- 统计卡片 -->
       <div class="grid grid-cols-4 gap-4 mb-6">
-        <div class="bg-white dark:bg-dark-card rounded-xl p-5 shadow-sm border border-gray-100 dark:border-dark-border hover-scale cursor-pointer">
+        <div class="bg-white rounded-xl p-5 shadow-sm border border-gray-100 hover-scale cursor-pointer">
           <div class="flex items-center justify-between">
             <div>
-              <p class="text-gray-500 dark:text-dark-text-secondary text-sm">总照片数</p>
-              <p class="text-3xl font-bold text-gray-800 dark:text-dark-text mt-1">{{ stats.photos }}</p>
+              <p class="text-gray-500 text-sm">总照片数</p>
+              <p class="text-3xl font-bold text-gray-800 mt-1">{{ stats.photos }}</p>
             </div>
-            <div class="w-12 h-12 rounded-lg bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center">
+            <div class="w-12 h-12 rounded-lg bg-blue-50 flex items-center justify-center">
               <el-icon :size="24" color="#409EFF"><PictureFilled /></el-icon>
             </div>
           </div>
         </div>
-        <div class="bg-white dark:bg-dark-card rounded-xl p-5 shadow-sm border border-gray-100 dark:border-dark-border hover-scale cursor-pointer">
+        <div class="bg-white rounded-xl p-5 shadow-sm border border-gray-100 hover-scale cursor-pointer">
           <div class="flex items-center justify-between">
             <div>
-              <p class="text-gray-500 dark:text-dark-text-secondary text-sm">相册数</p>
-              <p class="text-3xl font-bold text-gray-800 dark:text-dark-text mt-1">{{ stats.albums }}</p>
+              <p class="text-gray-500 text-sm">相册数</p>
+              <p class="text-3xl font-bold text-gray-800 mt-1">{{ stats.albums }}</p>
             </div>
-            <div class="w-12 h-12 rounded-lg bg-green-50 dark:bg-green-900/30 flex items-center justify-center">
+            <div class="w-12 h-12 rounded-lg bg-green-50 flex items-center justify-center">
               <el-icon :size="24" color="#67C23A"><Folder /></el-icon>
             </div>
           </div>
         </div>
-        <div class="bg-white dark:bg-dark-card rounded-xl p-5 shadow-sm border border-gray-100 dark:border-dark-border hover-scale cursor-pointer">
+        <div class="bg-white rounded-xl p-5 shadow-sm border border-gray-100 hover-scale cursor-pointer">
           <div class="flex items-center justify-between">
             <div>
-              <p class="text-gray-500 dark:text-dark-text-secondary text-sm">识别人物</p>
-              <p class="text-3xl font-bold text-gray-800 dark:text-dark-text mt-1">{{ stats.faces }}</p>
+              <p class="text-gray-500 text-sm">识别人物</p>
+              <p class="text-3xl font-bold text-gray-800 mt-1">{{ stats.faces ?? '--' }}</p>
             </div>
-            <div class="w-12 h-12 rounded-lg bg-purple-50 dark:bg-purple-900/30 flex items-center justify-center">
+            <div class="w-12 h-12 rounded-lg bg-purple-50 flex items-center justify-center">
               <el-icon :size="24" color="#9C27B0"><UserFilled /></el-icon>
             </div>
           </div>
         </div>
-        <div class="bg-white dark:bg-dark-card rounded-xl p-5 shadow-sm border border-gray-100 dark:border-dark-border hover-scale cursor-pointer">
+        <div class="bg-white rounded-xl p-5 shadow-sm border border-gray-100 hover-scale cursor-pointer">
           <div class="flex items-center justify-between">
             <div>
-              <p class="text-gray-500 dark:text-dark-text-secondary text-sm">足迹城市</p>
-              <p class="text-3xl font-bold text-gray-800 dark:text-dark-text mt-1">{{ stats.cities }}</p>
+              <p class="text-gray-500 text-sm">足迹城市</p>
+              <p class="text-3xl font-bold text-gray-800 mt-1">{{ stats.cities }}</p>
             </div>
-            <div class="w-12 h-12 rounded-lg bg-orange-50 dark:bg-orange-900/30 flex items-center justify-center">
+            <div class="w-12 h-12 rounded-lg bg-orange-50 flex items-center justify-center">
               <el-icon :size="24" color="#E6A23C"><Location /></el-icon>
             </div>
           </div>
@@ -73,14 +73,14 @@
       </div>
 
       <!-- 最近上传 -->
-      <div class="bg-white dark:bg-dark-card rounded-xl shadow-sm border border-gray-100 dark:border-dark-border p-5">
-        <h3 class="text-lg font-semibold text-gray-800 dark:text-dark-text mb-4">最近上传</h3>
+      <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+        <h3 class="text-lg font-semibold text-gray-800 mb-4">最近上传</h3>
         <el-empty v-if="recentPhotos.length === 0" description="还没有照片，快去上传吧！" />
         <div v-else class="grid grid-cols-6 gap-3">
           <div
             v-for="(photo, index) in recentPhotos"
             :key="photo.id"
-            class="group relative aspect-square bg-gray-100 dark:bg-dark-hover rounded-lg overflow-hidden cursor-pointer"
+            class="group relative aspect-square bg-gray-100 rounded-lg overflow-hidden cursor-pointer"
             @click="handlePreview(photo, index)"
           >
             <img :src="photoApi.thumbnailUrl(photo.id)" class="w-full h-full object-cover group-hover:opacity-80 transition-opacity" />
@@ -114,6 +114,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { InfoFilled } from '@element-plus/icons-vue'
 import { photoApi } from '@/api/photo'
+import { albumApi } from '@/api/album'
 import { mapApi } from '@/api/map'
 import PhotoDetailDrawer from '@/components/photo/PhotoDetailDrawer.vue'
 import type { PhotoItem } from '@/types/photo'
@@ -123,7 +124,7 @@ const loading = ref(true)
 const stats = ref({
   photos: 0,
   albums: 0,
-  faces: 0,
+  faces: null as number | null,
   cities: 0,
 })
 
@@ -154,12 +155,14 @@ function handleDetail(photo: PhotoItem) {
 async function fetchData() {
   loading.value = true
   try {
-    const [statsRes, recentRes, locationsRes] = await Promise.all([
+    const [statsRes, recentRes, locationsRes, albumsRes] = await Promise.all([
       photoApi.list({ page: 1, page_size: 1 }),
       photoApi.list({ page: 1, page_size: 6, sort_by: 'upload_time', order: 'desc' }),
       mapApi.getLocations(),
+      albumApi.list(),
     ])
     stats.value.photos = statsRes.data.total
+    stats.value.albums = Array.isArray(albumsRes.data) ? albumsRes.data.length : 0
     recentPhotos.value = recentRes.data.items
     // 与足迹页相同的去重逻辑：优先用 city，回退 province
     const citySet = new Set<string>()

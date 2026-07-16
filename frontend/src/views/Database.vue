@@ -112,7 +112,7 @@ const storageInfo = ref<StorageInfo>({
   logs_size_display: '0 B', total_size_display: '0 B',
 })
 const cleaning = ref(false)
-const cleanResult = ref<any>(null)
+const cleanResult = ref<{cleaned_count: number; cleaned_size: number; cleaned_size_display: string} | null>(null)
 const loading = reactive({ datasets: false, tasks: false })
 
 function formatSize(bytes: number) {

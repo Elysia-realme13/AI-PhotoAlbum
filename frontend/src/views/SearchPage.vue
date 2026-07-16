@@ -29,7 +29,7 @@
 
       <!-- 日期筛选 -->
       <div class="mt-4">
-        <label for="date-picker" class="block text-sm font-medium mb-2">日期范围</label>
+        <span class="block text-sm font-medium mb-2">日期范围</span>
         <el-date-picker
           id="date-picker"
           v-model="filters.dateRange"

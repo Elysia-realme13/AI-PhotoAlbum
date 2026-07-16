@@ -26,7 +26,7 @@
     <template v-else>
       <!-- 统计卡片 -->
       <div class="grid grid-cols-4 gap-4 mb-6">
-        <div class="bg-white rounded-xl p-5 shadow-sm border border-gray-100 hover-scale cursor-pointer">
+        <div class="bg-white rounded-xl p-5 shadow-sm border border-gray-100 hover-scale cursor-pointer" @click="router.push('/photos')">
           <div class="flex items-center justify-between">
             <div>
               <p class="text-gray-500 text-sm">总照片数</p>
@@ -37,7 +37,7 @@
             </div>
           </div>
         </div>
-        <div class="bg-white rounded-xl p-5 shadow-sm border border-gray-100 hover-scale cursor-pointer">
+        <div class="bg-white rounded-xl p-5 shadow-sm border border-gray-100 hover-scale cursor-pointer" @click="router.push('/albums')">
           <div class="flex items-center justify-between">
             <div>
               <p class="text-gray-500 text-sm">相册数</p>
@@ -48,7 +48,7 @@
             </div>
           </div>
         </div>
-        <div class="bg-white rounded-xl p-5 shadow-sm border border-gray-100 hover-scale cursor-pointer">
+        <div class="bg-white rounded-xl p-5 shadow-sm border border-gray-100 hover-scale cursor-pointer" @click="router.push('/faces')">
           <div class="flex items-center justify-between">
             <div>
               <p class="text-gray-500 text-sm">识别人物</p>
@@ -59,7 +59,7 @@
             </div>
           </div>
         </div>
-        <div class="bg-white rounded-xl p-5 shadow-sm border border-gray-100 hover-scale cursor-pointer">
+        <div class="bg-white rounded-xl p-5 shadow-sm border border-gray-100 hover-scale cursor-pointer" @click="router.push('/map')">
           <div class="flex items-center justify-between">
             <div>
               <p class="text-gray-500 text-sm">足迹城市</p>
@@ -112,12 +112,15 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { InfoFilled } from '@element-plus/icons-vue'
 import { photoApi } from '@/api/photo'
 import { albumApi } from '@/api/album'
 import { mapApi } from '@/api/map'
 import PhotoDetailDrawer from '@/components/photo/PhotoDetailDrawer.vue'
 import type { PhotoItem } from '@/types/photo'
+
+const router = useRouter()
 
 const loading = ref(true)
 

@@ -86,6 +86,14 @@ def get_photo_by_id(
     return query.first()
 
 
+def get_photo_by_id_any(
+    db: Session,
+    photo_id: uuid.UUID,
+) -> Optional[Photo]:
+    """获取单张照片（含已删除），不做软删除过滤"""
+    return db.query(Photo).filter(Photo.id == photo_id).first()
+
+
 def get_photo_detail(
     db: Session,
     photo_id: uuid.UUID,
@@ -171,6 +179,21 @@ def get_photos_by_ids(
     if owner_id:
         query = query.filter(Photo.owner_id == owner_id)
     return query.all()
+
+
+def get_deleted_photos(
+    db: Session,
+    owner_id: str,
+) -> List[Photo]:
+    """获取回收站中的照片列表（已软删除）"""
+    if isinstance(owner_id, str):
+        owner_id = uuid.UUID(owner_id)
+    return (
+        db.query(Photo)
+        .filter(Photo.owner_id == owner_id, Photo.is_deleted == True)
+        .order_by(desc(Photo.deleted_at))
+        .all()
+    )
 
 
 # ── 更新 ──────────────────────────────────────────

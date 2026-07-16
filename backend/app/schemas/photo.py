@@ -153,6 +153,20 @@ class PhotoListItem(BaseModel):
     model_config = {"from_attributes": True}
 
 
+# ── 列表/分页响应 ─────────────────────────────────
+
+# PhotoResponse 与 PhotoListItem 等价，供 API 路由层直接引用
+PhotoResponse = PhotoListItem
+
+
+class PhotoListResponse(BaseModel):
+    """照片列表分页响应"""
+    total: int = 0
+    page: int = 1
+    page_size: int = 50
+    items: list[PhotoListItem] = []
+
+
 class UploadResult(BaseModel):
     """单张照片上传结果"""
     photo: PhotoListItem

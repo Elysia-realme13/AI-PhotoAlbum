@@ -84,10 +84,10 @@
       <h3 class="text-lg font-semibold text-gray-800 dark:text-dark-text mb-3">个人资料</h3>
       <el-form ref="profileFormRef" :model="profileForm" :rules="profileRules" label-width="120px" label-position="left">
         <el-form-item label="昵称" prop="nickname">
-          <el-input v-model="profileForm.nickname" placeholder="请输入昵称" style="max-width: 320px" />
+          <el-input id="profile-nickname" v-model="profileForm.nickname" placeholder="请输入昵称" style="max-width: 320px" />
         </el-form-item>
         <el-form-item label="头像链接" prop="avatar_url">
-          <el-input v-model="profileForm.avatar_url" placeholder="请输入头像图片 URL" style="max-width: 320px" />
+          <el-input id="profile-avatar" v-model="profileForm.avatar_url" placeholder="请输入头像图片 URL" style="max-width: 320px" />
         </el-form-item>
         <el-form-item>
           <el-button type="primary" :loading="profileSaving" @click="saveProfile">保存资料</el-button>
@@ -100,13 +100,13 @@
       <h3 class="text-lg font-semibold text-gray-800 dark:text-dark-text mb-3">修改密码</h3>
       <el-form ref="pwdFormRef" :model="pwdForm" :rules="pwdRules" label-width="120px" label-position="left">
         <el-form-item label="当前密码" prop="old_password">
-          <el-input v-model="pwdForm.old_password" type="password" show-password placeholder="请输入当前密码" style="max-width: 320px" />
+          <el-input id="pwd-old" v-model="pwdForm.old_password" type="password" show-password placeholder="请输入当前密码" style="max-width: 320px" />
         </el-form-item>
         <el-form-item label="新密码" prop="new_password">
-          <el-input v-model="pwdForm.new_password" type="password" show-password placeholder="请输入新密码" style="max-width: 320px" />
+          <el-input id="pwd-new" v-model="pwdForm.new_password" type="password" show-password placeholder="请输入新密码" style="max-width: 320px" />
         </el-form-item>
         <el-form-item label="确认新密码" prop="confirm_password">
-          <el-input v-model="pwdForm.confirm_password" type="password" show-password placeholder="请再次输入新密码" style="max-width: 320px" />
+          <el-input id="pwd-confirm" v-model="pwdForm.confirm_password" type="password" show-password placeholder="请再次输入新密码" style="max-width: 320px" />
         </el-form-item>
         <el-form-item>
           <el-button type="primary" :loading="pwdSaving" @click="savePassword">修改密码</el-button>

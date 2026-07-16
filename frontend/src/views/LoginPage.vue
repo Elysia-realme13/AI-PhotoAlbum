@@ -30,10 +30,10 @@
         <!-- 登录表单 -->
         <el-form v-if="isLogin" :model="loginForm" :rules="loginRules" ref="loginFormRef" @submit.prevent="handleLogin">
           <el-form-item prop="username">
-            <el-input v-model="loginForm.username" placeholder="用户名或邮箱" :prefix-icon="User" size="large" />
+            <el-input id="login-username" v-model="loginForm.username" placeholder="用户名或邮箱" :prefix-icon="User" size="large" />
           </el-form-item>
           <el-form-item prop="password">
-            <el-input v-model="loginForm.password" type="password" placeholder="密码" :prefix-icon="Lock" show-password size="large" />
+            <el-input id="login-password" v-model="loginForm.password" type="password" placeholder="密码" :prefix-icon="Lock" show-password size="large" />
           </el-form-item>
           <el-form-item>
             <el-button type="primary" size="large" class="w-full" :loading="loading" native-type="submit" @click="handleLogin">
@@ -45,13 +45,13 @@
         <!-- 注册表单 -->
         <el-form v-else :model="registerForm" :rules="registerRules" ref="registerFormRef" @submit.prevent="handleRegister">
           <el-form-item prop="username">
-            <el-input v-model="registerForm.username" placeholder="用户名" :prefix-icon="User" size="large" />
+            <el-input id="register-username" v-model="registerForm.username" placeholder="用户名" :prefix-icon="User" size="large" />
           </el-form-item>
           <el-form-item prop="email">
-            <el-input v-model="registerForm.email" placeholder="邮箱" :prefix-icon="Message" size="large" />
+            <el-input id="register-email" v-model="registerForm.email" placeholder="邮箱" :prefix-icon="Message" size="large" />
           </el-form-item>
           <el-form-item prop="password">
-            <el-input v-model="registerForm.password" type="password" placeholder="密码（至少6位）" :prefix-icon="Lock" show-password size="large" />
+            <el-input id="register-password" v-model="registerForm.password" type="password" placeholder="密码（至少6位）" :prefix-icon="Lock" show-password size="large" />
           </el-form-item>
           <el-form-item>
             <el-button type="primary" size="large" class="w-full" :loading="loading" native-type="submit" @click="handleRegister">

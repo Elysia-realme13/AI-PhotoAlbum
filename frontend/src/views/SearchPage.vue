@@ -10,6 +10,7 @@
     <div class="search-box">
       <div class="search-controls">
         <el-input
+          id="search-query"
           v-model="searchQuery"
           placeholder="输入照片名称或关键词..."
           clearable
@@ -28,8 +29,9 @@
 
       <!-- 日期筛选 -->
       <div class="mt-4">
-        <label class="block text-sm font-medium mb-2">日期范围</label>
+        <label for="date-picker" class="block text-sm font-medium mb-2">日期范围</label>
         <el-date-picker
+          id="date-picker"
           v-model="filters.dateRange"
           type="daterange"
           range-separator="至"

@@ -29,8 +29,8 @@ PERSON_PATTERNS = [
     r"侄子|侄女|外甥|外甥女|叔叔|阿姨|伯伯|伯母|"
     r"舅舅|舅妈|姑姑|姑父|岳父|岳母|公公|婆婆|"
     r"堂哥|堂姐|堂弟|堂妹|表哥|表姐|表弟|表妹|"
-    r"干爹|干妈|养父|养母|继父|继母|"
-    r"[\u4e00-\u9fff]{2,4})",
+    r"干爹|干妈|养父|养母|继父|继母"
+    r")",
 ]
 
 _person_regex = re.compile("|".join(f"({p})" for p in PERSON_PATTERNS))
@@ -73,10 +73,56 @@ def extract_nouns(text: str) -> List[str]:
 
 
 def _simple_tokenize(text: str) -> List[str]:
-    tokens = re.split(r"[\s,，。！？、；：()（）【】《》\"'\"']+", text)
-    return [t.strip() for t in tokens if len(t.strip()) > 1]
+    tokens = re.split(r"[\s,，。！？、；：()（）【】《》〝〞]+", text)
+
+    result = [t.strip() for t in tokens if len(t.strip()) > 1]
+    if len(result) <= 1 and len(text) > 5 and _is_mostly_chinese(text):
+        return _chinese_bigram_tokenize(text)
+    return result
 
 
+def _is_mostly_chinese(text: str, threshold: float = 0.6) -> bool:
+    if not text:
+        return False
+    chinese = sum(1 for c in text if "一" <= c <= "鿿")
+    return chinese / len(text) >= threshold
+
+
+def _chinese_bigram_tokenize(text: str) -> List[str]:
+    bigrams = []
+    seen = set()
+    chars = "".join(c for c in text if "一" <= c <= "鿿")
+    if len(chars) <= 1:
+        return [text.strip()]
+    for i in range(len(chars) - 1):
+        bg = chars[i:i + 2]
+        if bg not in seen:
+            seen.add(bg)
+            bigrams.append(bg)
+    if len(bigrams) <= 1:
+        return [text.strip()]
+    return bigrams
+def _is_mostly_chinese(text: str, threshold: float = 0.6) -> bool:
+    if not text:
+        return False
+    chinese = sum(1 for c in text if "一" <= c <= "鿿")
+    return chinese / len(text) >= threshold
+
+
+def _chinese_bigram_tokenize(text: str) -> List[str]:
+    bigrams = []
+    seen = set()
+    chars = "".join(c for c in text if "一" <= c <= "鿿")
+    if len(chars) <= 1:
+        return [text.strip()]
+    for i in range(len(chars) - 1):
+        bg = chars[i:i + 2]
+        if bg not in seen:
+            seen.add(bg)
+            bigrams.append(bg)
+    if len(bigrams) <= 1:
+        return [text.strip()]
+    return bigrams
 def is_person_query(nouns: List[str], person_names: List[str]) -> bool:
     return len(person_names) > 0
 

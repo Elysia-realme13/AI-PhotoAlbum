@@ -1,13 +1,46 @@
 <template>
   <div class="border-t border-gray-200 dark:border-dark-border bg-white dark:bg-dark-card px-4 py-3">
+    <!-- 图片预览 -->
+    <div v-if="selectedImage" class="mb-2 max-w-4xl mx-auto">
+      <div class="inline-flex items-start gap-2 bg-gray-50 dark:bg-dark-hover rounded-lg p-2">
+        <img :src="imagePreviewUrl" class="h-16 w-16 object-cover rounded" />
+        <button
+          class="w-5 h-5 rounded-full bg-gray-300 dark:bg-gray-600 hover:bg-red-400 flex items-center justify-center text-white text-xs shrink-0"
+          title="移除图片"
+          @click="removeImage"
+        >
+          &times;
+        </button>
+      </div>
+    </div>
+
     <div class="flex items-end gap-3 max-w-4xl mx-auto">
+      <!-- 上传图片按钮 -->
+      <button
+        class="shrink-0 w-10 h-10 rounded-full flex items-center justify-center transition-colors
+               bg-gray-100 dark:bg-dark-hover hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-500 dark:text-dark-text-secondary"
+        title="上传图片搜索"
+        aria-label="上传图片搜索"
+        :disabled="isStreaming"
+        @click="triggerFileInput"
+      >
+        <el-icon :size="18"><Picture /></el-icon>
+      </button>
+      <input
+        ref="fileInputRef"
+        type="file"
+        accept="image/*"
+        class="hidden"
+        @change="handleFileChange"
+      />
+
       <!-- 输入框 -->
       <div class="flex-1 relative">
         <textarea
           ref="textareaRef"
           v-model="inputText"
           :disabled="isStreaming"
-          placeholder="输入消息，Enter 发送，Shift+Enter 换行..."
+          :placeholder="selectedImage ? '描述这张图片...' : '输入消息，Enter 发送，Shift+Enter 换行...'"
           rows="1"
           class="w-full resize-none rounded-xl border border-gray-200 dark:border-dark-border bg-white dark:bg-dark-hover px-4 py-2.5 pr-10 text-sm text-gray-800 dark:text-dark-text
                  focus:border-blue-400 focus:ring-1 focus:ring-blue-400 outline-none
@@ -57,30 +90,58 @@
 </template>
 
 <script setup lang="ts">
-import { ref, nextTick } from 'vue'
+import { ref, nextTick, watch } from 'vue'
+import { Picture, VideoPause, Promotion } from '@element-plus/icons-vue'
 
 defineProps<{
   isStreaming: boolean
 }>()
 
 const emit = defineEmits<{
-  send: [text: string]
+  send: [text: string, image?: File]
   stop: []
 }>()
 
 const inputText = ref('')
 const textareaRef = ref<HTMLTextAreaElement | null>(null)
+const fileInputRef = ref<HTMLInputElement | null>(null)
+const selectedImage = ref<File | null>(null)
+const imagePreviewUrl = ref<string>('')
+
+function triggerFileInput() {
+  fileInputRef.value?.click()
+}
+
+function handleFileChange(e: Event) {
+  const input = e.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file) return
+  selectedImage.value = file
+  imagePreviewUrl.value = URL.createObjectURL(file)
+}
+
+function removeImage() {
+  selectedImage.value = null
+  if (imagePreviewUrl.value) {
+    URL.revokeObjectURL(imagePreviewUrl.value)
+  }
+  imagePreviewUrl.value = ''
+  if (fileInputRef.value) {
+    fileInputRef.value.value = ''
+  }
+}
 
 function send() {
   const text = inputText.value.trim()
   if (!text) return
-  emit('send', text)
+  emit('send', text, selectedImage.value || undefined)
   inputText.value = ''
+  removeImage()
   nextTick(() => autoResize())
 }
 
 function handleKeydown(e: KeyboardEvent) {
-  if (e.isComposing) return          // 输入法选词中，不触发发送
+  if (e.isComposing) return
   if (e.key === 'Enter' && !e.shiftKey) {
     e.preventDefault()
     send()

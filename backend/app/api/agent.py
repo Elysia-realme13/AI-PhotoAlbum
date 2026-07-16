@@ -5,7 +5,7 @@ GET  /api/agent/sessions              -  list sessions
 GET  /api/agent/sessions/{id}/messages -  get messages
 POST /api/agent/sessions/{id}/messages -  send message
 """
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from pydantic import BaseModel
 from typing import List, Optional
 from sqlalchemy.orm import Session
@@ -18,6 +18,7 @@ from app.services.agent.chat_agent import (
     get_session as _get_session,
     get_messages as _get_messages,
     send_message as _send_message,
+    delete_session as _delete_session,
 )
 
 router = APIRouter(prefix="/api/agent", tags=["agent"])
@@ -96,9 +97,10 @@ def get_session_messages(
 
 
 @router.post("/sessions/{session_id}/messages", response_model=SendMessageResponse)
-def send_message(
+async def send_message(
     session_id: str,
-    req: SendMessageRequest,
+    message: str = Form(...),
+    image: Optional[UploadFile] = File(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_required_user),
 ):
@@ -108,8 +110,28 @@ def send_message(
     if str(sess.user_id) != str(current_user.id):
         raise HTTPException(403, "forbidden")
 
+    image_bytes = None
+    if image and image.filename:
+        image_bytes = await image.read()
+
     result = _send_message(
         db=db, user_id=str(current_user.id),
-        session_id=session_id, message=req.message,
+        session_id=session_id, message=message,
+        image_bytes=image_bytes,
     )
     return SendMessageResponse(**result)
+
+
+@router.delete("/sessions/{session_id}")
+def delete_session(
+    session_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_required_user),
+):
+    sess = _get_session(db, session_id)
+    if not sess:
+        raise HTTPException(404, "session not found")
+    if str(sess.user_id) != str(current_user.id):
+        raise HTTPException(403, "forbidden")
+    _delete_session(db, session_id)
+    return {"message": "已删除"}

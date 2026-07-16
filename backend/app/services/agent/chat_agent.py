@@ -155,6 +155,7 @@ def send_message(
     user_id: str,
     session_id: str,
     message: str,
+    image_bytes: Optional[bytes] = None,
 ) -> dict:
     """
     发送用户消息 → 执行检索流程 → 返回回复
@@ -185,10 +186,11 @@ def send_message(
     """
     # 1. 保存用户消息
     sid = uuid.UUID(session_id) if not isinstance(session_id, uuid.UUID) else session_id
+    user_content = json.dumps({"text": message, "has_image": image_bytes is not None}, ensure_ascii=False) if image_bytes else message
     user_msg = AgentMessage(
         session_id=sid,
         role="user",
-        content=message,
+        content=user_content,
     )
     db.add(user_msg)
 
@@ -198,6 +200,7 @@ def send_message(
         db=db,
         owner_id=user_id,
         session_id=session_id,
+        image_bytes=image_bytes,
     )
 
     if agent_result.get("error"):
@@ -277,10 +280,23 @@ def send_message(
     }
 
 
+def delete_session(db: Session, session_id: str) -> bool:
+    """删除一个对话 session（cascade 自动清理关联消息）"""
+    sid = uuid.UUID(session_id) if not isinstance(session_id, uuid.UUID) else session_id
+    sess = db.query(AgentSession).filter(AgentSession.id == sid).first()
+    if not sess:
+        return False
+    db.delete(sess)
+    db.commit()
+    logger.info(f"删除对话 session: {session_id}")
+    return True
+
+
 __all__ = [
     "create_session",
     "list_sessions",
     "get_session",
     "get_messages",
     "send_message",
+    "delete_session",
 ]

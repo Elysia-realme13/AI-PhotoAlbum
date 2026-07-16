@@ -43,7 +43,18 @@ export const agentApi = {
   },
 
   /** 发送消息 */
-  sendMessage(sessionId: string, message: string) {
-    return request.post<SendMessageResponse>(`/agent/sessions/${sessionId}/messages`, { message })
+  sendMessage(sessionId: string, message: string, image?: File) {
+    const formData = new FormData()
+    formData.append('message', message)
+    if (image) formData.append('image', image)
+    return request.post<SendMessageResponse>(
+      `/agent/sessions/${sessionId}/messages`, formData,
+      { headers: { 'Content-Type': 'multipart/form-data' } }
+    )
+  },
+
+  /** 删除对话 */
+  deleteSession(sessionId: string) {
+    return request.delete(`/agent/sessions/${sessionId}`)
   },
 }

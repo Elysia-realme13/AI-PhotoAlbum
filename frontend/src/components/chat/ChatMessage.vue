@@ -35,6 +35,13 @@
       <!-- 用户消息纯文本 -->
       <p v-else class="text-sm whitespace-pre-wrap">{{ msg.content }}</p>
 
+      <!-- 用户上传的图片 -->
+      <img
+        v-if="msg.role === 'user' && msg.imageUrl"
+        :src="msg.imageUrl"
+        class="mt-2 max-w-48 max-h-48 rounded-lg object-cover"
+      />
+
       <!-- 流式输出光标 -->
       <span
         v-if="msg.streaming"

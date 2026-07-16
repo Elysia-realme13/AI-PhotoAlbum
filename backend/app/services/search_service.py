@@ -101,9 +101,24 @@ def clip_search_by_text(
     if query_vector is None:
         return _tag_fallback_search(db, query_text, top_k, owner_id)
 
-    # pgvector cosine 相似度检索
     vector_str = "[" + ",".join(str(v) for v in query_vector) + "]"
+    return _vector_search(db, vector_str, top_k, owner_id)
 
+
+def _get_query_embedding(text: str) -> Optional[List[float]]:
+    """
+    调用 embedding 模型将文本转为 512 维向量
+    """
+    try:
+        from app.services.ai_providers.embedding import get_embedding
+        return get_embedding(text)
+    except (ImportError, Exception) as e:
+        logger.debug(f"embedding 模型加载失败: {e}")
+        return None
+
+
+def _vector_search(db: Session, vector_str: str, top_k: int, owner_id) -> List[dict]:
+    """通用的 pgvector cosine 相似度检索"""
     sql_str = """
         SELECT iv.photo_id,
                1 - (iv.embedding <=> :query_vec::vector) AS cosine_similarity
@@ -129,22 +144,30 @@ def clip_search_by_text(
         rows = db.execute(text(sql_str), params).fetchall()
     except Exception as e:
         logger.error(f"pgvector 检索失败: {e}")
-        return _tag_fallback_search(db, query_text, top_k, owner_id)
+        return []
 
-    results = [{"photo_id": str(row[0]), "score": float(row[1])} for row in rows]
-    return results
+    return [{"photo_id": str(row[0]), "score": float(row[1])} for row in rows]
 
 
-def _get_query_embedding(text: str) -> Optional[List[float]]:
-    """
-    调用 embedding 模型将文本转为 512 维向量
-    """
+def clip_search_by_image(
+    db: Session,
+    image_bytes: bytes,
+    top_k: int = 50,
+    owner_id=None,
+) -> List[dict]:
+    """使用图片查询向量在 ImageVector 表中检索相似照片"""
     try:
-        from app.services.ai_providers.embedding import get_embedding
-        return get_embedding(text)
-    except (ImportError, Exception) as e:
-        logger.debug(f"embedding 模型加载失败: {e}")
-        return None
+        from app.services.ai_providers.embedding import get_image_embedding
+        query_vector = get_image_embedding(image_bytes)
+    except Exception as e:
+        logger.warning(f"图片 embedding 失败: {e}")
+        return []
+
+    if query_vector is None:
+        return []
+
+    vector_str = "[" + ",".join(str(v) for v in query_vector) + "]"
+    return _vector_search(db, vector_str, top_k, owner_id)
 
 
 def _tag_fallback_search(
@@ -218,6 +241,7 @@ __all__ = [
     "extract_nouns",
     "is_person_query",
     "clip_search_by_text",
+    "clip_search_by_image",
     "search_faces_by_name",
     "get_unnamed_candidates",
 ]

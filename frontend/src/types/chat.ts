@@ -8,6 +8,8 @@ export interface ChatMessage {
   content: string
   created_at: string
   streaming?: boolean
+  image?: File
+  imageUrl?: string
 }
 
 /** 对话会话 */

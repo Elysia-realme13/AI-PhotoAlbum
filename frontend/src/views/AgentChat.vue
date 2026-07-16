@@ -36,12 +36,22 @@
           v-for="conv in store.conversations"
           :key="conv.id"
           :class="[
-            'mb-1 p-3 rounded-lg cursor-pointer transition-colors hover:bg-gray-50 dark:hover:bg-dark-hover',
+            'mb-1 p-3 rounded-lg cursor-pointer transition-colors hover:bg-gray-50 dark:hover:bg-dark-hover group',
             store.currentConversationId === conv.id ? 'bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800' : '',
           ]"
           @click="handleSelectConversation(conv.id)"
         >
-          <div class="text-sm font-medium text-gray-800 dark:text-dark-text truncate">{{ conv.title }}</div>
+          <div class="flex items-center justify-between">
+            <div class="text-sm font-medium text-gray-800 dark:text-dark-text truncate flex-1 min-w-0">{{ conv.title }}</div>
+            <button
+              class="shrink-0 ml-1 w-6 h-6 rounded flex items-center justify-center opacity-0 group-hover:opacity-100 hover:bg-red-50 dark:hover:bg-red-900/20 text-gray-400 hover:text-red-500 transition-all"
+              title="删除对话"
+              aria-label="删除对话"
+              @click.stop="handleDeleteConversation(conv.id)"
+            >
+              <el-icon :size="14"><Delete /></el-icon>
+            </button>
+          </div>
           <div class="flex items-center justify-between mt-1">
             <span class="text-xs text-gray-400">{{ conv.message_count }} 条消息</span>
             <span class="text-xs text-gray-400">{{ formatConvTime(conv.updated_at) }}</span>
@@ -117,7 +127,7 @@
       <!-- 输入区域 -->
       <ChatInput
         :is-streaming="store.isStreaming"
-        @send="store.sendMessage"
+        @send="(text, image) => store.sendMessage(text, image)"
         @stop="store.cancelStream"
       />
     </div>
@@ -126,7 +136,8 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
-import { Plus, Fold } from '@element-plus/icons-vue'
+import { Plus, Fold, Delete } from '@element-plus/icons-vue'
+import { ElMessageBox } from 'element-plus'
 import { useChatStore } from '@/stores/chat'
 import ChatMessage from '@/components/chat/ChatMessage.vue'
 import ChatInput from '@/components/chat/ChatInput.vue'
@@ -195,6 +206,19 @@ function handleNewChat() {
 function handleSelectConversation(id: string) {
   if (store.isStreaming) return
   store.fetchMessages(id)
+}
+
+async function handleDeleteConversation(id: string) {
+  try {
+    await ElMessageBox.confirm('确定要删除这个对话吗？删除后不可恢复。', '确认删除', {
+      confirmButtonText: '删除',
+      cancelButtonText: '取消',
+      type: 'warning',
+    })
+    await store.deleteConversation(id)
+  } catch {
+    // 取消
+  }
 }
 
 // ── 初始化 ──

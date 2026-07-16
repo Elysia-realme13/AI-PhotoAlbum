@@ -11,6 +11,7 @@ from langchain_core.runnables import RunnableConfig
 
 from app.services.search_service import (
     extract_nouns, extract_person_names, clip_search_by_text,
+    clip_search_by_image,
     search_faces_by_name, get_unnamed_candidates,
 )
 
@@ -21,6 +22,7 @@ class SearchState(TypedDict):
     query: str
     owner_id: Optional[str]
     session_id: Optional[str]
+    image_bytes: Optional[bytes]
     nouns: List[str]
     person_names: List[str]
     person_photo_ids: List[str]
@@ -76,8 +78,13 @@ def clip_search(state: SearchState, config: RunnableConfig) -> SearchState:
     query = state.get("query", "")
     nouns = state.get("nouns", [])
     owner_id = state.get("owner_id")
-    search_text = " ".join(nouns[:5]) if nouns else query
-    state["clip_results"] = clip_search_by_text(db, search_text, top_k=100, owner_id=owner_id)
+    image_bytes = state.get("image_bytes")
+
+    if image_bytes:
+        state["clip_results"] = clip_search_by_image(db, image_bytes, top_k=100, owner_id=owner_id)
+    else:
+        search_text = " ".join(nouns[:5]) if nouns else query
+        state["clip_results"] = clip_search_by_text(db, search_text, top_k=100, owner_id=owner_id)
     return state
 
 
@@ -125,6 +132,7 @@ def run_search_agent(
     query: str, db: Session,
     owner_id: Optional[str] = None,
     session_id: Optional[str] = None,
+    image_bytes: Optional[bytes] = None,
 ) -> Dict[str, Any]:
     global _search_graph
     if _search_graph is None:
@@ -133,6 +141,7 @@ def run_search_agent(
         "query": query,
         "owner_id": str(owner_id) if owner_id else None,
         "session_id": session_id,
+        "image_bytes": image_bytes,
         "nouns": [], "person_names": [],
         "person_photo_ids": [], "clip_results": [],
         "merged_results": [],

@@ -80,7 +80,7 @@ export const useChatStore = defineStore('chat', () => {
   }
 
   // ── 发送消息 ──
-  async function sendMessage(query: string) {
+  async function sendMessage(query: string, image?: File) {
     if (!query.trim() || isStreaming.value) return
 
     // 添加用户消息
@@ -89,6 +89,8 @@ export const useChatStore = defineStore('chat', () => {
       role: 'user',
       content: query,
       created_at: new Date().toISOString(),
+      image: image,
+      imageUrl: image ? URL.createObjectURL(image) : undefined,
     }
     messages.value.push(userMsg)
 
@@ -120,7 +122,7 @@ export const useChatStore = defineStore('chat', () => {
       }
 
       // 发送消息到后端
-      const res = await agentApi.sendMessage(currentConversationId.value, query)
+      const res = await agentApi.sendMessage(currentConversationId.value, query, image)
       const reply = res.data.reply
 
       // 前端模拟流式效果（逐字显示）
@@ -184,6 +186,15 @@ export const useChatStore = defineStore('chat', () => {
     streamingContent.value = ''
   }
 
+  // ── 删除对话 ──
+  async function deleteConversation(id: string) {
+    await agentApi.deleteSession(id)
+    conversations.value = conversations.value.filter(c => c.id !== id)
+    if (currentConversationId.value === id) {
+      newConversation()
+    }
+  }
+
   // ── 重置 ──
   function reset() {
     conversations.value = []
@@ -207,6 +218,7 @@ export const useChatStore = defineStore('chat', () => {
     sendMessage,
     cancelStream,
     newConversation,
+    deleteConversation,
     reset,
   }
 })

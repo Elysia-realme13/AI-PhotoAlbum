@@ -1,11 +1,26 @@
 import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
 import { agentApi } from '@/api/agent'
-import type { ChatMessage, Conversation } from '@/types/chat'
+import type { ChatMessage, Conversation, CandidateCluster } from '@/types/chat'
 
 let messageIdCounter = 0
 function nextId() {
   return `msg-${Date.now()}-${++messageIdCounter}`
+}
+
+/**
+ * 从用户输入中提取可能的中文人名（2-4个汉字，排除常见动词/名词）
+ * 简单启发式：取第一个连续中文片段（2-4字）作为候选人名
+ */
+function extractPersonName(query: string): string {
+  // 匹配连续中文字符片段（2-4字）
+  const match = query.match(/[\u4e00-\u9fa5]{2,4}/)
+  if (!match) return ''
+  const candidate = match[0]
+  // 排除常见非人名词汇
+  const exclude = ['照片', '相册', '风景', '旅游', '海边', '夏天', '去年', '最近', '分析', '整理', '生成', '帮我', '找一', '一下', '创建', '精彩', '回顾']
+  if (exclude.some(w => candidate.includes(w) || w.includes(candidate))) return ''
+  return candidate
 }
 
 export const useChatStore = defineStore('chat', () => {
@@ -124,6 +139,11 @@ export const useChatStore = defineStore('chat', () => {
       // 发送消息到后端
       const res = await agentApi.sendMessage(currentConversationId.value, query, image)
       const reply = res.data.reply
+      const needsConfirmation = res.data.needs_confirmation
+      const pendingCandidates = res.data.pending_candidates || []
+
+      // 提取人名（用于确认对话框）
+      const personName = extractPersonName(query)
 
       // 前端模拟流式效果（逐字显示）
       let index = 0
@@ -142,6 +162,14 @@ export const useChatStore = defineStore('chat', () => {
           const last = messages.value[messages.value.length - 1]
           if (last && last.streaming) {
             last.streaming = false
+            // 流式结束后附加名称确认数据
+            if (needsConfirmation && pendingCandidates.length > 0 && personName) {
+              last.nameConfirm = {
+                personName,
+                candidates: pendingCandidates as unknown as CandidateCluster[],
+                confirmed: false,
+              }
+            }
           }
           isStreaming.value = false
           streamingContent.value = ''
@@ -204,6 +232,22 @@ export const useChatStore = defineStore('chat', () => {
     streamingContent.value = ''
   }
 
+  // ── 名称确认完成 ──
+  function markNameConfirmed(messageId: string) {
+    const msg = messages.value.find(m => m.id === messageId)
+    if (msg && msg.nameConfirm) {
+      msg.nameConfirm.confirmed = true
+    }
+  }
+
+  // ── 名称确认跳过 ──
+  function markNameSkipped(messageId: string) {
+    const msg = messages.value.find(m => m.id === messageId)
+    if (msg && msg.nameConfirm) {
+      msg.nameConfirm = null
+    }
+  }
+
   return {
     conversations,
     messages,
@@ -219,6 +263,8 @@ export const useChatStore = defineStore('chat', () => {
     cancelStream,
     newConversation,
     deleteConversation,
+    markNameConfirmed,
+    markNameSkipped,
     reset,
   }
 })

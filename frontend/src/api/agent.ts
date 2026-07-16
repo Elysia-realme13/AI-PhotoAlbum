@@ -57,4 +57,15 @@ export const agentApi = {
   deleteSession(sessionId: string) {
     return request.delete(`/agent/sessions/${sessionId}`)
   },
+
+  /** 确认身份名称 */
+  confirmName(data: {
+    cluster_id: string
+    name: string
+    session_id: string
+    query: string
+    aliases?: string[]
+  }) {
+    return request.post('/faces/identities/name', data)
+  },
 }

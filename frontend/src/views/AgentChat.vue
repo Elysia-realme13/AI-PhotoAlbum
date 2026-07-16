@@ -94,6 +94,9 @@
             v-for="msg in store.messages"
             :key="msg.id"
             :msg="msg"
+            :session-id="store.currentConversationId || ''"
+            @name-confirmed="handleNameConfirmed"
+            @name-skip="handleNameSkipped"
           />
 
           <!-- 滚动锚点 -->
@@ -219,6 +222,15 @@ async function handleDeleteConversation(id: string) {
   } catch {
     // 取消
   }
+}
+
+function handleNameConfirmed(data: { cluster_id: string; name: string; messageId: string }) {
+  store.markNameConfirmed(data.messageId)
+  nextTick(() => scrollToBottom())
+}
+
+function handleNameSkipped(data: { messageId: string }) {
+  store.markNameSkipped(data.messageId)
 }
 
 // ── 初始化 ──

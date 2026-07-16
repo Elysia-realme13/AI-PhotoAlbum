@@ -5,6 +5,8 @@ GET  /api/agent/sessions              -  list sessions
 GET  /api/agent/sessions/{id}/messages -  get messages
 POST /api/agent/sessions/{id}/messages -  send message
 """
+import asyncio
+
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from pydantic import BaseModel
 from typing import List, Optional

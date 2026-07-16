@@ -231,8 +231,8 @@ def get_album_photos(
             tags = [tag.tag_name for tag in photo.tags]
         
         quality_score = None
-        if photo.description_info:
-            quality_score = photo.description_info.quality_score
+        if photo.image_description:
+            quality_score = photo.image_description.quality_score
         
         items.append({
             "id": str(photo.id),

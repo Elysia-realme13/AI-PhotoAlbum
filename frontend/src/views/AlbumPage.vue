@@ -77,9 +77,14 @@
         <el-button :icon="ArrowLeft" circle @click="backToList" aria-label="返回相册列表" />
         <h2 class="text-2xl font-bold text-gray-800">{{ currentAlbum?.name }}</h2>
         <span class="text-sm text-gray-400">{{ albumPhotos.length }} 张</span>
-        <el-button v-if="currentAlbum && !currentAlbum.is_system" size="small" @click="openEditDialog(currentAlbum)" class="ml-auto">
-          <el-icon><Edit /></el-icon> 编辑
-        </el-button>
+        <div class="ml-auto flex gap-2">
+          <el-button type="primary" size="small" @click="openPhotoPicker">
+            <el-icon><Plus /></el-icon> 添加照片
+          </el-button>
+          <el-button v-if="currentAlbum && !currentAlbum.is_system" size="small" @click="openEditDialog(currentAlbum)">
+            <el-icon><Edit /></el-icon> 编辑
+          </el-button>
+        </div>
       </div>
 
       <!-- 详情加载 -->
@@ -157,12 +162,86 @@
 
     <!-- 详情抽屉 -->
     <PhotoDetailDrawer v-model:visible="detailVisible" :photo-id="detailPhotoId" />
+
+    <!-- 添加照片对话框 -->
+    <el-dialog v-model="photoPickerVisible" title="添加照片到相册" width="720px" top="5vh">
+      <!-- 搜索栏 -->
+      <div class="mb-4 flex gap-2">
+        <el-input
+          v-model="pickerSearch"
+          placeholder="搜索照片..."
+          clearable
+          :prefix-icon="Search"
+          @input="handlePickerSearch"
+        />
+      </div>
+
+      <!-- 已选提示 -->
+      <div v-if="selectedPhotoIds.size > 0" class="mb-3 text-sm text-blue-600">
+        已选择 {{ selectedPhotoIds.size }} 张照片
+      </div>
+
+      <!-- 加载态 -->
+      <div v-if="pickerLoading" class="grid grid-cols-6 gap-2 py-4">
+        <div v-for="i in 12" :key="i" class="aspect-square bg-gray-200 rounded animate-pulse" />
+      </div>
+
+      <!-- 空状态 -->
+      <el-empty v-else-if="pickerPhotos.length === 0" description="没有可添加的照片" :image-size="80" />
+
+      <!-- 照片网格 -->
+      <div v-else class="grid grid-cols-6 gap-2 max-h-[50vh] overflow-y-auto">
+        <div
+          v-for="photo in pickerPhotos"
+          :key="photo.id"
+          :class="[
+            'relative aspect-square rounded-lg overflow-hidden cursor-pointer border-2 transition-all',
+            selectedPhotoIds.has(photo.id)
+              ? 'border-blue-500 ring-2 ring-blue-200'
+              : 'border-transparent hover:border-gray-300'
+          ]"
+          @click="togglePhotoSelect(photo.id)"
+        >
+          <img :src="photoApi.thumbnailUrl(photo.id)" class="w-full h-full object-cover" />
+          <!-- 选中标记 -->
+          <div
+            v-if="selectedPhotoIds.has(photo.id)"
+            class="absolute top-1 right-1 w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center"
+          >
+            <el-icon :size="12" color="white"><Check /></el-icon>
+          </div>
+        </div>
+      </div>
+
+      <!-- 分页 -->
+      <div v-if="pickerTotal > pickerPageSize" class="mt-4 flex justify-center">
+        <el-pagination
+          v-model:current-page="pickerPage"
+          :page-size="pickerPageSize"
+          :total="pickerTotal"
+          layout="prev, pager, next"
+          @current-change="fetchPickerPhotos"
+        />
+      </div>
+
+      <template #footer>
+        <el-button @click="photoPickerVisible = false">取消</el-button>
+        <el-button
+          type="primary"
+          :disabled="selectedPhotoIds.size === 0"
+          :loading="addingPhotos"
+          @click="handleAddPhotos"
+        >
+          添加 {{ selectedPhotoIds.size > 0 ? `(${selectedPhotoIds.size})` : '' }}
+        </el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { ArrowLeft, InfoFilled, Delete, Edit, Close, PictureFilled } from '@element-plus/icons-vue'
+import { ArrowLeft, InfoFilled, Delete, Edit, Close, PictureFilled, Plus, Check, Search } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { photoApi } from '@/api/photo'
 import { albumApi } from '@/api/album'
@@ -330,6 +409,90 @@ const detailPhotoId = ref<string | null>(null)
 function handleDetail(photo: PhotoItem) {
   detailPhotoId.value = photo.id
   detailVisible.value = true
+}
+
+// ── 照片选择器 ─────────────────
+const photoPickerVisible = ref(false)
+const pickerLoading = ref(false)
+const pickerPhotos = ref<PhotoItem[]>([])
+const pickerTotal = ref(0)
+const pickerPage = ref(1)
+const pickerPageSize = 48
+const pickerSearch = ref('')
+const selectedPhotoIds = ref<Set<string>>(new Set())
+const addingPhotos = ref(false)
+
+let searchTimer: ReturnType<typeof setTimeout> | null = null
+
+function openPhotoPicker() {
+  photoPickerVisible.value = true
+  pickerPage.value = 1
+  pickerSearch.value = ''
+  selectedPhotoIds.value = new Set()
+  fetchPickerPhotos()
+}
+
+async function fetchPickerPhotos() {
+  pickerLoading.value = true
+  try {
+    const res = await photoApi.list({
+      page: pickerPage.value,
+      page_size: pickerPageSize,
+      sort_by: 'upload_time',
+      order: 'desc',
+    })
+    const data = res.data.data || res.data
+    pickerPhotos.value = data.items || []
+    pickerTotal.value = data.total || 0
+  } catch {
+    // handled by interceptor
+  } finally {
+    pickerLoading.value = false
+  }
+}
+
+function handlePickerSearch() {
+  if (searchTimer) clearTimeout(searchTimer)
+  searchTimer = setTimeout(() => {
+    pickerPage.value = 1
+    fetchPickerPhotos()
+  }, 300)
+}
+
+function togglePhotoSelect(id: string) {
+  const newSet = new Set(selectedPhotoIds.value)
+  if (newSet.has(id)) {
+    newSet.delete(id)
+  } else {
+    newSet.add(id)
+  }
+  selectedPhotoIds.value = newSet
+}
+
+async function handleAddPhotos() {
+  if (!currentAlbum.value || selectedPhotoIds.value.size === 0) return
+  addingPhotos.value = true
+  try {
+    const ids = Array.from(selectedPhotoIds.value)
+    // 并行添加所有照片
+    await Promise.all(ids.map(id => albumApi.addPhoto(currentAlbum.value!.id, id)))
+    ElMessage.success(`已添加 ${ids.length} 张照片到相册`)
+    photoPickerVisible.value = false
+    selectedPhotoIds.value = new Set()
+    // 刷新相册照片列表
+    await fetchAlbumPhotos()
+    // 更新相册照片计数
+    if (currentAlbum.value) {
+      currentAlbum.value = {
+        ...currentAlbum.value,
+        photo_count: currentAlbum.value.photo_count + ids.length,
+      }
+    }
+  } catch {
+    // handled by interceptor
+  } finally {
+    addingPhotos.value = false
+  }
 }
 
 // ── 加载相册列表 ─────────────────

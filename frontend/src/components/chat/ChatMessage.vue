@@ -47,18 +47,54 @@
         v-if="msg.streaming"
         class="inline-block w-2 h-4 bg-blue-500 align-middle ml-0.5 animate-pulse rounded-sm"
       />
+
+      <!-- 名称确认对话框 -->
+      <NameConfirmDialog
+        v-if="msg.nameConfirm && !msg.nameConfirm.confirmed"
+        :candidates="msg.nameConfirm.candidates"
+        :person-name="msg.nameConfirm.personName"
+        :session-id="sessionId || ''"
+        :query="msg.nameConfirm.personName"
+        @confirmed="handleNameConfirmed"
+        @skip="handleNameSkip"
+      />
+      <div
+        v-else-if="msg.nameConfirm && msg.nameConfirm.confirmed"
+        class="mt-2 text-xs text-green-600 dark:text-green-400 flex items-center gap-1"
+      >
+        <el-icon><CircleCheck /></el-icon>
+        已将「{{ msg.nameConfirm.personName }}」绑定到选定的人脸聚类
+      </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import { CircleCheck } from '@element-plus/icons-vue'
 import MarkdownIt from 'markdown-it'
 import type { ChatMessage } from '@/types/chat'
+import NameConfirmDialog from './NameConfirmDialog.vue'
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   msg: ChatMessage
+  sessionId?: string
+}>(), {
+  sessionId: '',
+})
+
+const emit = defineEmits<{
+  (e: 'nameConfirmed', data: { cluster_id: string; name: string; messageId: string }): void
+  (e: 'nameSkip', data: { messageId: string }): void
 }>()
+
+function handleNameConfirmed(data: { cluster_id: string; name: string }) {
+  emit('nameConfirmed', { ...data, messageId: props.msg.id })
+}
+
+function handleNameSkip() {
+  emit('nameSkip', { messageId: props.msg.id })
+}
 
 const md = new MarkdownIt({ html: false, breaks: true, linkify: true })
 

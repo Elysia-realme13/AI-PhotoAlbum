@@ -14,6 +14,7 @@ from app.database.session import get_db, SessionLocal
 from app.api.deps import get_required_user
 from app.models.user import User
 from app.models.training import TrainingTask
+from sqlalchemy.orm import joinedload
 from app.schemas.training import (
     TrainingTaskCreate,
     TrainingTaskResponse,
@@ -124,25 +125,16 @@ def list_training_tasks(
 ):
     """获取训练任务列表"""
     try:
-        query = db.query(TrainingTask).order_by(TrainingTask.created_at.desc())
+        query = db.query(TrainingTask).options(joinedload(TrainingTask.dataset_rel)).order_by(TrainingTask.created_at.desc())
         if status:
             query = query.filter(TrainingTask.status == status)
         tasks = query.all()
-
-        # 查询数据集名称映射
-        from app.models.training import Dataset
-        ds_ids = [str(t.dataset_id) for t in tasks if t.dataset_id]
-        datasets = []
-        if ds_ids:
-            from uuid import UUID
-            datasets = db.query(Dataset).filter(Dataset.id.in_([UUID(id) for id in ds_ids])).all()
-        ds_map = {str(d.id): d.name for d in datasets}
  
         items = []
         for t in tasks:
             item = TrainingTaskResponse.model_validate(t)
             if t.dataset_id:
-                item.dataset_name = ds_map.get(str(t.dataset_id))
+                item.dataset_name = t.dataset_rel.name if t.dataset_rel else None
             items.append(item)
  
         return TrainingTaskListResponse(total=len(items), items=items)
@@ -169,11 +161,9 @@ def get_training_task(
     metrics = training_service.get_task_metrics(task_id, db)
 
     # 填充数据集名称
-    from app.models.training import Dataset
     task_resp = TrainingTaskResponse.model_validate(task)
-    if task.dataset_id:
-        ds = db.query(Dataset).filter(Dataset.id == uuid.UUID(str(task.dataset_id))).first()
-        task_resp.dataset_name = ds.name if ds else None
+    if task.dataset_id and task.dataset_rel:
+        task_resp.dataset_name = task.dataset_rel.name
  
     return TrainingTaskDetailResponse(
         task=task_resp,

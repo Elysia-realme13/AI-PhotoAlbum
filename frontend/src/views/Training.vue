@@ -318,7 +318,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage, ElMessageBox, ElLoading } from 'element-plus'
 import VChart from 'vue-echarts'
 import { use } from 'echarts/core'
 import { CanvasRenderer } from 'echarts/renderers'
@@ -603,7 +603,7 @@ async function createTask() {
  try {
     let res
     if (datasetMode.value === 'upload' && datasetFile.value) {
-      const uploadMsg = ElMessage({ message: '正在上传数据集，请稍候...', duration: 0 })
+      const loadingInstance = ElLoading.service({ lock: true, text: '正在上传数据集，请稍候...', background: 'rgba(0,0,0,0.7)' })
       try {
         res = await trainingApi.createTaskWithDataset({
           file: datasetFile.value,
@@ -613,7 +613,7 @@ async function createTask() {
           config: form.value.config,
         })
       } finally {
-        uploadMsg.close()
+        loadingInstance.close()
       }
     } else {
       res = await trainingApi.createTask({ ...form.value })

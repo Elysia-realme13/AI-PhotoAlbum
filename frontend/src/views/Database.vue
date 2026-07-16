@@ -99,7 +99,7 @@
 </template>
 <script setup lang="ts">
 import { ref, onMounted, reactive } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElLoading } from 'element-plus'
 import trainingApi, { type DatasetItem, type TrainingTask, type StorageInfo } from '@/api/training'
 
 const activeTab = ref('datasets')
@@ -156,14 +156,14 @@ async function onDatasetUpload(f: any) {
     ElMessage.warning(`数据集 "${stem}" 已存在，请勿重复上传`)
     return
 }
-  const uploadMsg = ElMessage({ message: '正在上传数据集，请稍候...', duration: 0 })
+  const loadingInstance = ElLoading.service({ lock: true, text: '正在上传数据集，请稍候...', background: 'rgba(0,0,0,0.7)' })
   try {
     await trainingApi.uploadDataset(f.raw)
-    uploadMsg.close()
+    loadingInstance.close()
     ElMessage.success('上传成功')
     await loadDatasets()
   } catch (e: any) {
-    uploadMsg.close()
+    loadingInstance.close()
     ElMessage.error(e.response?.data?.detail || '上传失败')
   }
 }

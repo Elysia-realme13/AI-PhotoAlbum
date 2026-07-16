@@ -3,7 +3,7 @@
     <!-- ── 左侧对话列表 ── -->
     <aside
       :class="[
-        'flex flex-col shrink-0 bg-white border-r border-gray-200 transition-all duration-300',
+        'flex flex-col shrink-0 bg-white dark:bg-dark-card border-r border-gray-200 dark:border-dark-border transition-all duration-300',
         sidebarOpen ? 'w-64' : 'w-0 overflow-hidden border-r-0',
       ]"
     >
@@ -36,12 +36,12 @@
           v-for="conv in store.conversations"
           :key="conv.id"
           :class="[
-            'mb-1 p-3 rounded-lg cursor-pointer transition-colors hover:bg-gray-50',
-            store.currentConversationId === conv.id ? 'bg-blue-50 border border-blue-100' : '',
+            'mb-1 p-3 rounded-lg cursor-pointer transition-colors hover:bg-gray-50 dark:hover:bg-dark-hover',
+            store.currentConversationId === conv.id ? 'bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800' : '',
           ]"
           @click="handleSelectConversation(conv.id)"
         >
-          <div class="text-sm font-medium text-gray-800 truncate">{{ conv.title }}</div>
+          <div class="text-sm font-medium text-gray-800 dark:text-dark-text truncate">{{ conv.title }}</div>
           <div class="flex items-center justify-between mt-1">
             <span class="text-xs text-gray-400">{{ conv.message_count }} 条消息</span>
             <span class="text-xs text-gray-400">{{ formatConvTime(conv.updated_at) }}</span>
@@ -53,10 +53,10 @@
     <!-- ── 主聊天区域 ── -->
     <div class="flex-1 flex flex-col min-w-0">
       <!-- 顶部栏 -->
-      <header class="h-12 shrink-0 flex items-center px-4 border-b border-gray-200 bg-white">
+      <header class="h-12 shrink-0 flex items-center px-4 border-b border-gray-200 dark:border-dark-border bg-white dark:bg-dark-card">
         <!-- 侧边栏切换 -->
         <button
-          class="w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center mr-3 shrink-0"
+          class="w-8 h-8 rounded-lg hover:bg-gray-100 dark:hover:bg-dark-hover flex items-center justify-center mr-3 shrink-0"
           aria-label="切换对话列表"
           @click="sidebarOpen = !sidebarOpen"
         >
@@ -66,14 +66,14 @@
         <!-- 标题 -->
         <div class="flex-1 min-w-0 flex items-center gap-2">
           <el-icon :size="16" color="#409EFF"><ChatDotRound /></el-icon>
-          <h2 v-if="store.currentConversation" class="text-sm font-medium text-gray-800 truncate">
+          <h2 v-if="store.currentConversation" class="text-sm font-medium text-gray-800 dark:text-dark-text truncate">
             {{ store.currentConversation.title }}
           </h2>
-          <h2 v-else class="text-sm font-medium text-gray-800">AI 助手</h2>
+          <h2 v-else class="text-sm font-medium text-gray-800 dark:text-dark-text">AI 助手</h2>
         </div>
 
         <!-- 模型信息 -->
-        <span class="text-xs text-gray-400 shrink-0">AI 智能相册助手</span>
+        <span class="text-xs text-gray-400 dark:text-dark-text-secondary shrink-0">AI 智能相册助手</span>
       </header>
 
       <!-- 消息区域 -->
@@ -96,15 +96,15 @@
             <div class="w-20 h-20 rounded-full bg-gradient-to-br from-blue-100 to-blue-200 flex items-center justify-center mx-auto mb-6">
               <el-icon :size="36" color="#409EFF"><ChatDotRound /></el-icon>
             </div>
-            <h3 class="text-xl font-semibold text-gray-800 mb-2">AI 智能相册助手</h3>
-            <p class="text-sm text-gray-500 mb-6">我是你的专属相册管家，可以帮你搜索照片、整理相册、识别内容和生成回忆。</p>
+            <h3 class="text-xl font-semibold text-gray-800 dark:text-dark-text mb-2">AI 智能相册助手</h3>
+            <p class="text-sm text-gray-500 dark:text-dark-text-secondary mb-6">我是你的专属相册管家，可以帮你搜索照片、整理相册、识别内容和生成回忆。</p>
 
             <!-- 建议问题 -->
             <div class="grid grid-cols-1 gap-2">
               <button
                 v-for="q in suggestedQuestions"
                 :key="q"
-                class="text-left px-4 py-2.5 rounded-xl border border-gray-200 hover:border-blue-300 hover:bg-blue-50 text-sm text-gray-700 transition-colors"
+                class="text-left px-4 py-2.5 rounded-xl border border-gray-200 dark:border-dark-border hover:border-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 text-sm text-gray-700 dark:text-dark-text-secondary transition-colors"
                 @click="store.sendMessage(q)"
               >
                 {{ q }}

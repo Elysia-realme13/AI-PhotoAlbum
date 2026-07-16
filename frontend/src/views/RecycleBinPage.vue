@@ -1,12 +1,12 @@
 <template>
   <div>
     <div class="flex items-center justify-between mb-6">
-      <h2 class="text-2xl font-bold text-gray-800">回收站</h2>
+      <h2 class="text-2xl font-bold text-gray-800 dark:text-dark-text">回收站</h2>
     </div>
 
     <!-- 加载中 -->
     <div v-if="loading" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-      <div v-for="i in 6" :key="i" class="aspect-square rounded-lg bg-gray-200 animate-pulse" />
+      <div v-for="i in 6" :key="i" class="aspect-square rounded-lg bg-gray-200 dark:bg-dark-hover animate-pulse" />
     </div>
 
     <!-- 空状态 -->
@@ -17,10 +17,10 @@
       <div
         v-for="photo in photos"
         :key="photo.id"
-        class="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm"
+        class="bg-white dark:bg-dark-card rounded-lg border border-gray-200 dark:border-dark-border overflow-hidden shadow-sm"
       >
         <!-- 缩略图 -->
-        <div class="aspect-square relative bg-gray-100">
+        <div class="aspect-square relative bg-gray-100 dark:bg-dark-hover">
           <img
             :src="photoApi.thumbnailUrl(photo.id)"
             class="w-full h-full object-cover opacity-60"

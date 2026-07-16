@@ -2,34 +2,34 @@
   <div class="flex flex-col h-full">
     <!-- 顶部信息栏 -->
     <div class="flex items-center justify-between mb-4 shrink-0">
-      <h2 class="text-2xl font-bold text-gray-800">足迹地图</h2>
-      <div class="flex items-center gap-4 text-sm text-gray-500">
+      <h2 class="text-2xl font-bold text-gray-800 dark:text-dark-text">足迹地图</h2>
+      <div class="flex items-center gap-4 text-sm text-gray-500 dark:text-dark-text-secondary">
         <span v-if="!loading">
-          共 <strong class="text-gray-800">{{ locations.length }}</strong> 张照片有拍摄位置
+          共 <strong class="text-gray-800 dark:text-dark-text">{{ locations.length }}</strong> 张照片有拍摄位置
         </span>
         <span v-if="cities.length > 0">
-          覆盖 <strong class="text-gray-800">{{ cities.length }}</strong> 个城市
+          覆盖 <strong class="text-gray-800 dark:text-dark-text">{{ cities.length }}</strong> 个城市
         </span>
       </div>
     </div>
 
     <!-- 加载状态 -->
-    <div v-if="loading" class="flex-1 bg-gray-100 rounded-xl animate-pulse flex items-center justify-center">
-      <div class="text-center text-gray-400">
+    <div v-if="loading" class="flex-1 bg-gray-100 dark:bg-dark-hover rounded-xl animate-pulse flex items-center justify-center">
+      <div class="text-center text-gray-400 dark:text-dark-text-secondary">
         <el-icon :size="48" class="mb-2"><Loading /></el-icon>
         <p>加载地图数据中...</p>
       </div>
     </div>
 
     <!-- 空状态 -->
-    <div v-else-if="locations.length === 0" class="flex-1 bg-gray-50 rounded-xl flex items-center justify-center">
+    <div v-else-if="locations.length === 0" class="flex-1 bg-gray-50 dark:bg-dark-hover rounded-xl flex items-center justify-center">
       <el-empty description="还没有带 GPS 信息的照片，上传照片时会自动提取拍摄位置">
         <el-button type="primary" @click="$router.push('/photos')">去上传照片</el-button>
       </el-empty>
     </div>
 
     <!-- 地图容器 -->
-    <div v-else ref="mapContainer" class="flex-1 min-h-0 rounded-xl overflow-hidden shadow-sm border border-gray-200" />
+    <div v-else ref="mapContainer" class="flex-1 min-h-0 rounded-xl overflow-hidden shadow-sm border border-gray-200 dark:border-dark-border" />
   </div>
 </template>
 

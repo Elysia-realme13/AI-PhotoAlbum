@@ -6,7 +6,7 @@
         <el-button v-if="selectedTask" size="small" @click="selectedTaskId = null">
           <el-icon><ArrowLeft /></el-icon> 返回
         </el-button>
-      <h2 class="text-xl font-bold text-gray-800">模型训练</h2>
+      <h2 class="text-xl font-bold text-gray-800 dark:text-dark-text">模型训练</h2>
       </div>
       <div class="flex items-center space-x-3">
         <el-button type="primary" @click="createDialogVisible = true">
@@ -22,12 +22,12 @@
       <!-- 右侧：监控面板 -->
       <div v-if="selectedTask" class="flex-1 flex flex-col space-y-3 overflow-hidden">
         <!-- 任务信息栏 -->
-        <div class="bg-white rounded-lg border p-3 flex items-center justify-between">
+        <div class="bg-white dark:bg-dark-card rounded-lg border border-gray-100 dark:border-dark-border p-3 flex items-center justify-between">
           <div class="flex items-center space-x-4">
-            <span class="font-semibold text-gray-800">{{ selectedTask.task_name }}</span>
+            <span class="font-semibold text-gray-800 dark:text-dark-text">{{ selectedTask.task_name }}</span>
             <el-tag :type="statusType(selectedTask.status)" size="small">{{ statusLabel(selectedTask.status) }}</el-tag>
-            <span class="text-sm text-gray-500">Epoch: {{ epochDisplay(selectedTask.current_epoch, selectedTask.total_epochs, selectedTask.status) }}</span>
-            <span class="text-sm text-gray-500" v-if="selectedTask.best_metric !== null">
+            <span class="text-sm text-gray-500 dark:text-dark-text-secondary">Epoch: {{ epochDisplay(selectedTask.current_epoch, selectedTask.total_epochs, selectedTask.status) }}</span>
+            <span class="text-sm text-gray-500 dark:text-dark-text-secondary" v-if="selectedTask.best_metric !== null">
               最佳 mAP50: <strong>{{ selectedTask.best_metric.toFixed(4) }}</strong>
             </span>
           </div>
@@ -54,16 +54,16 @@
         </div>
 
         <!-- 进度条 -->
-        <div v-if="selectedTask.total_epochs > 0" class="bg-white rounded-lg border p-3">
+        <div v-if="selectedTask.total_epochs > 0" class="bg-white dark:bg-dark-card rounded-lg border border-gray-100 dark:border-dark-border p-3">
           <el-progress :percentage="progressPercent" :stroke-width="16" :text-inside="true"
             :status="progressStatus" />
         </div>
 
         <!-- 指标图表 -->
-        <div class="bg-white rounded-lg border p-3 flex-1 min-h-0" v-if="metricLines.length > 0">
+        <div class="bg-white dark:bg-dark-card rounded-lg border border-gray-100 dark:border-dark-border p-3 flex-1 min-h-0" v-if="metricLines.length > 0">
           <v-chart :option="chartOption" autoresize class="w-full h-full" />
         </div>
-        <div v-else class="bg-white rounded-lg border p-3 flex-1 min-h-0 flex items-center justify-center text-gray-400">
+        <div v-else class="bg-white dark:bg-dark-card rounded-lg border border-gray-100 dark:border-dark-border p-3 flex-1 min-h-0 flex items-center justify-center text-gray-400 dark:text-dark-text-secondary">
           <div class="text-center">
             <el-icon :size="48"><ChatLineSquare /></el-icon>
             <p class="mt-2">暂无指标数据，开始训练后将实时显示</p>
@@ -72,7 +72,7 @@
 
         <!-- 日志输出 -->
         <div class="bg-gray-900 rounded-lg p-3 h-32 overflow-y-auto font-mono text-xs text-green-400">
-          <div v-if="logLines.length === 0" class="text-gray-500">等待训练日志输出...</div>
+          <div v-if="logLines.length === 0" class="text-gray-500 dark:text-gray-400">等待训练日志输出...</div>
           <div v-for="(line, i) in logLines" :key="i" class="leading-5">{{ line }}</div>
         </div>
       </div>
@@ -81,26 +81,26 @@
       <div v-else class="flex-1 flex flex-col gap-4 overflow-y-auto p-2">
         <!-- 任务统计卡片 -->
         <div class="grid grid-cols-4 gap-4">
-          <div class="bg-white rounded-lg border p-4 text-center">
-            <div class="text-sm text-gray-500 mb-1">全部任务</div>
+          <div class="bg-white dark:bg-dark-card rounded-lg border border-gray-100 dark:border-dark-border p-4 text-center">
+            <div class="text-sm text-gray-500 dark:text-dark-text-secondary mb-1">全部任务</div>
             <div class="text-2xl font-bold text-blue-600">{{ taskStats.total }}</div>
           </div>
-          <div class="bg-white rounded-lg border p-4 text-center">
-            <div class="text-sm text-gray-500 mb-1">训练中</div>
+          <div class="bg-white dark:bg-dark-card rounded-lg border border-gray-100 dark:border-dark-border p-4 text-center">
+            <div class="text-sm text-gray-500 dark:text-dark-text-secondary mb-1">训练中</div>
             <div class="text-2xl font-bold text-yellow-600">{{ taskStats.running }}</div>
           </div>
-          <div class="bg-white rounded-lg border p-4 text-center">
-            <div class="text-sm text-gray-500 mb-1">已完成</div>
+          <div class="bg-white dark:bg-dark-card rounded-lg border border-gray-100 dark:border-dark-border p-4 text-center">
+            <div class="text-sm text-gray-500 dark:text-dark-text-secondary mb-1">已完成</div>
             <div class="text-2xl font-bold text-green-600">{{ taskStats.completed }}</div>
           </div>
-          <div class="bg-white rounded-lg border p-4 text-center">
-            <div class="text-sm text-gray-500 mb-1">失败</div>
+          <div class="bg-white dark:bg-dark-card rounded-lg border border-gray-100 dark:border-dark-border p-4 text-center">
+            <div class="text-sm text-gray-500 dark:text-dark-text-secondary mb-1">失败</div>
             <div class="text-2xl font-bold text-red-600">{{ taskStats.failed }}</div>
           </div>
         </div>
         <!-- 最近任务列表 -->
-        <div class="bg-white rounded-lg border p-3 flex-1">
-          <h4 class="text-sm font-semibold text-gray-700 mb-3">最近训练任务</h4>
+        <div class="bg-white dark:bg-dark-card rounded-lg border border-gray-100 dark:border-dark-border p-3 flex-1">
+          <h4 class="text-sm font-semibold text-gray-700 dark:text-dark-text mb-3">最近训练任务</h4>
           <el-table :data="taskList.slice(0, 6)" empty-text="暂无训练任务" style="width: 100%"
             @row-click="(row:any) => onTaskSelect(row.id)" highlight-current-row>
             <el-table-column prop="task_name" label="任务" min-width="120" />

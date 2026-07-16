@@ -3,7 +3,7 @@
     <!-- 相册列表视图 -->
     <template v-if="view === 'list'">
       <div class="flex items-center justify-between mb-6">
-        <h2 class="text-2xl font-bold text-gray-800">相册</h2>
+        <h2 class="text-2xl font-bold text-gray-800 dark:text-dark-text">相册</h2>
         <el-button type="primary" @click="showCreateDialog = true">
           创建相册
         </el-button>
@@ -11,11 +11,11 @@
 
       <!-- 加载骨架屏 -->
       <div v-if="loading" class="grid grid-cols-4 gap-4">
-        <div v-for="i in 8" :key="i" class="bg-white rounded-xl overflow-hidden shadow-sm border border-gray-100">
-          <div class="aspect-square bg-gray-200 animate-pulse" />
+        <div v-for="i in 8" :key="i" class="bg-white dark:bg-dark-card rounded-xl overflow-hidden shadow-sm border border-gray-100 dark:border-dark-border">
+          <div class="aspect-square bg-gray-200 dark:bg-dark-hover animate-pulse" />
           <div class="p-3">
-            <div class="h-4 bg-gray-200 rounded w-20 mb-2 animate-pulse" />
-            <div class="h-3 bg-gray-200 rounded w-12 animate-pulse" />
+            <div class="h-4 bg-gray-200 dark:bg-dark-hover rounded w-20 mb-2 animate-pulse" />
+            <div class="h-3 bg-gray-200 dark:bg-dark-hover rounded w-12 animate-pulse" />
           </div>
         </div>
       </div>
@@ -26,10 +26,10 @@
           <div
             v-for="album in albums"
             :key="album.key"
-            class="group bg-white rounded-xl overflow-hidden shadow-sm border border-gray-100 cursor-pointer hover:shadow-md transition-shadow relative"
+            class="group bg-white dark:bg-dark-card rounded-xl overflow-hidden shadow-sm border border-gray-100 dark:border-dark-border cursor-pointer hover:shadow-md transition-shadow relative"
             @click="openAlbum(album)"
           >
-            <div class="relative aspect-square bg-gray-100 overflow-hidden">
+            <div class="relative aspect-square bg-gray-100 dark:bg-dark-hover overflow-hidden">
               <img
                 :src="photoApi.thumbnailUrl(album.photos[0].id)"
                 class="w-full h-full object-cover group-hover:scale-105 transition-transform"
@@ -39,8 +39,8 @@
               </span>
             </div>
             <div class="p-3">
-              <p class="text-sm font-medium text-gray-800 truncate">{{ album.title }}</p>
-              <p class="text-xs text-gray-400 mt-0.5">{{ album.photos.length }} 张照片</p>
+              <p class="text-sm font-medium text-gray-800 dark:text-dark-text truncate">{{ album.title }}</p>
+              <p class="text-xs text-gray-400 dark:text-dark-text-secondary mt-0.5">{{ album.photos.length }} 张照片</p>
             </div>
             <!-- 删除按钮 -->
             <button
@@ -59,15 +59,15 @@
     <template v-else>
       <div class="flex items-center gap-3 mb-6">
         <el-button :icon="ArrowLeft" circle @click="backToList" aria-label="返回相册列表" />
-        <h2 class="text-2xl font-bold text-gray-800">{{ currentAlbum?.title }}</h2>
-        <span class="text-sm text-gray-400">{{ currentAlbum?.photos.length }} 张</span>
+        <h2 class="text-2xl font-bold text-gray-800 dark:text-dark-text">{{ currentAlbum?.title }}</h2>
+        <span class="text-sm text-gray-400 dark:text-dark-text-secondary">{{ currentAlbum?.photos.length }} 张</span>
       </div>
 
       <div class="grid grid-cols-6 gap-3">
         <div
           v-for="(photo, index) in currentAlbum?.photos"
           :key="photo.id"
-          class="group relative aspect-square bg-gray-100 rounded-lg overflow-hidden cursor-pointer"
+          class="group relative aspect-square bg-gray-100 dark:bg-dark-hover rounded-lg overflow-hidden cursor-pointer"
           @click="handlePreview(index)"
         >
           <img

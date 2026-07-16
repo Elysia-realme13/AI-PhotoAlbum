@@ -8,7 +8,7 @@
   >
     <!-- 顶部操作栏 -->
     <div class="flex items-center justify-between mb-6">
-      <h2 class="text-2xl font-bold text-gray-800">照片</h2>
+      <h2 class="text-2xl font-bold text-gray-800 dark:text-dark-text">照片</h2>
       <el-button type="primary" :icon="Upload" @click="showUpload = true">
         上传照片
       </el-button>
@@ -61,10 +61,10 @@
       v-if="isDragging"
       class="fixed inset-0 z-50 bg-blue-500/10 backdrop-blur-sm flex items-center justify-center pointer-events-none"
     >
-      <div class="bg-white rounded-2xl shadow-lg px-10 py-8 text-center border-2 border-dashed border-blue-400">
+      <div class="bg-white dark:bg-dark-card rounded-2xl shadow-lg px-10 py-8 text-center border-2 border-dashed border-blue-400">
         <el-icon :size="56" color="#409EFF" class="mb-3"><UploadFilled /></el-icon>
-        <p class="text-lg font-semibold text-gray-800">松开鼠标上传照片</p>
-        <p class="text-sm text-gray-400 mt-1">支持拖入图片或含图片的文件夹</p>
+        <p class="text-lg font-semibold text-gray-800 dark:text-dark-text">松开鼠标上传照片</p>
+        <p class="text-sm text-gray-400 dark:text-dark-text-secondary mt-1">支持拖入图片或含图片的文件夹</p>
       </div>
     </div>
   </div>

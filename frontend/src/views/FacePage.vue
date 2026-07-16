@@ -3,16 +3,16 @@
     <!-- 人物列表视图 -->
     <template v-if="view === 'list'">
       <div class="flex items-center justify-between mb-6">
-        <h2 class="text-2xl font-bold text-gray-800">人物</h2>
-        <p class="text-sm text-gray-400">系统自动识别照片中的人脸并聚类</p>
+        <h2 class="text-2xl font-bold text-gray-800 dark:text-dark-text">人物</h2>
+        <p class="text-sm text-gray-400 dark:text-dark-text-secondary">系统自动识别照片中的人脸并聚类</p>
       </div>
 
       <!-- 加载骨架屏 -->
       <div v-if="loading" class="grid grid-cols-4 gap-4">
-        <div v-for="i in 8" :key="i" class="bg-white rounded-xl p-4 shadow-sm border border-gray-100 flex flex-col items-center">
-          <div class="w-20 h-20 rounded-full bg-gray-200 animate-pulse mb-3" />
-          <div class="h-4 bg-gray-200 rounded w-16 mb-2 animate-pulse" />
-          <div class="h-3 bg-gray-200 rounded w-10 animate-pulse" />
+        <div v-for="i in 8" :key="i" class="bg-white dark:bg-dark-card rounded-xl p-4 shadow-sm border border-gray-100 dark:border-dark-border flex flex-col items-center">
+          <div class="w-20 h-20 rounded-full bg-gray-200 dark:bg-dark-hover animate-pulse mb-3" />
+          <div class="h-4 bg-gray-200 dark:bg-dark-hover rounded w-16 mb-2 animate-pulse" />
+          <div class="h-3 bg-gray-200 dark:bg-dark-hover rounded w-10 animate-pulse" />
         </div>
       </div>
 
@@ -22,7 +22,7 @@
           <div
             v-for="person in identities"
             :key="person.id"
-            class="group relative bg-white rounded-xl p-4 shadow-sm border border-gray-100 cursor-pointer hover:shadow-md transition-shadow flex flex-col items-center"
+            class="group relative bg-white dark:bg-dark-card rounded-xl p-4 shadow-sm border border-gray-100 dark:border-dark-border cursor-pointer hover:shadow-md transition-shadow flex flex-col items-center"
             @click="openPerson(person)"
           >
             <!-- 圆形头像 -->
@@ -34,10 +34,10 @@
               />
               <span v-else>{{ personInitial(person) }}</span>
             </div>
-            <p class="text-sm font-medium text-gray-800 truncate max-w-full">
+            <p class="text-sm font-medium text-gray-800 dark:text-dark-text truncate max-w-full">
               {{ person.identity_name || '未命名' }}
             </p>
-            <p class="text-xs text-gray-400 mt-0.5">{{ person.face_count }} 张照片</p>
+            <p class="text-xs text-gray-400 dark:text-dark-text-secondary mt-0.5">{{ person.face_count }} 张照片</p>
 
             <!-- hover 重命名按钮 -->
             <button
@@ -56,25 +56,25 @@
     <template v-else>
       <div class="flex items-center gap-3 mb-6">
         <el-button :icon="ArrowLeft" circle @click="backToList" aria-label="返回人物列表" />
-        <h2 class="text-2xl font-bold text-gray-800">{{ currentPerson?.identity_name || '未命名' }}</h2>
+        <h2 class="text-2xl font-bold text-gray-800 dark:text-dark-text">{{ currentPerson?.identity_name || '未命名' }}</h2>
         <button
-          class="w-7 h-7 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-400 hover:text-blue-500"
+          class="w-7 h-7 rounded-full hover:bg-gray-100 dark:hover:bg-dark-hover flex items-center justify-center text-gray-400 hover:text-blue-500 dark:text-dark-text-secondary"
           @click="currentPerson && renamePerson(currentPerson)"
           title="重命名"
         >
           <el-icon :size="16"><EditPen /></el-icon>
         </button>
-        <span class="text-sm text-gray-400">{{ currentPhotos.length }} 张</span>
+        <span class="text-sm text-gray-400 dark:text-dark-text-secondary">{{ currentPhotos.length }} 张</span>
       </div>
 
       <div v-if="detailLoading" class="grid grid-cols-6 gap-3">
-        <div v-for="i in 12" :key="i" class="aspect-square bg-gray-200 rounded-lg animate-pulse" />
+        <div v-for="i in 12" :key="i" class="aspect-square bg-gray-200 dark:bg-dark-hover rounded-lg animate-pulse" />
       </div>
       <div v-else class="grid grid-cols-6 gap-3">
         <div
           v-for="(photo, index) in currentPhotos"
           :key="photo.id"
-          class="group relative aspect-square bg-gray-100 rounded-lg overflow-hidden cursor-pointer"
+          class="group relative aspect-square bg-gray-100 dark:bg-dark-hover rounded-lg overflow-hidden cursor-pointer"
           @click="handlePreview(index)"
         >
           <img

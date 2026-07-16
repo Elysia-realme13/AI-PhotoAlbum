@@ -2,7 +2,7 @@
   <div class="h-full flex flex-col space-y-4">
     <div class="flex items-center justify-between">
       <div class="flex items-center space-x-3">
-        <h2 class="text-xl font-bold text-gray-800">模型管理</h2>
+        <h2 class="text-xl font-bold text-gray-800 dark:text-dark-text">模型管理</h2>
         <el-tag v-if="defaultModel" type="success" effect="plain" size="small">
          当前默认: {{ defaultModel }}
         </el-tag>

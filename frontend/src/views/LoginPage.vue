@@ -1,26 +1,26 @@
 <template>
-  <div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
+  <div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-dark-bg dark:to-dark-card">
     <div class="w-full max-w-md">
-      <div class="bg-white rounded-2xl shadow-xl p-8">
+      <div class="bg-white dark:bg-dark-card rounded-2xl shadow-xl p-8">
         <!-- Logo -->
         <div class="text-center mb-8">
-          <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-blue-50 mb-4">
+          <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-blue-50 dark:bg-blue-900/30 mb-4">
             <el-icon :size="32" color="#409EFF"><PictureFilled /></el-icon>
           </div>
-          <h2 class="text-2xl font-bold text-gray-800">AI 智能相册</h2>
-          <p class="text-gray-500 mt-1 text-sm">让每一张照片都值得珍藏</p>
+          <h2 class="text-2xl font-bold text-gray-800 dark:text-dark-text">AI 智能相册</h2>
+          <p class="text-gray-500 dark:text-dark-text-secondary mt-1 text-sm">让每一张照片都值得珍藏</p>
         </div>
 
         <!-- 切换 Tab -->
-        <div class="flex mb-6 bg-gray-100 rounded-lg p-1">
+        <div class="flex mb-6 bg-gray-100 dark:bg-dark-hover rounded-lg p-1">
           <button
-            :class="['flex-1 py-2 text-sm rounded-md transition', isLogin ? 'bg-white shadow text-blue-600 font-medium' : 'text-gray-500']"
+            :class="['flex-1 py-2 text-sm rounded-md transition', isLogin ? 'bg-white dark:bg-dark-card shadow text-blue-600 font-medium' : 'text-gray-500 dark:text-dark-text-secondary']"
             @click="isLogin = true"
           >
             登录
           </button>
           <button
-            :class="['flex-1 py-2 text-sm rounded-md transition', !isLogin ? 'bg-white shadow text-blue-600 font-medium' : 'text-gray-500']"
+            :class="['flex-1 py-2 text-sm rounded-md transition', !isLogin ? 'bg-white dark:bg-dark-card shadow text-blue-600 font-medium' : 'text-gray-500 dark:text-dark-text-secondary']"
             @click="isLogin = false"
           >
             注册

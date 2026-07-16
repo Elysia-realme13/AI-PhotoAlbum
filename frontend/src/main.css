@@ -7,6 +7,11 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
 }
 
+/* 暗色模式全局背景 */
+html.dark body {
+  background-color: #1a1a2e;
+}
+
 /* 页面过渡动画 */
 .page-fade-enter-active,
 .page-fade-leave-active {
@@ -116,8 +121,13 @@ body {
 }
 
 .sidebar-menu .el-menu-item:hover {
-  background-color: rgba(255, 255, 255, 0.1) !important;
+  background-color: rgba(59, 130, 246, 0.08) !important;
   transform: translateX(4px);
+}
+
+/* 暗色模式侧边栏菜单悬停 */
+html.dark .sidebar-menu .el-menu-item:hover {
+  background-color: rgba(255, 255, 255, 0.08) !important;
 }
 
 .sidebar-menu .el-menu-item.is-active {
@@ -198,4 +208,15 @@ body {
     opacity: 1;
     transform: scale(1);
   }
+}
+
+/* 侧边栏收起状态 tooltip 延迟1秒显示，隐藏时不延迟 */
+.sidebar-tooltip.el-fade-in-linear-enter-active {
+  transition: opacity 0.2s linear;
+  transition-delay: 1s;
+}
+
+.sidebar-tooltip.el-fade-in-linear-leave-active {
+  transition: opacity 0.2s linear;
+  transition-delay: 0s;
 }

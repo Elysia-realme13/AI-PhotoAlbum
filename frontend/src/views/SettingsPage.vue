@@ -1,10 +1,10 @@
 <template>
   <div class="max-w-3xl">
-    <h2 class="text-2xl font-bold text-gray-800 mb-6">设置</h2>
+    <h2 class="text-2xl font-bold text-gray-800 dark:text-dark-text mb-6">设置</h2>
 
     <!-- 账户信息 -->
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 mb-4">
-      <h3 class="text-lg font-semibold text-gray-800 mb-4">账户信息</h3>
+    <div class="bg-white dark:bg-dark-card rounded-xl shadow-sm border border-gray-100 dark:border-dark-border p-5 mb-4">
+      <h3 class="text-lg font-semibold text-gray-800 dark:text-dark-text mb-4">账户信息</h3>
       <div class="flex items-center gap-4">
         <div
           class="w-16 h-16 rounded-full bg-blue-500 text-white flex items-center justify-center text-2xl font-bold overflow-hidden shrink-0"
@@ -13,43 +13,55 @@
           <span v-else>{{ avatarText }}</span>
         </div>
         <div class="space-y-1">
-          <p class="text-lg font-medium text-gray-800">{{ user?.nickname || user?.username || '未登录' }}</p>
-          <p class="text-sm text-gray-500">用户名：{{ user?.username || '-' }}</p>
-          <p class="text-sm text-gray-500">邮箱：{{ user?.email || '-' }}</p>
+          <p class="text-lg font-medium text-gray-800 dark:text-dark-text">{{ user?.nickname || user?.username || '未登录' }}</p>
+          <p class="text-sm text-gray-500 dark:text-dark-text-secondary">用户名：{{ user?.username || '-' }}</p>
+          <p class="text-sm text-gray-500 dark:text-dark-text-secondary">邮箱：{{ user?.email || '-' }}</p>
         </div>
       </div>
     </div>
 
     <!-- 相册统计 -->
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 mb-4">
-      <h3 class="text-lg font-semibold text-gray-800 mb-4">相册统计</h3>
+    <div class="bg-white dark:bg-dark-card rounded-xl shadow-sm border border-gray-100 dark:border-dark-border p-5 mb-4">
+      <h3 class="text-lg font-semibold text-gray-800 dark:text-dark-text mb-4">相册统计</h3>
       <div v-if="statsLoading" class="grid grid-cols-2 gap-4">
-        <div v-for="i in 4" :key="i" class="h-14 bg-gray-100 rounded-lg animate-pulse" />
+        <div v-for="i in 4" :key="i" class="h-14 bg-gray-100 dark:bg-dark-hover rounded-lg animate-pulse" />
       </div>
       <div v-else class="grid grid-cols-2 gap-4">
-        <div class="p-3 rounded-lg bg-gray-50">
-          <p class="text-sm text-gray-500">照片总数</p>
-          <p class="text-xl font-bold text-gray-800 mt-1">{{ stats.total }}</p>
+        <div class="p-3 rounded-lg bg-gray-50 dark:bg-dark-hover">
+          <p class="text-sm text-gray-500 dark:text-dark-text-secondary">照片总数</p>
+          <p class="text-xl font-bold text-gray-800 dark:text-dark-text mt-1">{{ stats.total }}</p>
         </div>
-        <div class="p-3 rounded-lg bg-gray-50">
-          <p class="text-sm text-gray-500">存储占用</p>
-          <p class="text-xl font-bold text-gray-800 mt-1">{{ stats.size }}</p>
+        <div class="p-3 rounded-lg bg-gray-50 dark:bg-dark-hover">
+          <p class="text-sm text-gray-500 dark:text-dark-text-secondary">存储占用</p>
+          <p class="text-xl font-bold text-gray-800 dark:text-dark-text mt-1">{{ stats.size }}</p>
         </div>
-        <div class="p-3 rounded-lg bg-gray-50">
-          <p class="text-sm text-gray-500">格式分布</p>
-          <p class="text-sm font-medium text-gray-700 mt-1">{{ stats.formats || '-' }}</p>
+        <div class="p-3 rounded-lg bg-gray-50 dark:bg-dark-hover">
+          <p class="text-sm text-gray-500 dark:text-dark-text-secondary">格式分布</p>
+          <p class="text-sm font-medium text-gray-700 dark:text-dark-text mt-1">{{ stats.formats || '-' }}</p>
         </div>
-        <div class="p-3 rounded-lg bg-gray-50">
-          <p class="text-sm text-gray-500">时间跨度</p>
-          <p class="text-sm font-medium text-gray-700 mt-1">{{ stats.span || '-' }}</p>
+        <div class="p-3 rounded-lg bg-gray-50 dark:bg-dark-hover">
+          <p class="text-sm text-gray-500 dark:text-dark-text-secondary">时间跨度</p>
+          <p class="text-sm font-medium text-gray-700 dark:text-dark-text mt-1">{{ stats.span || '-' }}</p>
         </div>
       </div>
     </div>
 
     <!-- 偏好设置 -->
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 mb-4">
-      <h3 class="text-lg font-semibold text-gray-800 mb-4">偏好设置</h3>
+    <div class="bg-white dark:bg-dark-card rounded-xl shadow-sm border border-gray-100 dark:border-dark-border p-5 mb-4">
+      <h3 class="text-lg font-semibold text-gray-800 dark:text-dark-text mb-4">偏好设置</h3>
       <el-form label-width="120px" label-position="left">
+        <el-form-item label="主题模式">
+          <div class="flex items-center gap-3">
+            <el-radio-group v-model="currentTheme" @change="onThemeChange">
+              <el-radio-button value="light">
+                <el-icon class="mr-1"><Sunny /></el-icon> 浅色
+              </el-radio-button>
+              <el-radio-button value="dark">
+                <el-icon class="mr-1"><Moon /></el-icon> 暗色
+              </el-radio-button>
+            </el-radio-group>
+          </div>
+        </el-form-item>
         <el-form-item label="每页显示数量">
           <el-select v-model="prefs.pageSize" style="width: 160px" @change="savePrefs">
             <el-option :value="20" label="20 张 / 页" />
@@ -64,12 +76,12 @@
           </el-select>
         </el-form-item>
       </el-form>
-      <p class="text-xs text-gray-400">偏好保存在本地浏览器，实时生效。</p>
+      <p class="text-xs text-gray-400 dark:text-dark-text-secondary">偏好保存在本地浏览器，实时生效。</p>
     </div>
 
     <!-- 个人资料修改 -->
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 mb-4">
-      <h3 class="text-lg font-semibold text-gray-800 mb-3">个人资料</h3>
+    <div class="bg-white dark:bg-dark-card rounded-xl shadow-sm border border-gray-100 dark:border-dark-border p-5 mb-4">
+      <h3 class="text-lg font-semibold text-gray-800 dark:text-dark-text mb-3">个人资料</h3>
       <el-alert type="info" :closable="false" show-icon class="mb-4" title="该功能需后端接口支持，后端就绪后即可生效" />
       <el-form ref="profileFormRef" :model="profileForm" :rules="profileRules" label-width="120px" label-position="left">
         <el-form-item label="昵称" prop="nickname">
@@ -85,8 +97,8 @@
     </div>
 
     <!-- 修改密码 -->
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-      <h3 class="text-lg font-semibold text-gray-800 mb-3">修改密码</h3>
+    <div class="bg-white dark:bg-dark-card rounded-xl shadow-sm border border-gray-100 dark:border-dark-border p-5">
+      <h3 class="text-lg font-semibold text-gray-800 dark:text-dark-text mb-3">修改密码</h3>
       <el-alert type="info" :closable="false" show-icon class="mb-4" title="该功能需后端接口支持，后端就绪后即可生效" />
       <el-form ref="pwdFormRef" :model="pwdForm" :rules="pwdRules" label-width="120px" label-position="left">
         <el-form-item label="当前密码" prop="old_password">
@@ -112,12 +124,20 @@ import { storeToRefs } from 'pinia'
 import { ElMessage } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
 import { useUserStore } from '@/stores/user'
+import { useThemeStore, type ThemeMode } from '@/stores/theme'
 import { authApi } from '@/api/auth'
 import { loadAllPhotos } from '@/api/search'
 import type { PhotoItem } from '@/types/photo'
 
 const userStore = useUserStore()
 const { user } = storeToRefs(userStore)
+
+const themeStore = useThemeStore()
+const { theme: currentTheme } = storeToRefs(themeStore)
+
+function onThemeChange(val: ThemeMode) {
+  themeStore.setTheme(val)
+}
 
 const avatarText = computed(() => {
   const name = user.value?.nickname || user.value?.username || '?'

@@ -5,8 +5,17 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>AI智能相册</title>
+    <script>
+      // 在应用加载前同步设置主题，避免闪烁
+      (function() {
+        var theme = localStorage.getItem('theme');
+        if (theme === 'dark') {
+          document.documentElement.classList.add('dark');
+        }
+      })();
+    </script>
   </head>
-  <body class="bg-gray-50">
+  <body class="bg-gray-50 dark:bg-dark-bg">
     <div id="app"></div>
     <script type="module" src="/src/main.ts"></script>
   </body>

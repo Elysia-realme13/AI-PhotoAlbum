@@ -1,10 +1,10 @@
 <template>
   <div class="h-full flex flex-col space-y-4">
-    <h2 class="text-xl font-bold text-gray-800">数据集管理</h2>
+    <h2 class="text-xl font-bold text-gray-800 dark:text-dark-text">数据集管理</h2>
     <el-tabs v-model="activeTab" type="border-card" class="flex-1 flex flex-col">
       <el-tab-pane label="数据集管理" name="datasets">
         <div class="flex items-center justify-between mb-4">
-          <span class="text-sm text-gray-500">共 {{ datasetList.length }} 个数据集</span>
+          <span class="text-sm text-gray-500 dark:text-dark-text-secondary">共 {{ datasetList.length }} 个数据集</span>
           <el-upload :auto-upload="false" :show-file-list="false" accept=".zip,.tar,.tar.gz,.tgz,.tar.bz2,.7z,.rar" :on-change="onDatasetUpload">
             <el-button type="primary" size="small">
               <el-icon><Upload /></el-icon> 上传数据集 ZIP
@@ -30,7 +30,7 @@
       </el-tab-pane>
       <el-tab-pane label="训练记录" name="records">
         <div class="flex items-center mb-4">
-          <span class="text-sm text-gray-500">共 {{ taskList.length }} 条记录</span>
+          <span class="text-sm text-gray-500 dark:text-dark-text-secondary">共 {{ taskList.length }} 条记录</span>
           <el-select v-model="filterStatus" placeholder="状态筛选" clearable style="width: 140px; margin-left: 12px" @change="loadTaskList">
             <el-option label="全部" value="" />
             <el-option label="进行中" value="running" />

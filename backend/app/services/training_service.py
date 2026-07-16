@@ -153,6 +153,11 @@ def upload_dataset(file_bytes: bytes, filename: str, db: Session) -> Dataset:
         stem = Path(filename.replace(".tar.gz", "")).name
     elif filename.lower().endswith(".tar.bz2"):
         stem = Path(filename.replace(".tar.bz2", "")).name
+
+    # 检测重复文件名
+    existing = db.query(Dataset).filter(Dataset.name == stem).first()
+    if existing:
+        raise ValueError(f"数据集 '{stem}' 已存在，请勿重复上传")
     dataset_dir = DATASETS_DIR / f"{stem}_{uuid.uuid4().hex[:8]}"
     dataset_dir.mkdir(parents=True, exist_ok=True)
     ext = filename.lower().rsplit(".", 1)[-1]
@@ -338,9 +343,9 @@ def delete_dataset(dataset_id: str, db: Session) -> bool:
     task_count = db.query(TrainingTask).filter(
         TrainingTask.dataset_id == uuid.UUID(dataset_id)).count()
     if task_count > 0:
-        dataset.name = f"{dataset.name}_deleted_{uuid.uuid4().hex[:4]}"
-        db.commit()
-        return True
+        db.query(TrainingTask).filter(
+            TrainingTask.dataset_id == uuid.UUID(dataset_id)
+        ).update({"dataset_id": None})
     dataset_path = Path(dataset.path)
     if dataset_path.exists():
         shutil.rmtree(str(dataset_path), ignore_errors=True)

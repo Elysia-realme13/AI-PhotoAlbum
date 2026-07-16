@@ -188,7 +188,7 @@ def _vector_search(db: Session, vector_str: str, top_k: int, owner_id, photo_ids
 
     if photo_ids and len(photo_ids) > 0:
         from sqlalchemy import bindparam
-        placeholders = ","".join(f":pid_{i}" for i in range(len(photo_ids)))
+        placeholders = ",".join(f":pid_{i}" for i in range(len(photo_ids)))
         sql_str += f" AND iv.photo_id IN ({placeholders})"
         for i, pid in enumerate(photo_ids):
             params[f"pid_{i}"] = pid

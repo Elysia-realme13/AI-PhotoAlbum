@@ -287,6 +287,45 @@ def get_photo_detail(
     return BaseResponse(data=detail)
 
 
+@router.get("/{photo_id}/metadata")
+def get_photo_metadata(
+    photo_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_required_user),
+):
+    """获取照片 EXIF 元数据"""
+    try:
+        photo_id_uuid = uuid.UUID(photo_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="无效的照片ID")
+
+    from app.models.photo import PhotoMetadata
+    metadata = db.query(PhotoMetadata).filter(
+        PhotoMetadata.photo_id == photo_id_uuid
+    ).first()
+
+    if not metadata:
+        return {}
+
+    return {
+        "camera_make": metadata.camera_make,
+        "camera_model": metadata.camera_model,
+        "lens_model": metadata.lens_model,
+        "focal_length": metadata.focal_length,
+        "aperture": metadata.aperture,
+        "shutter_speed": metadata.shutter_speed,
+        "iso": metadata.iso,
+        "latitude": metadata.latitude,
+        "longitude": metadata.longitude,
+        "altitude": metadata.altitude,
+        "country": metadata.country,
+        "province": metadata.province,
+        "city": metadata.city,
+        "district": metadata.district,
+        "address": metadata.address,
+    }
+
+
 # ═══════════════════════════════════════════════════
 # 文件服务（缩略图 / 原图）
 # ═══════════════════════════════════════════════════

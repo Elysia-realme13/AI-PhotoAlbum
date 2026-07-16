@@ -1,14 +1,28 @@
 import request from '@/utils/request'
-import type { FaceIdentity, FaceIdentityUpdate } from '@/types/face'
+import type { FaceCluster } from '@/types/face'
 import type { PhotoItem } from '@/types/photo'
 
-// 后端 api/face.py 尚为 stub，list 类接口用 silent 静默失败，由页面 mock 兜底
 export const faceApi = {
-  listIdentities: () => request.get<FaceIdentity[]>('/faces/identities', { silent: true }),
-  identityPhotos: (id: string) =>
-    request.get<PhotoItem[]>(`/faces/identities/${id}/photos`, { silent: true }),
-  updateIdentity: (id: string, data: FaceIdentityUpdate) =>
-    request.put(`/faces/identities/${id}`, data),
-  mergeIdentities: (source_ids: string[], target_id: string) =>
-    request.post('/faces/identities/merge', { source_ids, target_id }),
+  /** 获取所有人物聚类（含已命名和未命名） */
+  listIdentities() {
+    return request.get<FaceCluster[]>('/faces/identities')
+  },
+
+  /** 获取某人物聚类下的所有照片 */
+  identityPhotos(id: string) {
+    return request.get<PhotoItem[]>(`/faces/identities/${id}/photos`)
+  },
+
+  /** 命名/重命名聚类 */
+  renameCluster(clusterId: string, name: string) {
+    return request.post('/faces/name', { cluster_id: clusterId, name })
+  },
+
+  /** 合并两个聚类 */
+  mergeClusters(sourceClusterId: string, targetClusterId: string) {
+    return request.post('/faces/merge', {
+      source_cluster_id: sourceClusterId,
+      target_cluster_id: targetClusterId,
+    })
+  },
 }

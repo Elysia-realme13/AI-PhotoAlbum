@@ -39,8 +39,11 @@
       :loading="false"
       :selectable="isSelectMode"
       :selected-ids="selectedIds"
+      recycle-mode
       @preview="handlePreview"
       @select="handleSelect"
+      @restore="handleSingleRestore"
+      @delete="handleSingleDelete"
     />
 
     <!-- 图片预览 -->
@@ -105,6 +108,38 @@ const previewList = computed(() =>
 function handlePreview(photo: PhotoItem) {
   previewIndex.value = photos.value.findIndex((p) => p.id === photo.id)
   previewVisible.value = true
+}
+
+// ── 单张恢复 ─────────────────────────
+async function handleSingleRestore(photo: PhotoItem) {
+  try {
+    await photoApi.restore(photo.id)
+    ElMessage.success('已恢复')
+    await fetchRecycleBin()
+  } catch {
+    ElMessage.error('恢复失败')
+  }
+}
+
+// ── 单张彻底删除 ─────────────────────────
+async function handleSingleDelete(photo: PhotoItem) {
+  try {
+    await ElMessageBox.confirm(
+      '确定要彻底删除这张照片吗？此操作不可恢复！',
+      '彻底删除',
+      { confirmButtonText: '删除', cancelButtonText: '取消', type: 'warning' }
+    )
+  } catch {
+    return
+  }
+
+  try {
+    await photoApi.permanentDelete(photo.id)
+    ElMessage.success('已彻底删除')
+    await fetchRecycleBin()
+  } catch {
+    ElMessage.error('删除失败')
+  }
 }
 
 // ── 数据加载 ─────────────────────────

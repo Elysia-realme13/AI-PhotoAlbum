@@ -21,7 +21,7 @@
         <div v-else class="grid grid-cols-4 gap-4">
           <div
             v-for="person in identities"
-            :key="person.id"
+            :key="person.identity_id"
             class="group relative bg-white dark:bg-dark-card rounded-xl p-4 shadow-sm border border-gray-100 dark:border-dark-border cursor-pointer hover:shadow-md transition-shadow flex flex-col items-center"
             @click="openPerson(person)"
           >
@@ -112,22 +112,21 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { ArrowLeft, InfoFilled, EditPen } from '@element-plus/icons-vue'
 import { photoApi } from '@/api/photo'
 import { faceApi } from '@/api/face'
-import { loadAllPhotos } from '@/api/search'
 import PhotoDetailDrawer from '@/components/photo/PhotoDetailDrawer.vue'
 import type { PhotoItem } from '@/types/photo'
-import type { FaceIdentity } from '@/types/face'
+import type { FaceCluster } from '@/types/face'
 
 // ── 状态 ─────────────────────────
 const loading = ref(true)
-const identities = ref<FaceIdentity[]>([])
+const identities = ref<FaceCluster[]>([])
 
 const view = ref<'list' | 'detail'>('list')
-const currentPerson = ref<FaceIdentity | null>(null)
+const currentPerson = ref<FaceCluster | null>(null)
 const currentPhotos = ref<PhotoItem[]>([])
 const detailLoading = ref(false)
 
 // ── 工具 ─────────────────────────
-function personInitial(person: FaceIdentity): string {
+function personInitial(person: FaceCluster): string {
   const name = person.identity_name || '?'
   return name.charAt(0).toUpperCase()
 }
@@ -139,24 +138,22 @@ async function fetchIdentities() {
     const res = await faceApi.listIdentities()
     identities.value = res.data
   } catch {
-    // 后端 api/face.py 尚为 stub，用真实照片构造 mock 人物兜底
-    identities.value = await buildMockIdentities()
+    // handled by interceptor
   } finally {
     loading.value = false
   }
 }
 
 // ── 详情：加载某人物的照片 ─────────────────
-async function openPerson(person: FaceIdentity) {
+async function openPerson(person: FaceCluster) {
   currentPerson.value = person
   view.value = 'detail'
   detailLoading.value = true
   try {
-    const res = await faceApi.identityPhotos(person.id)
+    const res = await faceApi.identityPhotos(person.identity_id)
     currentPhotos.value = res.data
   } catch {
-    // mock 兜底：从缓存照片中取一段作为该人物的照片
-    currentPhotos.value = mockPhotosFor(person)
+    // handled by interceptor
   } finally {
     detailLoading.value = false
   }
@@ -169,7 +166,7 @@ function backToList() {
 }
 
 // ── 重命名 ─────────────────────────
-async function renamePerson(person: FaceIdentity) {
+async function renamePerson(person: FaceCluster) {
   try {
     const { value } = await ElMessageBox.prompt('请输入人物名称', '重命名', {
       confirmButtonText: '保存',
@@ -178,19 +175,15 @@ async function renamePerson(person: FaceIdentity) {
       inputValidator: (v: string) => (v && v.trim().length > 0 ? true : '名称不能为空'),
     })
     const newName = value.trim()
-    try {
-      await faceApi.updateIdentity(person.id, { identity_name: newName })
-    } catch {
-      // mock 模式下本地更新
-    }
+    await faceApi.renameCluster(person.identity_id, newName)
     // 同步更新本地状态
     person.identity_name = newName
-    const target = identities.value.find((p) => p.id === person.id)
+    const target = identities.value.find((p) => p.identity_id === person.identity_id)
     if (target) target.identity_name = newName
-    if (currentPerson.value?.id === person.id) currentPerson.value.identity_name = newName
+    if (currentPerson.value?.identity_id === person.identity_id) currentPerson.value.identity_name = newName
     ElMessage.success('已重命名')
   } catch {
-    // 用户取消
+    // 用户取消或请求失败
   }
 }
 
@@ -211,43 +204,6 @@ const detailPhotoId = ref<string | null>(null)
 function handleDetail(photo: PhotoItem) {
   detailPhotoId.value = photo.id
   detailVisible.value = true
-}
-
-// ── Mock 兜底（后端 api/face.py 就绪后删除本区块） ─────────────────
-let mockPhotoPool: PhotoItem[] = []
-
-async function buildMockIdentities(): Promise<FaceIdentity[]> {
-  mockPhotoPool = await loadAllPhotos()
-  if (mockPhotoPool.length === 0) return []
-
-  const now = new Date().toISOString()
-  const names = ['家人', '朋友', '未命名']
-  const chunk = Math.max(1, Math.floor(mockPhotoPool.length / names.length))
-
-  return names.map((name, i) => {
-    const slice = mockPhotoPool.slice(i * chunk, (i + 1) * chunk)
-    const cover = slice[0] || mockPhotoPool[0]
-    return {
-      id: `mock-${i + 1}`,
-      owner_id: 'mock-owner',
-      identity_name: name === '未命名' ? '' : name,
-      description: null,
-      default_face_id: null,
-      is_hidden: false,
-      face_count: slice.length,
-      created_at: now,
-      cover_photo_id: cover?.id,
-    }
-  })
-}
-
-function mockPhotosFor(person: FaceIdentity): PhotoItem[] {
-  if (mockPhotoPool.length === 0) return []
-  const index = Number(person.id.replace('mock-', '')) - 1
-  const names = 3
-  const chunk = Math.max(1, Math.floor(mockPhotoPool.length / names))
-  const start = Math.max(0, index) * chunk
-  return mockPhotoPool.slice(start, start + chunk)
 }
 
 // ── 初始化 ─────────────────────────

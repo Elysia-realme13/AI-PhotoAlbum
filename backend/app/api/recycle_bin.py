@@ -84,6 +84,26 @@ def permanent_delete(
     return {"message": "已永久删除", "photo_id": photo_id}
 
 
+@router.post("/{photo_id}/restore")
+def restore_single(
+    photo_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_required_user),
+):
+    """恢复单张照片"""
+    photo = get_photo_by_id_any(db, photo_id)
+    if not photo:
+        raise HTTPException(404, "照片不存在")
+    if str(photo.owner_id) != str(current_user.id):
+        raise HTTPException(403, "无权操作此照片")
+    if not photo.is_deleted:
+        raise HTTPException(400, "照片不在回收站中")
+    photo.is_deleted = False
+    photo.deleted_at = None
+    db.commit()
+    return {"message": "已恢复", "photo_id": photo_id}
+
+
 @router.post("/batch/restore", response_model=BaseResponse[dict])
 def batch_restore_photos(
     req: BatchPhotoRequest,

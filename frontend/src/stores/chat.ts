@@ -8,9 +8,6 @@ function nextId() {
   return `msg-${Date.now()}-${++messageIdCounter}`
 }
 
-// 会话消息内存持久化：无后端存储时，保存各会话消息以便切换时恢复
-const sessionMessages = new Map<string, ChatMessage[]>()
-
 export const useChatStore = defineStore('chat', () => {
   // ── 状态 ──
   const conversations = ref<Conversation[]>([])
@@ -21,8 +18,6 @@ export const useChatStore = defineStore('chat', () => {
   const loadingConversations = ref(false)
   const loadingMessages = ref(false)
 
-  let cancelFn: (() => void) | null = null
-
   // ── 计算属性 ──
   const currentConversation = computed(() =>
     conversations.value.find((c) => c.id === currentConversationId.value) ?? null
@@ -32,22 +27,60 @@ export const useChatStore = defineStore('chat', () => {
   async function fetchConversations() {
     loadingConversations.value = true
     try {
-      conversations.value = await agentApi.getConversations()
+      const res = await agentApi.getConversations()
+      conversations.value = res.data.map((s) => ({
+        id: s.id,
+        title: s.title,
+        message_count: s.message_count,
+        created_at: s.created_at,
+        updated_at: s.updated_at,
+      }))
     } catch {
-      // handled by caller
+      // handled by interceptor
     } finally {
       loadingConversations.value = false
     }
   }
 
-  // ── 加载对话消息（从内存会话恢复，无后端持久化） ──
-  function fetchMessages(conversationId: string) {
+  // ── 加载对话消息 ──
+  async function fetchMessages(conversationId: string) {
     currentConversationId.value = conversationId
-    messages.value = sessionMessages.get(conversationId) ?? []
+    loadingMessages.value = true
+    try {
+      const res = await agentApi.getMessages(conversationId)
+      messages.value = res.data.map((m) => {
+        // 后端 assistant 消息的 content 是 JSON {text, results, total}
+        let content = ''
+        if (m.role === 'assistant') {
+          if (typeof m.content === 'string') {
+            try {
+              const parsed = JSON.parse(m.content)
+              content = parsed.text || m.content
+            } catch {
+              content = m.content as string
+            }
+          } else if (typeof m.content === 'object' && m.content !== null) {
+            content = (m.content as { text?: string }).text || ''
+          }
+        } else {
+          content = typeof m.content === 'string' ? m.content : JSON.stringify(m.content)
+        }
+        return {
+          id: String(m.id),
+          role: m.role as 'user' | 'assistant',
+          content,
+          created_at: m.created_at,
+        }
+      })
+    } catch {
+      // handled by interceptor
+    } finally {
+      loadingMessages.value = false
+    }
   }
 
   // ── 发送消息 ──
-  function sendMessage(query: string) {
+  async function sendMessage(query: string) {
     if (!query.trim() || isStreaming.value) return
 
     // 添加用户消息
@@ -71,70 +104,67 @@ export const useChatStore = defineStore('chat', () => {
     isStreaming.value = true
     streamingContent.value = ''
 
-    cancelFn = agentApi.sendMessage(
-      { query, conversation_id: currentConversationId.value ?? undefined },
-      // onChunk
-      (chunk) => {
-        streamingContent.value += chunk
-        // 更新最后一条消息的内容
-        const last = messages.value[messages.value.length - 1]
-        if (last && last.streaming) {
-          last.content = streamingContent.value
-        }
-      },
-      // onDone
-      (conversationId) => {
-        const last = messages.value[messages.value.length - 1]
-        if (last && last.streaming) {
-          last.streaming = false
-        }
-        isStreaming.value = false
-        streamingContent.value = ''
-        cancelFn = null
+    try {
+      // 若无当前会话，先创建
+      if (!currentConversationId.value) {
+        const sessionRes = await agentApi.createSession(query.slice(0, 50))
+        currentConversationId.value = sessionRes.data.id
+        // 推入对话列表
+        conversations.value.unshift({
+          id: sessionRes.data.id,
+          title: sessionRes.data.title || query.slice(0, 30) + (query.length > 30 ? '...' : ''),
+          message_count: 0,
+          created_at: sessionRes.data.created_at,
+          updated_at: sessionRes.data.updated_at,
+        })
+      }
 
-        // 如果是新对话，更新 conversation_id
-        if (!currentConversationId.value) {
-          currentConversationId.value = conversationId
-          // 推入对话列表
-          conversations.value.unshift({
-            id: conversationId,
-            title: query.slice(0, 30) + (query.length > 30 ? '...' : ''),
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-            message_count: messages.value.length,
-          })
+      // 发送消息到后端
+      const res = await agentApi.sendMessage(currentConversationId.value, query)
+      const reply = res.data.reply
+
+      // 前端模拟流式效果（逐字显示）
+      let index = 0
+      const streamTimer = setInterval(() => {
+        if (index < reply.length) {
+          const step = Math.floor(Math.random() * 3) + 1
+          const chars = reply.slice(index, index + step)
+          index += chars.length
+          streamingContent.value += chars
+          const last = messages.value[messages.value.length - 1]
+          if (last && last.streaming) {
+            last.content = streamingContent.value
+          }
         } else {
-          // 更新已有对话的元信息
+          clearInterval(streamTimer)
+          const last = messages.value[messages.value.length - 1]
+          if (last && last.streaming) {
+            last.streaming = false
+          }
+          isStreaming.value = false
+          streamingContent.value = ''
+
+          // 更新对话元信息
           const conv = conversations.value.find((c) => c.id === currentConversationId.value)
           if (conv) {
-            conv.message_count = messages.value.length
+            conv.message_count = (conv.message_count || 0) + 2
             conv.updated_at = new Date().toISOString()
           }
         }
-
-        // 持久化当前会话消息到内存（保存实时引用，后续追加自动同步）
-        if (currentConversationId.value) {
-          sessionMessages.set(currentConversationId.value, messages.value)
-        }
-      },
-      // onError
-      (error) => {
-        const last = messages.value[messages.value.length - 1]
-        if (last && last.streaming) {
-          last.content = `抱歉，出错了：${error}`
-          last.streaming = false
-        }
-        isStreaming.value = false
-        streamingContent.value = ''
-        cancelFn = null
+      }, 20)
+    } catch {
+      const last = messages.value[messages.value.length - 1]
+      if (last && last.streaming) {
+        last.content = '抱歉，处理时出了点问题，请稍后重试。'
+        last.streaming = false
       }
-    )
+      isStreaming.value = false
+      streamingContent.value = ''
+    }
   }
 
   // ── 中断生成 ──
   function cancelStream() {
-    cancelFn?.()
-    cancelFn = null
     const last = messages.value[messages.value.length - 1]
     if (last && last.streaming) {
       last.streaming = false
@@ -148,19 +178,14 @@ export const useChatStore = defineStore('chat', () => {
 
   // ── 新建对话 ──
   function newConversation() {
-    // 先中断进行中的流，避免旧定时器写入已清空的消息列表
-    cancelFn?.()
-    cancelFn = null
-    isStreaming.value = false
-    streamingContent.value = ''
     currentConversationId.value = null
     messages.value = []
+    isStreaming.value = false
+    streamingContent.value = ''
   }
 
   // ── 重置 ──
   function reset() {
-    cancelFn?.()
-    sessionMessages.clear()
     conversations.value = []
     messages.value = []
     currentConversationId.value = null

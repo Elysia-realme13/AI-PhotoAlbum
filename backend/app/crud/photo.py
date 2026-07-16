@@ -286,6 +286,24 @@ def permanent_delete_photo(db: Session, photo: Photo):
     db.commit()
 
 
+def get_deleted_photos(db: Session, owner_id: str) -> List[Photo]:
+    """获取回收站中的照片列表"""
+    return (
+        db.query(Photo)
+        .filter(
+            Photo.owner_id == uuid.UUID(owner_id),
+            Photo.is_deleted,
+        )
+        .order_by(desc(Photo.deleted_at))
+        .all()
+    )
+
+
+def get_photo_by_id_any(db: Session, photo_id: str) -> Optional[Photo]:
+    """获取任意照片（含已删除，不做权限校验）"""
+    return db.query(Photo).filter(Photo.id == photo_id).first()
+
+
 def update_processed_tasks(
     db: Session,
     photo: Photo,

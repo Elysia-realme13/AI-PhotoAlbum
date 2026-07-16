@@ -18,11 +18,13 @@
         :photo="photo"
         :selectable="selectable"
         :selected="selectedIds.has(photo.id)"
+        :recycle-mode="recycleMode"
         :style="{ animationDelay: `${index * 50}ms` }"
         class="fade-in"
         @click="$emit('preview', photo)"
         @detail="$emit('detail', photo)"
         @delete="$emit('delete', photo)"
+        @restore="$emit('restore', photo)"
         @select="$emit('select', $event)"
       />
     </div>
@@ -38,6 +40,7 @@ defineProps<{
   loading: boolean
   selectable?: boolean
   selectedIds: Set<string>
+  recycleMode?: boolean
 }>()
 
 defineEmits<{
@@ -45,6 +48,7 @@ defineEmits<{
   preview: [photo: PhotoItem]
   detail: [photo: PhotoItem]
   delete: [photo: PhotoItem]
+  restore: [photo: PhotoItem]
   select: [id: string]
 }>()
 </script>

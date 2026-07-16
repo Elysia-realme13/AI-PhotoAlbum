@@ -47,6 +47,12 @@ class UserUpdate(BaseModel):
     avatar_url: Optional[str] = None
 
 
+class ChangePasswordRequest(BaseModel):
+    """修改密码"""
+    old_password: str = Field(..., min_length=1)
+    new_password: str = Field(..., min_length=6, max_length=100)
+
+
 class TokenResponse(BaseModel):
     """Token 响应"""
     access_token: str

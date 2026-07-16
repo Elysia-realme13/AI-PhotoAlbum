@@ -5,9 +5,9 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from app.database.session import get_db
-from app.schemas.user import UserCreate, UserLogin, UserResponse, TokenResponse
-from app.crud.user import create_user, authenticate_user, get_user_by_username, get_user_by_email
-from app.core.security import create_access_token
+from app.schemas.user import UserCreate, UserLogin, UserResponse, UserUpdate, ChangePasswordRequest, TokenResponse
+from app.crud.user import create_user, authenticate_user, get_user_by_username, get_user_by_email, update_user
+from app.core.security import create_access_token, hash_password, verify_password
 from app.api.deps import get_current_user
 from app.models.user import User
 
@@ -63,3 +63,30 @@ def get_me(current_user: User = Depends(get_current_user)):
     if not current_user:
         raise HTTPException(status_code=401, detail="未登录")
     return UserResponse.model_validate(current_user)
+
+
+@router.patch("/me", response_model=UserResponse)
+def update_profile(
+    data: UserUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """更新当前用户个人资料"""
+    update_data = data.model_dump(exclude_unset=True)
+    if update_data:
+        update_user(db, current_user, **update_data)
+    return UserResponse.model_validate(current_user)
+
+
+@router.post("/change-password")
+def change_password(
+    data: ChangePasswordRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """修改当前用户密码"""
+    if not verify_password(data.old_password, current_user.hashed_password):
+        raise HTTPException(status_code=400, detail="当前密码不正确")
+    current_user.hashed_password = hash_password(data.new_password)
+    db.commit()
+    return {"message": "密码已修改"}

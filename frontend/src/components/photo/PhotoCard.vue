@@ -37,26 +37,46 @@
 
     <!-- 操作按钮（选择模式下隐藏） -->
     <template v-if="!selectable">
-      <button
-        class="absolute top-1 right-9 w-7 h-7 rounded-full bg-black/40 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-blue-500"
-        @click.stop="$emit('detail')"
-        title="详情"
-      >
-        <el-icon :size="14"><InfoFilled /></el-icon>
-      </button>
-      <button
-        class="absolute top-1 right-1 w-7 h-7 rounded-full bg-black/40 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-500"
-        @click.stop="$emit('delete')"
-        title="删除"
-      >
-        <el-icon :size="14"><Delete /></el-icon>
-      </button>
+      <!-- 回收站模式：恢复 + 彻底删除 -->
+      <template v-if="recycleMode">
+        <button
+          class="absolute top-1 right-9 w-7 h-7 rounded-full bg-black/40 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-green-500"
+          @click.stop="$emit('restore')"
+          title="恢复"
+        >
+          <el-icon :size="14"><RefreshRight /></el-icon>
+        </button>
+        <button
+          class="absolute top-1 right-1 w-7 h-7 rounded-full bg-black/40 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-500"
+          @click.stop="$emit('delete')"
+          title="彻底删除"
+        >
+          <el-icon :size="14"><Delete /></el-icon>
+        </button>
+      </template>
+      <!-- 普通模式：详情 + 删除 -->
+      <template v-else>
+        <button
+          class="absolute top-1 right-9 w-7 h-7 rounded-full bg-black/40 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-blue-500"
+          @click.stop="$emit('detail')"
+          title="详情"
+        >
+          <el-icon :size="14"><InfoFilled /></el-icon>
+        </button>
+        <button
+          class="absolute top-1 right-1 w-7 h-7 rounded-full bg-black/40 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-500"
+          @click.stop="$emit('delete')"
+          title="删除"
+        >
+          <el-icon :size="14"><Delete /></el-icon>
+        </button>
+      </template>
     </template>
   </div>
 </template>
 
 <script setup lang="ts">
-import { Delete, InfoFilled, Check } from '@element-plus/icons-vue'
+import { Delete, InfoFilled, Check, RefreshRight } from '@element-plus/icons-vue'
 import type { PhotoItem } from '@/types/photo'
 import { photoApi } from '@/api/photo'
 
@@ -64,12 +84,14 @@ const props = defineProps<{
   photo: PhotoItem
   selectable?: boolean
   selected?: boolean
+  recycleMode?: boolean
 }>()
 
 defineEmits<{
   click: []
   detail: []
   delete: []
+  restore: []
   select: [id: string]
 }>()
 

@@ -1,3 +1,10 @@
+export interface FaceCluster {
+  identity_id: string
+  identity_name: string | null
+  face_count: number
+  cover_photo_id: string | null
+}
+
 export interface FaceIdentity {
   id: string
   owner_id: string
@@ -7,7 +14,7 @@ export interface FaceIdentity {
   is_hidden: boolean
   face_count: number
   created_at: string
-  cover_photo_id?: string // 前端封面用，取该人物代表照片
+  cover_photo_id?: string
 }
 
 export interface FaceIdentityUpdate {

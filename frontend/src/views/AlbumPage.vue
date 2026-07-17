@@ -31,8 +31,8 @@
           >
             <div class="relative aspect-square bg-gray-100 overflow-hidden">
               <img
-                v-if="album.cover_photo_id"
-                :src="photoApi.thumbnailUrl(album.cover_photo_id)"
+                v-if="coverOf(album)"
+                :src="photoApi.thumbnailUrl(coverOf(album)!)"
                 class="w-full h-full object-cover group-hover:scale-105 transition-transform"
               />
               <div v-else class="w-full h-full flex items-center justify-center text-gray-300">
@@ -118,6 +118,14 @@
             title="从相册移除"
           >
             <el-icon :size="14"><Close /></el-icon>
+          </button>
+          <button
+            class="absolute bottom-1 right-1 w-7 h-7 rounded-full bg-black/40 text-white flex items-center justify-center transition-opacity hover:bg-amber-500"
+            :class="currentAlbum?.cover_photo_id === photo.id ? 'opacity-100 !bg-amber-500' : 'opacity-0 group-hover:opacity-100'"
+            @click.stop="setCover(photo)"
+            :title="currentAlbum?.cover_photo_id === photo.id ? '当前封面' : '设为封面'"
+          >
+            <el-icon :size="14"><StarFilled /></el-icon>
           </button>
         </div>
       </div>
@@ -305,7 +313,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { ArrowLeft, InfoFilled, Delete, Edit, Close, PictureFilled, Plus, Check, Search } from '@element-plus/icons-vue'
+import { ArrowLeft, InfoFilled, Delete, Edit, Close, PictureFilled, Plus, Check, Search, StarFilled } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { photoApi } from '@/api/photo'
 import { albumApi } from '@/api/album'
@@ -318,6 +326,34 @@ import type { FaceCluster } from '@/types/face'
 // ── 列表状态 ─────────────────
 const loading = ref(true)
 const albums = ref<Album[]>([])
+
+// 封面回退：无自定义封面时，用相册第一张照片作为默认封面
+const coverFallback = ref<Record<string, string>>({})
+
+/** 相册展示封面：优先自定义封面，否则回退到第一张照片 */
+function coverOf(album: Album): string | undefined {
+  return album.cover_photo_id || coverFallback.value[album.id]
+}
+
+/** 为无自定义封面的相册加载第一张照片作为回退封面 */
+async function loadFallbackCover(album: Album) {
+  if (album.cover_photo_id) return
+  if (album.photo_count <= 0) {
+    if (coverFallback.value[album.id]) {
+      const next = { ...coverFallback.value }
+      delete next[album.id]
+      coverFallback.value = next
+    }
+    return
+  }
+  try {
+    const res = await albumApi.getPhotos(album.id, { page: 1, page_size: 1 })
+    const first = res.data.items[0]
+    if (first) coverFallback.value = { ...coverFallback.value, [album.id]: first.id }
+  } catch {
+    // 忽略回退封面加载失败
+  }
+}
 
 // ── 视图切换（列表 / 详情） ─────────────────
 const view = ref<'list' | 'detail'>('list')
@@ -507,8 +543,25 @@ async function handleRemovePhoto(photo: PhotoItem) {
     await fetchAlbumPhotos()
     // 更新 photo_count
     currentAlbum.value = { ...currentAlbum.value, photo_count: currentAlbum.value.photo_count - 1 }
+    // 若被移除的是回退封面，刷新回退封面
+    void loadFallbackCover(currentAlbum.value)
   } catch {
     // 用户取消
+  }
+}
+
+// ── 设为相册封面 ─────────────
+async function setCover(photo: PhotoItem) {
+  if (!currentAlbum.value) return
+  if (currentAlbum.value.cover_photo_id === photo.id) return
+  try {
+    await albumApi.update(currentAlbum.value.id, { cover_photo_id: photo.id })
+    ElMessage.success('已设为相册封面')
+    currentAlbum.value = { ...currentAlbum.value, cover_photo_id: photo.id }
+    const idx = albums.value.findIndex((a) => a.id === currentAlbum.value!.id)
+    if (idx !== -1) albums.value[idx] = { ...albums.value[idx], cover_photo_id: photo.id }
+  } catch {
+    // handled by interceptor
   }
 }
 
@@ -609,6 +662,8 @@ async function handleAddPhotos() {
         ...currentAlbum.value,
         photo_count: currentAlbum.value.photo_count + ids.length,
       }
+      // 新增照片后刷新回退封面
+      void loadFallbackCover(currentAlbum.value)
     }
   } catch {
     // handled by interceptor
@@ -623,6 +678,9 @@ async function fetchAlbums() {
   try {
     const res = await albumApi.list()
     albums.value = res.data
+    coverFallback.value = {}
+    // 并行为无封面相册加载回退封面（失败不影响列表展示）
+    void Promise.all(albums.value.map(loadFallbackCover))
   } catch {
     // handled by interceptor
   } finally {

@@ -1,5 +1,5 @@
 import request from '@/utils/request'
-import type { Album, AlbumPhotosResponse, AlbumCreateParams } from '@/types/album'
+import type { Album, AlbumPhotosResponse, AlbumCreateParams, AlbumUpdateParams } from '@/types/album'
 
 /**
  * 相册 API
@@ -25,8 +25,8 @@ export const albumApi = {
     return request.post<Album>('/albums', data)
   },
 
-  /** 更新相册 */
-  update(id: string, data: Partial<AlbumCreateParams>) {
+  /** 更新相册（含自定义封面 cover_photo_id） */
+  update(id: string, data: AlbumUpdateParams) {
     return request.put<Album>(`/albums/${id}`, data)
   },
 

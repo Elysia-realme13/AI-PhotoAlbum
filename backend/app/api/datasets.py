@@ -4,7 +4,10 @@
 提供数据集的 CRUD 操作、ZIP 上传、预览等功能
 """
 import logging
+import uuid
+from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from app.database.session import get_db
@@ -92,6 +95,23 @@ def delete_dataset(
     if not success:
         raise HTTPException(status_code=404, detail="数据集不存在")
     return {"message": "数据集已删除"}
+
+
+@router.get("/{dataset_id}/image")
+def serve_dataset_image(
+    dataset_id: str,
+    path: str,
+    db: Session = Depends(get_db),
+):
+    """提供数据集中的图片文件"""
+    dataset = db.query(Dataset).filter(Dataset.id == uuid.UUID(dataset_id)).first()
+    if not dataset:
+        raise HTTPException(status_code=404, detail="数据集不存在")
+    dataset_dir = Path(dataset.path).resolve()
+    image_path = (dataset_dir / path).resolve()
+    if not str(image_path).startswith(str(dataset_dir)):
+        raise HTTPException(status_code=403, detail="非法路径")
+    return FileResponse(str(image_path))
 
 
 @router.get("/storage/info")

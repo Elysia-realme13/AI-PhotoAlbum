@@ -104,6 +104,7 @@ export interface DatasetPreview {
   class_names: string[]
   sample_images: string[]
   image_count: number
+  sample_image_urls: string[]
 }
 
 export interface StorageInfo {

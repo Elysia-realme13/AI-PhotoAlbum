@@ -94,15 +94,31 @@
           </div>
         </div>
       </el-tab-pane>
-    </el-tabs>
+   </el-tabs>
   </div>
+  <!-- 数据集预览对话框 -->
+  <el-dialog v-model="previewDialog.visible" :title="previewDialog.data?.name || '数据集预览'" width="700px" top="5vh" destroy-on-close>
+    <template v-if="previewDialog.data">
+      <div class="flex gap-4 mb-4 text-sm text-gray-600">
+        <span>图片数量: {{ previewDialog.data.image_count }}</span>
+        <span>类别: {{ previewDialog.data.class_names?.join(', ') || '-' }}</span>
+      </div>
+      <div v-if="previewDialog.data.sample_image_urls?.length" class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        <div v-for="(url, idx) in previewDialog.data.sample_image_urls" :key="idx" class="rounded-lg overflow-hidden border bg-gray-50">
+          <img :src="url" class="w-full h-36 object-cover" :alt="'样本图片 ' + (idx + 1)" loading="lazy" @error="(e: any) => e.target.style.display = 'none'" />
+        </div>
+      </div>
+      <el-empty v-else description="暂无样本图片" />
+    </template>
+  </el-dialog>
 </template>
 <script setup lang="ts">
 import { ref, onMounted, reactive } from 'vue'
 import { ElMessage, ElLoading } from 'element-plus'
-import trainingApi, { type DatasetItem, type TrainingTask, type StorageInfo } from '@/api/training'
+import trainingApi, { type DatasetItem, type TrainingTask, type StorageInfo, type DatasetPreview } from '@/api/training'
 
 const activeTab = ref('datasets')
+const previewDialog = ref<{ visible: boolean; data: DatasetPreview | null }>({ visible: false, data: null })
 const datasetList = ref<DatasetItem[]>([])
 const taskList = ref<TrainingTask[]>([])
 const filterStatus = ref('')
@@ -168,7 +184,10 @@ async function onDatasetUpload(f: any) {
   }
 }
 async function previewDataset(ds: DatasetItem) {
-  try { const r = await trainingApi.previewDataset(ds.id); console.log('数据集预览:', r.data) }
+  try {
+    const r = await trainingApi.previewDataset(ds.id)
+    previewDialog.value = { visible: true, data: r.data }
+  }
   catch { ElMessage.error('加载预览失败') }
 }
 async function handleDeleteDataset(ds: DatasetItem) {

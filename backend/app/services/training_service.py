@@ -317,6 +317,12 @@ def get_dataset_preview(dataset_id: str, db: Session) -> Dict[str, Any]:
     dataset_path = Path(dataset.path)
     images_dir = dataset_path / "images"
     sample_images = []
+    sample_image_urls = []
+    if not images_dir.exists():
+        for sub in dataset_path.iterdir():
+            if sub.is_dir() and (sub / "images").exists():
+                images_dir = sub / "images"
+                break
     if images_dir.exists():
         search_dirs = [images_dir]
         for sd in images_dir.iterdir():
@@ -326,11 +332,14 @@ def get_dataset_preview(dataset_id: str, db: Session) -> Dict[str, Any]:
             for img_file in sorted(sd.iterdir())[:10]:
                 if img_file.suffix.lower() in {".jpg", ".jpeg", ".png", ".bmp", ".webp"}:
                     sample_images.append(str(img_file))
+                    rel_path = str(img_file.relative_to(dataset_path))
+                    sample_image_urls.append(f"/api/datasets/{dataset_id}/image?path={rel_path}")
     return {
         "id": dataset_id,
         "name": dataset.name,
         "class_names": dataset.class_names,
         "sample_images": sample_images,
+        "sample_image_urls": sample_image_urls,
         "image_count": dataset.image_count,
     }
 

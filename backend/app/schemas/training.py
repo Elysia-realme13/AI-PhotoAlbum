@@ -45,6 +45,7 @@ class DatasetPreviewResponse(BaseModel):
     class_names: List[str] = []
     sample_images: List[str] = []
     image_count: int = 0
+    sample_image_urls: List[str] = []
 
     @field_validator("id", mode="before")
     @classmethod

@@ -1,13 +1,12 @@
 """
 对话式检索代理
 
-在 search_agent.py 的单次搜索之上，提供完整的会话管理功能：
+使用 LLM Agent 驱动照片检索与相册管理，提供完整的对话式会话管理：
   1. 创建/管理对话 session（持久化到 AgentSession / AgentMessage 表）
-  2. 每次用户消息执行完整检索流程
-  3. 将搜索结果格式化为自然语言回复
-  4. 处理待确认命名场景
-  5. 保存对话历史（支持上下文追问）
-"""
+  2. LLM 理解意图并调用搜索、相册、统计等工具
+  3. 将工具执行结果格式化为自然语言回复
+  4. 保存对话历史（支持上下文追问）
+""" 
 
 import json
 import logging
@@ -18,7 +17,6 @@ from typing import Any, Dict, List, Optional
 from sqlalchemy.orm import Session
 
 from app.models.agent import AgentSession, AgentMessage, SessionStatus
-from app.services.agent.search_agent import run_search_agent
 from app.services.agent.llm_agent import run_llm_agent
 from app.services.name_confirmation_service import create_pending
 

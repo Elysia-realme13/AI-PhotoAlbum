@@ -8,6 +8,13 @@
         </el-tag>
       </div>
       <div class="flex items-center space-x-3">
+        <el-select v-model="sortField" size="small" style="width: 110px">
+          <el-option label="状态排序" value="status" />
+          <el-option label="创建时间↑" value="created_at_asc" />
+          <el-option label="创建时间↓" value="created_at_desc" />
+          <el-option label="模型名称↑" value="model_name_asc" />
+          <el-option label="模型名称↓" value="model_name_desc" />
+        </el-select>
         <el-button v-if="defaultModel" type="warning" @click="handleResetDefault">
           重置为YOLO26
         </el-button>
@@ -20,13 +27,13 @@
       </div>
     </div>
     <div class="flex-1 overflow-y-auto">
-      <el-table :data="modelList" stripe v-loading="loading" style="width: 100%">
+      <el-table :data="sortedModelList" stripe v-loading="loading" style="width: 100%">
         <el-table-column prop="model_name" label="模型名称" min-width="140" />
        <el-table-column prop="task_name" label="任务名称" min-width="160" />
         <el-table-column prop="dataset_name" label="数据集" min-width="130" />
        <el-table-column label="状态" width="90">
           <template #default="{ row }">
-            <el-tag :type="statusTagType(row.status)" size="small">{{ statusTagLabel(row.status) }}</el-tag>
+            <el-tag :type="row.config?.imported ? 'info' : statusTagType(row.status)" size="small">{{ row.config?.imported ? '-' : statusTagLabel(row.status) }}</el-tag>
           </template>
         </el-table-column>
         <el-table-column prop="mAP50" label="mAP50" width="90" align="center">
@@ -55,12 +62,19 @@
             <el-tag v-if="row.is_default" type="success" size="small" effect="dark">&#10003;</el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="280" fixed="right">
+        <el-table-column label="操作" width="220" fixed="right">
           <template #default="{ row }">
-            <el-button link type="primary" size="small" @click="showDetail(row)">详情</el-button>
-            <el-button link type="primary" size="small" @click="handleExport(row, 'pt')">导出pt</el-button>
-            <el-button link type="primary" size="small" @click="handleExport(row, 'onnx')">导出ONNX</el-button>
-            <el-button v-if="!row.is_default" link type="success" size="small" @click="handleSetDefault(row)">设为默认</el-button>
+           <el-button link type="primary" size="small" @click="showDetail(row)">详情</el-button>
+            <el-popover placement="bottom" :width="130" trigger="click">
+              <template #reference>
+                <el-button link type="primary" size="small" :disabled="row.status !== 'completed' || row.config?.imported">导出</el-button>
+              </template>
+              <div class="flex flex-col gap-1">
+                <el-button link type="primary" size="small" @click="handleExport(row, 'pt')">.pt 格式</el-button>
+                <el-button link type="primary" size="small" @click="handleExport(row, 'onnx')">.onnx 格式</el-button>
+              </div>
+            </el-popover>
+            <el-button :disabled="row.status !== 'completed' || row.is_default" link type="success" size="small" @click="handleSetDefault(row)">设为默认</el-button>
             <el-popconfirm title="确定删除此模型？" @confirm="handleDelete(row)">
               <template #reference>
                 <el-button link type="danger" size="small">删除</el-button>
@@ -80,25 +94,27 @@
       <div class="grid grid-cols-2 gap-4 text-sm">
         <div class="space-y-2">
          <div><span class="text-gray-500">任务名称: </span>{{ detailData.model?.task_name }}</div>
-          <div><span class="text-gray-500">数据集: </span>{{ detailData.model?.dataset_name || '-' }}</div>
-         <div><span class="text-gray-500">状态: </span><el-tag :type="statusTagType(detailData.model?.status)" size="small">{{ statusTagLabel(detailData.model?.status) }}</el-tag></div>
-          <div><span class="text-gray-500">Epochs: </span>{{ epochDisplay(detailData.task_detail?.current_epoch, detailData.task_detail?.total_epochs, detailData.task_detail?.status) }}</div>
+         <div v-if="!detailData.model?.config?.imported"><span class="text-gray-500">数据集: </span>{{ detailData.model?.dataset_name || '-' }}</div>
+         <div v-if="!detailData.model?.config?.imported"><span class="text-gray-500">状态: </span><el-tag :type="detailData.model?.config?.imported ? 'info' : statusTagType(detailData.model?.status)" size="small">{{ detailData.model?.config?.imported ? '-' : statusTagLabel(detailData.model?.status) }}</el-tag></div>
+         <div v-if="!detailData.model?.config?.imported"><span class="text-gray-500">Epochs: </span>{{ epochDisplay(detailData.task_detail?.current_epoch, detailData.task_detail?.total_epochs, detailData.task_detail?.status) }}</div>
           <div v-if="detailData.task_detail?.description"><span class="text-gray-500">描述: </span>{{ detailData.task_detail?.description }}</div>
         </div>
         <div class="space-y-2">
-          <div><span class="text-gray-500">最佳 mAP50: </span><strong>{{ detailData.model?.best_metric?.toFixed(4) || "-" }}</strong></div>
+          <div v-if="!detailData.model?.config?.imported"><span class="text-gray-500">最佳 mAP50: </span><strong>{{ detailData.model?.best_metric?.toFixed(4) || "-" }}</strong></div>
           <div><span class="text-gray-500">文件大小: </span>{{ formatSize(detailData.model?.file_size) }}</div>
-          <div><span class="text-gray-500">训练耗时: </span>{{ formatDuration(detailData.model?.duration_seconds) }}</div>
+          <div v-if="!detailData.model?.config?.imported"><span class="text-gray-500">训练耗时: </span>{{ formatDuration(detailData.model?.duration_seconds) }}</div>
         </div>
       </div>
 
       <!-- 指标图表 -->
+      <div v-if="!detailData.model?.config?.imported">
       <div v-if="detailMetrics.length > 0" class="border-t pt-4">
         <h4 class="text-sm font-semibold text-gray-700 mb-2">训练指标</h4>
         <v-chart :option="detailChartOption" autoresize class="w-full" style="height: 280px" />
       </div>
       <div v-else class="border-t pt-4 text-center text-gray-400">
         <p>暂无指标数据</p>
+      </div>
       </div>
     </div>
   </el-dialog>
@@ -127,6 +143,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
+import { ArrowDown } from '@element-plus/icons-vue'
 import VChart from 'vue-echarts'
 import { use } from 'echarts/core'
 import { CanvasRenderer } from 'echarts/renderers'
@@ -144,6 +161,37 @@ const importLoading = ref(false)
 const detailVisible = ref(false)
 const detailData = ref<{model: ModelInfo; metrics: MetricItem[]; task_detail?: {current_epoch?: number; total_epochs?: number; status?: string; description?: string}} | null>(null)
 const detailMetrics = ref<MetricItem[]>([])
+const sortField = ref('status')
+
+const sortedModelList = computed(() => {
+  const list = [...modelList.value]
+ const statusWeight: Record<string, number> = { completed: 0, running: 1, paused: 2, failed: 3 }
+  const importWeight = (m: any) => m.config?.imported ? 0.5 : 0
+ switch (sortField.value) {
+   case 'status':
+     list.sort((a, b) => {
+        const wa = (statusWeight[a.status] ?? 9) + importWeight(a)
+        const wb = (statusWeight[b.status] ?? 9) + importWeight(b)
+        if (wa !== wb) return wa - wb
+        return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()
+      })
+      break
+    case 'created_at_asc':
+      list.sort((a, b) => new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime())
+      break
+    case 'created_at_desc':
+      list.sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime())
+      break
+    case 'model_name_asc':
+      list.sort((a, b) => (a.model_name || '').localeCompare(b.model_name || ''))
+      break
+    case 'model_name_desc':
+      list.sort((a, b) => (b.model_name || '').localeCompare(a.model_name || ''))
+      break
+  }
+  return list
+})
+
 const detailChartOption = computed(() => {
   if (detailMetrics.value.length === 0) return {}
   const epochs = detailMetrics.value.map(m => m.epoch)

@@ -64,7 +64,22 @@ class _MetricCallback(TrainingCallback):
         return self.db_session_factory()
 
     def on_epoch_end(self, task_id: str, epoch: int, metrics: dict):
-        """保存当前 epoch 的指标到数据库"""
+        """每个 epoch 结束时更新当前轮次"""
+        db = self._get_db()
+        try:
+            task = db.query(TrainingTask).filter(TrainingTask.id == uuid.UUID(task_id)).first()
+            if task:
+                task.current_epoch = epoch
+                task.updated_at = datetime.now()
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            logger.error(f"保存epoch {epoch} 进度失败: {e}")
+        finally:
+            db.close()
+
+    def on_val_end(self, task_id: str, epoch: int, metrics: dict):
+        """验证结束后保存完整指标（包含 mAP50 等）"""
         db = self._get_db()
         try:
             metric_record = TrainingMetric(
@@ -74,21 +89,17 @@ class _MetricCallback(TrainingCallback):
             )
             db.add(metric_record)
 
-            # 更新任务进度
             task = db.query(TrainingTask).filter(TrainingTask.id == uuid.UUID(task_id)).first()
             if task:
-                task.current_epoch = epoch
-                task.updated_at = datetime.now()
-
-                # 更新最佳指标
                 best = metrics.get("metrics/mAP50", metrics.get("val/mAP50", None))
                 if best is not None and (task.best_metric is None or best > task.best_metric):
                     task.best_metric = round(float(best), 6)
+                task.updated_at = datetime.now()
 
             db.commit()
         except Exception as e:
             db.rollback()
-            logger.error(f"保存 epoch {epoch} 指标失败: {e}")
+            logger.error(f"保存验证指标（epoch {epoch}）失败: {e}")
         finally:
             db.close()
 
@@ -689,6 +700,13 @@ def get_model_detail(model_name: str, db: Session) -> Dict[str, Any]:
     file_path = task.model_path or _resolve_model_file(task.model_name)
     file_size = Path(file_path).stat().st_size if (
         file_path and Path(file_path).exists()) else 0
+    dataset_name = None
+    class_count = None
+    if task.dataset_id:
+        ds = db.query(Dataset).filter(Dataset.id == task.dataset_id).first()
+        if ds:
+            dataset_name = ds.name
+            class_count = ds.class_count
     duration = None
     if task.started_at and task.completed_at:
         duration = (task.completed_at - task.started_at).total_seconds()

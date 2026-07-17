@@ -217,30 +217,20 @@ def run_training(
             _epoch_counter[0] = getattr(trainer, "epoch", _epoch_counter[0] + 1)
             epoch = _epoch_counter[0]
 
-            # 1. 提取指标
-            metrics = {}
+            # 更新数据库中的 current_epoch
             try:
-                if hasattr(trainer, "metrics") and trainer.metrics:
-                    for k, v in trainer.metrics.items():
-                        if isinstance(v, (int, float)):
-                            metrics[k] = round(float(v), 6)
-            except Exception:
-                pass
-
-            # 2. 回调保存指标到数据库
-            try:
-                callback.on_epoch_end(task_id, epoch, metrics)
+                callback.on_epoch_end(task_id, epoch, {})
             except Exception as cb_err:
-                logger.error(f"[训练器] 指标回调失败: {cb_err}")
+                logger.error(f"[训练器] 进度回调失败: {cb_err}")
 
-            # 3. 检查停止信号（立即退出）
+            # 检查停止信号（立即退出）
             if signals["stop"].is_set():
                 logger.warning(f"[训练器] 收到停止信号，epoch {epoch} 后终止训练")
                 _stop_flag[0] = True
                 # 抛出异常来终止训练
                 raise SystemExit("训练已被用户停止")
 
-            # 4. 检查暂停信号
+            # 检查暂停信号
             if signals["pause"].is_set():
                 logger.info(f"[训练器] 收到暂停信号，epoch {epoch} 后暂停")
                 # 手动保存 checkpoint
@@ -289,8 +279,26 @@ def run_training(
             except Exception as cb_err:
                 logger.error(f"[训练器] 训练结束回调失败: {cb_err}")
 
+        def _on_val_end(trainer):
+            """每个 epoch 验证结束后提取指标并保存"""
+            nonlocal _epoch_counter
+            epoch = getattr(trainer, "epoch", _epoch_counter[0])
+            metrics = {}
+            try:
+                if hasattr(trainer, "metrics") and trainer.metrics:
+                    for k, v in trainer.metrics.items():
+                        if isinstance(v, (int, float)):
+                            metrics[k] = round(float(v), 6)
+            except Exception:
+                pass
+            try:
+                callback.on_val_end(task_id, epoch, metrics)
+            except Exception as cb_err:
+                logger.error(f"[训练器] 验证指标回调失败: {cb_err}")
+
         # 注册回调
         model.add_callback("on_train_epoch_end", _on_epoch_end)
+        model.add_callback("on_val_end", _on_val_end)
         model.add_callback("on_train_end", _on_train_end)
 
         # 启动训练

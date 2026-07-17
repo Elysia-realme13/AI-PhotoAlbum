@@ -4,6 +4,7 @@
 """
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
+import logging
 from app.config.settings import settings
 
 # 创建数据库引擎
@@ -14,6 +15,9 @@ engine = create_engine(
     pool_pre_ping=True,
     echo=settings.DEBUG,
 )
+
+# 关闭 SQLAlchemy 数据库查询日志，避免轮询日志淹没控制台
+logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
 
 # 会话工厂
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

@@ -317,6 +317,16 @@ const pwdRules: FormRules = {
   new_password: [
     { required: true, message: '请输入新密码', trigger: 'blur' },
     { min: 6, message: '密码至少 6 位', trigger: 'blur' },
+    {
+      validator: (_rule, value, callback) => {
+        if (value === pwdForm.old_password) {
+          callback(new Error('新密码不能与当前密码相同'))
+        } else {
+          callback()
+        }
+      },
+      trigger: 'blur',
+    },
   ],
   confirm_password: [
     { required: true, message: '请再次输入新密码', trigger: 'blur' },
@@ -343,7 +353,7 @@ async function savePassword() {
     ElMessage.success('密码已修改')
     pwdFormRef.value.resetFields()
   } catch {
-    ElMessage.error('密码修改失败')
+    ElMessage.error('操作失败，请重试')
   } finally {
     pwdSaving.value = false
   }

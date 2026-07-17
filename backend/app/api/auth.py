@@ -105,10 +105,16 @@ def change_password(
     current_user: User = Depends(get_required_user),
 ):
     """修改当前用户密码"""
-    if not verify_password(data.old_password, current_user.hashed_password):
-        raise HTTPException(status_code=400, detail="当前密码错误")
+    # 所有失败情况返回统一错误，防止被当作密码验证机
+    # 先检查格式（快速拒绝，不涉及密码比对，无安全风险）
     if len(data.new_password) < 6:
-        raise HTTPException(status_code=400, detail="新密码至少 6 位")
+        raise HTTPException(status_code=400, detail="操作失败，请重试")
+    # 再验证旧密码哈希
+    if not verify_password(data.old_password, current_user.hashed_password):
+        raise HTTPException(status_code=400, detail="操作失败，请重试")
+    # 最后比对新旧密码
+    if verify_password(data.new_password, current_user.hashed_password):
+        raise HTTPException(status_code=400, detail="操作失败，请重试")
     current_user.hashed_password = hash_password(data.new_password)
     db.commit()
     return {"message": "密码已修改"}

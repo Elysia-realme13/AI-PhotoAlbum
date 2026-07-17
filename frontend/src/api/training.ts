@@ -42,6 +42,7 @@ export interface TrainingTask {
   model_name: string
   description: string | null
   dataset_id: string | null
+  dataset_name: string | null
   status: string
   config: Record<string, any>
   current_epoch: number

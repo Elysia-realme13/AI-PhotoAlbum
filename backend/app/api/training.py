@@ -132,6 +132,8 @@ def list_training_tasks(
  
         items = []
         for t in tasks:
+            if t.config and isinstance(t.config, dict) and t.config.get("imported") is True:
+                continue
             item = TrainingTaskResponse.model_validate(t)
             if t.dataset_id:
                 item.dataset_name = t.dataset_rel.name if t.dataset_rel else None

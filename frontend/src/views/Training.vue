@@ -102,9 +102,9 @@
           </div>
         </div>
         <!-- 最近任务列表 -->
-        <div class="bg-white dark:bg-dark-card rounded-lg border border-gray-100 dark:border-dark-border p-3 flex-1">
+        <div class="bg-white dark:bg-dark-card rounded-lg border border-gray-100 dark:border-dark-border p-3 flex-1 overflow-y-auto max-h-[420px]">
           <h4 class="text-sm font-semibold text-gray-700 dark:text-dark-text mb-3">最近训练任务</h4>
-          <el-table :data="taskList.slice(0, 6)" empty-text="暂无训练任务" style="width: 100%"
+          <el-table :data="taskList" empty-text="暂无训练任务" style="width: 100%"
             @row-click="(row:any) => onTaskSelect(row.id)" highlight-current-row>
            <el-table-column prop="task_name" label="任务" min-width="120" />
             <el-table-column prop="dataset_name" label="数据集" min-width="120" />
@@ -186,7 +186,10 @@
         <!-- 模型参数 -->
         <el-divider content-position="left">模型参数</el-divider>
         <el-form-item label="预训练模型">
-          <el-input v-model="form.config.pretrained_model" placeholder="yolo26n.pt" />
+          <el-select v-model="form.config.pretrained_model" placeholder="选择预训练模型" style="width: 100%">
+            <el-option label="YOLO26（默认）" value="yolo26n.pt" />
+            <el-option v-for="m in trainedModels" :key="m.model_name" :label="m.model_name" :value="m.file_path || (m.model_name + '.pt')" />
+          </el-select>
         </el-form-item>
         <el-row :gutter="8">
           <el-col :span="8">
@@ -354,6 +357,7 @@ const pollTimer = ref<number | null>(null)
 const datasetMode = ref<'select' | 'upload'>('select')
 const datasetFile = ref<File | null>(null)
 const uploadRef = ref()
+const trainedModels = ref<{ model_name: string; file_path: string | null }[]>([])
 
 const defaultConfig = {
   pretrained_model: 'yolo26n.pt',
@@ -644,6 +648,16 @@ async function createTask() {
     creating.value = false
   }
 }
+watch(createDialogVisible, async (visible) => {
+  if (visible) {
+    try {
+      const res = await trainingApi.listModels()
+      trainedModels.value = (res.data.items || []).filter((m: any) => m.status === 'completed' && m.file_path)
+    } catch {
+      trainedModels.value = []
+    }
+  }
+})
 function handleFileChange(uploadFile: any) {
   datasetFile.value = uploadFile.raw || null
 }

@@ -44,6 +44,13 @@
           <p class="text-sm font-medium text-gray-700 dark:text-dark-text mt-1">{{ stats.span || '-' }}</p>
         </div>
       </div>
+      <!-- 一键优化存储 -->
+      <div class="mt-4 flex items-center gap-3 flex-wrap">
+        <el-button :loading="optimizing" @click="handleOptimizeStorage">一键优化存储</el-button>
+        <span class="text-xs text-gray-400 dark:text-dark-text-secondary">
+          在不改变拍摄信息(EXIF)的前提下重新压缩原图，降低存储占用
+        </span>
+      </div>
     </div>
 
     <!-- 偏好设置 -->
@@ -147,6 +154,7 @@ import type { FormInstance, FormRules, UploadFile } from 'element-plus'
 import { useUserStore } from '@/stores/user'
 import { useThemeStore, type ThemeMode } from '@/stores/theme'
 import { authApi } from '@/api/auth'
+import { photoApi } from '@/api/photo'
 import { loadAllPhotos } from '@/api/search'
 import type { PhotoItem } from '@/types/photo'
 
@@ -216,6 +224,29 @@ function computeStats(photos: PhotoItem[]) {
     const first = ymd(times[0])
     const last = ymd(times[times.length - 1])
     stats.span = first === last ? first : `${first} ~ ${last}`
+  }
+}
+
+// 一键优化存储
+const optimizing = ref(false)
+
+async function handleOptimizeStorage() {
+  optimizing.value = true
+  try {
+    const res = await photoApi.optimizeStorage()
+    const freed = res.data?.freed_bytes || 0
+    ElMessage.success(
+      freed > 0
+        ? `优化完成，释放 ${formatBytes(freed)}（处理 ${res.data.processed} 张）`
+        : '已是最优，无需压缩'
+    )
+    // 刷新统计
+    const photos = await loadAllPhotos()
+    computeStats(photos)
+  } catch {
+    ElMessage.error('优化失败，请重试')
+  } finally {
+    optimizing.value = false
   }
 }
 

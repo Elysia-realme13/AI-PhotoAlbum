@@ -42,6 +42,10 @@ class Settings(BaseSettings):
     AVATAR_DIR: str = "./data/avatars"
     MAX_UPLOAD_SIZE_MB: int = 50
 
+    # ── 图片压缩（保留 EXIF，仅限制最长边 + 重编码） ────────
+    MAX_IMAGE_LONG_EDGE: int = 2560  # 原图最长边上限（像素），超过则等比缩放
+    IMAGE_QUALITY: int = 85          # JPEG/WebP 重编码质量
+
     # ── AI 模型路径 ────────────────────────────────────
     MODELS_DIR: str = "./data/models"
 

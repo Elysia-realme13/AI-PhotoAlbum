@@ -4,35 +4,37 @@
 所有接口均返回 BaseResponse 格式，需要认证的接口依赖 get_required_user。
 """
 
-import uuid
 import logging
-from typing import List, Optional
+import os
+import uuid
 from datetime import datetime
+from pathlib import Path
+from typing import List, Optional
 
-from fastapi import APIRouter, Depends, UploadFile, File, Query, HTTPException
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
+from app.api.deps import get_required_user
+from app.config.settings import settings
+from app.crud import photo as photo_crud
 from app.database.session import get_db
-from app.api.deps import get_required_user, get_current_user
-from app.models.user import User
 from app.models.photo import Photo
-
-from app.schemas.response import BaseResponse, PaginatedData
+from app.models.user import User
 from app.schemas.photo import (
+    BatchPhotoRequest,
+    BatchUploadResponse,
+    MapPhotoItem,
     PhotoDetailResponse,
     PhotoListItem,
     PhotoUpdateRequest,
     ReanalyzeRequest,
-    BatchPhotoRequest,
-    BatchUploadResponse,
-    UploadResult,
     TimelineGroup,
-    MapPhotoItem,
+    UploadResult,
 )
-
-from app.crud import photo as photo_crud
+from app.schemas.response import BaseResponse, PaginatedData
 from app.services.photo_service import upload_single_photo
+from app.services.thumbnail import generate_thumbnail_bytes, optimize_image_bytes
 
 logger = logging.getLogger("app.api.photo")
 
@@ -185,7 +187,7 @@ def get_photo_locations(
     返回所有有 GPS 坐标的照片位置信息，用于地图页展示。
     """
     photos = photo_crud.get_map_photos(db, current_user.id)
-    
+
     items = []
     for p in photos:
         lat = p.metadata_info.latitude if p.metadata_info else None
@@ -202,7 +204,7 @@ def get_photo_locations(
             "photo_time": p.photo_time.isoformat() if p.photo_time else None,
             "original_name": p.original_name,
         })
-    
+
     return BaseResponse(data=items)
 
 
@@ -384,18 +386,123 @@ def get_photo_thumbnail(
     current_user: User = Depends(get_required_user),
 ):
     """
-    获取缩略图
+    获取缩略图（长边 400px）
 
-    TODO: Phase 2 后续实现缩略图生成，当前直接返回原图。
-    计划尺寸: small=200px, medium=400px, large=800px（长边）。
-
-    实现方式:
-        1. 上传时由 thumbnail_generate 任务异步生成多尺寸缩略图
-        2. 存储到 data/thumbnails/{photo_id}_{size}.jpg
-        3. 此接口根据 size 参数返回对应文件
+    优先返回已生成的 {filename}_thumb.jpg；缺失时按需生成并缓存，
+    最终回退原图（兼容无缩略图的历史数据）。
     """
-    # 暂时回退到原图
+    try:
+        photo_id_uuid = uuid.UUID(photo_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="无效的照片ID")
+    photo = photo_crud.get_photo_by_id(
+        db, photo_id_uuid, owner_id=current_user.id, include_deleted=True
+    )
+    if not photo:
+        raise HTTPException(status_code=404, detail="照片不存在")
+
+    thumb_path = Path(settings.THUMBNAIL_DIR) / f"{photo.filename}_thumb.jpg"
+
+    # 按需生成（首次访问或历史数据缺缩略图）
+    if not thumb_path.exists() and photo.file_path and os.path.exists(photo.file_path):
+        try:
+            with open(photo.file_path, "rb") as f:
+                thumb_bytes = generate_thumbnail_bytes(f.read())
+            thumb_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(thumb_path, "wb") as f:
+                f.write(thumb_bytes)
+        except Exception as e:
+            logger.warning(f"缩略图按需生成失败 {photo_id}: {e}")
+
+    if thumb_path.exists():
+        return FileResponse(path=str(thumb_path), media_type="image/jpeg")
+
+    # 回退原图
     return get_photo_file(photo_id, download=False, db=db, current_user=current_user)
+
+
+@router.post("/optimize-storage", response_model=BaseResponse[dict])
+def optimize_storage(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_required_user),
+):
+    """
+    一键优化存储
+
+    对当前用户所有未删除照片重新压缩（限制最长边 + 重编码，保留 EXIF），
+    仅当变小才覆盖写回；同时重建/补齐缩略图。返回释放的字节数等统计。
+    """
+    photos, _total = photo_crud.get_photo_list(
+        db=db, owner_id=current_user.id, page=1, page_size=100000, is_deleted=False,
+    )
+
+    processed = 0
+    skipped = 0
+    before_bytes = 0
+    after_bytes = 0
+    thumb_dir = Path(settings.THUMBNAIL_DIR)
+
+    for photo in photos:
+        try:
+            if not photo.file_path or not os.path.exists(photo.file_path):
+                skipped += 1
+                continue
+
+            orig_size = os.path.getsize(photo.file_path)
+            before_bytes += orig_size
+
+            with open(photo.file_path, "rb") as f:
+                content = f.read()
+
+            optimized, opt_w, opt_h = optimize_image_bytes(content)
+
+            if len(optimized) < orig_size:
+                # 覆盖写回并更新元数据
+                with open(photo.file_path, "wb") as f:
+                    f.write(optimized)
+                update_kwargs = {"file_size": len(optimized)}
+                # 基于旧尺寸按比例缩放，保留 EXIF 方向（避免原始像素宽高交换问题）
+                if opt_w and opt_h:
+                    if photo.width and photo.height:
+                        old_long = max(photo.width, photo.height)
+                        new_long = max(opt_w, opt_h)
+                        if old_long > 0:
+                            scale = new_long / old_long
+                            update_kwargs["width"] = max(1, round(photo.width * scale))
+                            update_kwargs["height"] = max(1, round(photo.height * scale))
+                    else:
+                        update_kwargs["width"] = opt_w
+                        update_kwargs["height"] = opt_h
+                photo_crud.update_photo(db, photo, **update_kwargs)
+                after_bytes += len(optimized)
+                processed += 1
+                thumb_source = optimized
+            else:
+                after_bytes += orig_size
+                skipped += 1
+                thumb_source = content
+
+            # 重建/补齐缩略图
+            try:
+                thumb_bytes = generate_thumbnail_bytes(thumb_source)
+                thumb_dir.mkdir(parents=True, exist_ok=True)
+                with open(thumb_dir / f"{photo.filename}_thumb.jpg", "wb") as f:
+                    f.write(thumb_bytes)
+            except Exception as e:
+                logger.warning(f"缩略图重建失败 {photo.id}: {e}")
+
+        except Exception as e:
+            logger.error(f"优化照片失败 {photo.id}: {e}")
+            skipped += 1
+            continue
+
+    return BaseResponse(data={
+        "processed": processed,
+        "skipped": skipped,
+        "before_bytes": before_bytes,
+        "after_bytes": after_bytes,
+        "freed_bytes": before_bytes - after_bytes,
+    })
 
 
 # ═══════════════════════════════════════════════════
@@ -452,6 +559,7 @@ def delete_photo(
     if permanent:
         # 物理删除：先删文件，再删记录
         import os
+
         from app.database.storage import storage
         if os.path.exists(photo.file_path):
             storage.delete_file(photo.file_path)
@@ -548,8 +656,8 @@ def reanalyze_photo(
     对已分析过的照片重新执行指定的分析任务。
     返回新创建的任务 ID 列表。
     """
-    from app.models.task import TaskType
     from app.crud.task import create_tasks_batch
+    from app.models.task import TaskType
 
     try:
         photo_id_uuid = uuid.UUID(photo_id)

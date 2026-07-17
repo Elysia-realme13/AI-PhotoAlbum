@@ -12,17 +12,19 @@
 import hashlib
 import logging
 import uuid
-from typing import Optional, List
 from datetime import datetime
 from io import BytesIO
+from typing import Optional
+
 from fastapi import UploadFile
-from sqlalchemy.orm import Session
-from PIL import Image, ExifTags
+from PIL import Image
 from PIL.ExifTags import Base as ExifBase
+from sqlalchemy.orm import Session
 
 from app.database.storage import storage
 from app.models.photo import FileType
 from app.models.task import TaskType
+from app.services.thumbnail import generate_thumbnail_bytes, optimize_image_bytes
 
 logger = logging.getLogger("app.services.photo")
 
@@ -178,7 +180,9 @@ async def upload_single_photo(
         }
     """
     from app.crud.photo import (
-        create_photo, create_photo_metadata, get_photos_by_md5,
+        create_photo,
+        create_photo_metadata,
+        get_photos_by_md5,
     )
     from app.crud.task import create_tasks_batch
 
@@ -197,14 +201,11 @@ async def upload_single_photo(
             "skipped_md5": md5,
         }
 
-    # 3. 保存到文件存储
-    await file.seek(0)  # 重置指针以便 storage 读取
-    filename, file_path, file_size = await storage.save_upload(file)
-
-    # 4. PIL 读取图片，提取 EXIF + 尺寸
+    # 3. PIL 读取原始图片，提取 EXIF + 尺寸（在压缩前基于原始字节）
     width, height = None, None
     exif_data = {}
     photo_time = None
+    orientation = 1
 
     try:
         image = Image.open(BytesIO(content))
@@ -213,12 +214,15 @@ async def upload_single_photo(
         # 提取 EXIF
         exif_data = _extract_exif(image)
 
-        # 尝试从 EXIF 获取拍摄时间 (0x9003 = DateTimeOriginal)
+        # 读取方向标记与拍摄时间
         try:
             exif_raw = image._getexif()
-            if exif_raw and 0x9003 in exif_raw:
-                dt_str = exif_raw[0x9003]  # "2025:07:14 16:30:00"
-                photo_time = datetime.strptime(dt_str, "%Y:%m:%d %H:%M:%S")
+            if exif_raw:
+                orientation = exif_raw.get(0x0112, 1)
+                # 0x9003 = DateTimeOriginal
+                if 0x9003 in exif_raw:
+                    dt_str = exif_raw[0x9003]  # "2025:07:14 16:30:00"
+                    photo_time = datetime.strptime(dt_str, "%Y:%m:%d %H:%M:%S")
         except (ValueError, KeyError):
             pass
 
@@ -226,7 +230,27 @@ async def upload_single_photo(
     except Exception as e:
         logger.warning(f"图片解析失败（可能是视频等其他格式）: {e}")
 
-    # 5. 创建 Photo 记录
+    # 4. 压缩原图（限制最长边 + 重编码，保留 EXIF）后落盘
+    optimized_bytes, opt_w, opt_h = optimize_image_bytes(content)
+    filename, file_path, file_size = await storage.save_image_bytes(
+        file.filename or "unknown", optimized_bytes
+    )
+
+    # 以压缩后尺寸为准（应用 EXIF 方向交换，与展示保持一致）
+    if opt_w and opt_h:
+        if orientation in (5, 6, 7, 8):
+            width, height = opt_h, opt_w
+        else:
+            width, height = opt_w, opt_h
+
+    # 5. 生成并保存缩略图
+    try:
+        thumb_bytes = generate_thumbnail_bytes(optimized_bytes)
+        await storage.save_thumbnail(filename, thumb_bytes)
+    except Exception as e:
+        logger.warning(f"缩略图生成失败: {e}")
+
+    # 6. 创建 Photo 记录
     photo = create_photo(
         db=db,
         owner_id=owner_id,
@@ -241,11 +265,11 @@ async def upload_single_photo(
         photo_time=photo_time or datetime.now(),
     )
 
-    # 6. 创建 EXIF 元数据
+    # 7. 创建 EXIF 元数据
     if exif_data:
         create_photo_metadata(db, photo_id=photo.id, **exif_data)
 
-    # 7. 创建异步分析任务
+    # 8. 创建异步分析任务
     task_types = [
         TaskType.exif_extract,       # EXIF 提取
         TaskType.object_detection,   # YOLO 目标检测 → 自动标签

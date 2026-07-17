@@ -80,6 +80,17 @@ export const photoApi = {
     return request.get<TimelineGroup[]>('/photos/timeline/list', { params: { group_by } })
   },
 
+  /** 一键优化存储（重新压缩原图 + 重建缩略图） */
+  optimizeStorage() {
+    return request.post<{
+      processed: number
+      skipped: number
+      before_bytes: number
+      after_bytes: number
+      freed_bytes: number
+    }>('/photos/optimize-storage')
+  },
+
   /** 缩略图 URL（带 Token 认证） */
   thumbnailUrl(id: string) {
     const token = localStorage.getItem('token')

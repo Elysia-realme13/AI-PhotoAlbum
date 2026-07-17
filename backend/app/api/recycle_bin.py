@@ -57,7 +57,7 @@ def empty_recycle_bin(
     for photo in photos:
         if photo.file_path and os.path.exists(photo.file_path):
             storage.delete_file(photo.file_path)
-        thumb_path = storage.thumbnail_dir / f"{photo.id}_thumb.jpg"
+        thumb_path = storage.thumbnail_dir / f"{photo.filename}_thumb.jpg"
         if thumb_path.exists():
             thumb_path.unlink()
         permanent_delete_photo(db, photo)
@@ -111,8 +111,12 @@ def batch_permanent_delete_photos(
         except OSError as e:
             logger.warning(f"删除文件失败 {file_path}: {e}")
 
+    # 缩略图按存储文件名 {filename}_thumb.jpg 命名，需取回照片对象
     for pid in photo_ids:
-        thumb_path = storage.thumbnail_dir / f"{pid}_thumb.jpg"
+        photo = get_photo_by_id(db, pid, owner_id=current_user.id, include_deleted=True)
+        if not photo or not photo.filename:
+            continue
+        thumb_path = storage.thumbnail_dir / f"{photo.filename}_thumb.jpg"
         try:
             if thumb_path.exists():
                 thumb_path.unlink()

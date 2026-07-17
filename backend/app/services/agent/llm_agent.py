@@ -22,8 +22,6 @@ from app.crud import photo as photo_crud
 from app.crud import album as album_crud
 from app.services.search_service import (
     clip_search_by_text,
-    extract_nouns,
-    extract_person_names,
 )
 
 logger = logging.getLogger("app.services.agent.llm")

@@ -4,26 +4,9 @@ Tests for search_service.py
 import pytest
 from unittest.mock import MagicMock, patch
 from app.services.search_service import (
-    extract_nouns, extract_person_names, is_person_query,
+    extract_person_names, is_person_query,
     search_faces_by_name,
 )
-
-
-class TestExtractNouns:
-    def test_simple_nouns(self):
-        """Basic noun extraction"""
-        nouns = extract_nouns("红色的花和蓝色的天空")
-        # Should extract "花" and "天空" (nouns), skip "红色的"/"蓝色的" (adj)
-        assert len(nouns) > 0, f"Expected nouns, got {nouns}"
-        assert "天空" in nouns or "天" in nouns
-
-    def test_empty_text(self):
-        assert extract_nouns("") == []
-
-    def test_only_stopwords(self):
-        """Text with only stopwords should return empty or minimal"""
-        result = extract_nouns("的 了 是 在")
-        assert isinstance(result, list)
 
 
 class TestExtractPersonNames:

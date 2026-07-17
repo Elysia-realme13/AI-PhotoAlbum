@@ -40,7 +40,6 @@ dependencies = [
     "python-dotenv>=1.2.0",
     "httpx>=0.28.0",
     "aiofiles>=24.1.0",
-    "jieba>=0.42.1",
     "ultralytics>=8.4.95",
 ]
 

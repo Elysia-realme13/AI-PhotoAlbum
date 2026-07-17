@@ -55,3 +55,10 @@ export interface PhotoListResponse {
   page_size: number
   items: PhotoItem[]
 }
+
+/** 时间轴分组 */
+export interface TimelineGroup {
+  date: string // "2025-07" 或 "2025-07-14" 取决于 group_by
+  count: number
+  cover_photo?: PhotoItem | null
+}

@@ -63,6 +63,12 @@ const routes: RouteRecordRaw[] = [
         meta: { title: 'AI助手', icon: 'ChatDotRound' },
       },
       {
+        path: 'tasks',
+        name: 'Tasks',
+        component: () => import('@/views/TasksPage.vue'),
+        meta: { title: '任务中心', icon: 'List' },
+      },
+      {
         path: 'settings',
         name: 'Settings',
         component: () => import('@/views/SettingsPage.vue'),

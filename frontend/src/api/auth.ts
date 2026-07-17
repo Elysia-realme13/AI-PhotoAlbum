@@ -17,8 +17,8 @@ export const authApi = {
   updateProfile(data: UpdateProfileParams) {
     return request.patch('/auth/me', data)
   },
-  changePassword(data: ChangePasswordParams) {
-    return request.post('/auth/change-password', data)
+  changePassword(data: ChangePasswordParams, config?: any) {
+    return request.post('/auth/change-password', data, config)
   },
   uploadAvatar(file: File) {
     const formData = new FormData()

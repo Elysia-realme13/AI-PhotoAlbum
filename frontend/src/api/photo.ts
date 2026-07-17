@@ -1,5 +1,5 @@
 import request from '@/utils/request'
-import type { PhotoItem, PhotoListResponse, PhotoDetail } from '@/types/photo'
+import type { PhotoItem, PhotoListResponse, PhotoDetail, TimelineGroup } from '@/types/photo'
 
 export interface PhotoListParams {
   page?: number
@@ -65,6 +65,19 @@ export const photoApi = {
   /** 获取 EXIF 元数据 */
   getMetadata(id: string) {
     return request.get(`/photos/${id}/metadata`)
+  },
+
+  /** 手动触发重新 AI 分析（创建指定类型的任务） */
+  reanalyze(id: string, tasks: string[]) {
+    return request.post<{ photo_id: string; tasks: { task_id: string; task_type: string }[] }>(
+      `/photos/${id}/reanalyze`,
+      { tasks }
+    )
+  },
+
+  /** 照片时间轴（按年/月/日分组） */
+  timeline(group_by: 'year' | 'month' | 'day' = 'month') {
+    return request.get<TimelineGroup[]>('/photos/timeline/list', { params: { group_by } })
   },
 
   /** 缩略图 URL（带 Token 认证） */

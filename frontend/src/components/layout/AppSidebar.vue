@@ -1,6 +1,6 @@
 <template>
   <aside
-    class="shrink-0 flex flex-col shadow-sm border-r border-gray-200 dark:border-dark-border bg-white dark:bg-dark-card transition-all duration-300 overflow-hidden"
+    class="shrink-0 flex flex-col shadow-sm border-r border-gray-200 dark:border-dark-border bg-white dark:bg-dark-card transition-[width,background-color,border-color] duration-300 overflow-hidden"
     :class="expanded ? 'w-56 sidebar-expanded' : 'w-16 sidebar-collapsed'"
   >
     <!-- Logo区域 -->
@@ -73,6 +73,12 @@
         </el-tooltip>
         <template #title><span class="menu-title">AI 助手</span></template>
       </el-menu-item>
+      <el-menu-item index="/tasks" class="sidebar-item">
+        <el-tooltip content="任务中心" placement="right" :disabled="expanded" :show-after="1000" :hide-after="0">
+          <el-icon><List /></el-icon>
+        </el-tooltip>
+        <template #title><span class="menu-title">任务中心</span></template>
+      </el-menu-item>
       <el-menu-item index="/training" class="sidebar-item">
         <el-tooltip content="模型训练" placement="right" :disabled="expanded" :show-after="1000" :hide-after="0">
           <el-icon><TrendCharts /></el-icon>
@@ -118,6 +124,22 @@
 .sidebar-menu {
   --el-menu-bg-color: transparent;
   scrollbar-width: none; /* Firefox */
+}
+
+/* 菜单项统一淡入动画（同时、同时长、无错峰）*/
+.sidebar-menu :deep(.sidebar-item) {
+  animation: sidebar-fade-in 0.8s ease both;
+}
+
+@keyframes sidebar-fade-in {
+  from {
+    opacity: 0;
+    transform: translateX(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
 .sidebar-menu :deep(.el-menu) {

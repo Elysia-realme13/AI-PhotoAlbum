@@ -10,6 +10,13 @@
     <div class="flex items-center justify-between mb-6">
       <h2 class="text-2xl font-bold text-gray-800 dark:text-dark-text">照片</h2>
       <div class="flex items-center gap-2">
+        <!-- 视图切换（非选择模式） -->
+        <el-segmented
+          v-if="!isSelectMode"
+          v-model="viewMode"
+          :options="viewOptions"
+          size="small"
+        />
         <!-- 选择模式下的操作按钮 -->
         <template v-if="isSelectMode">
           <span class="text-sm text-gray-500 dark:text-dark-text-secondary">已选 {{ selectedIds.size }} 张</span>
@@ -30,6 +37,7 @@
 
     <!-- 照片网格 -->
     <PhotoGrid
+      v-if="viewMode === 'grid'"
       :photos="store.photos"
       :loading="store.loading"
       :selectable="isSelectMode"
@@ -41,8 +49,11 @@
       @select="handleSelect"
     />
 
-    <!-- 分页 -->
-    <div v-if="store.total > store.pageSize" class="flex justify-center mt-6">
+    <!-- 时间线视图 -->
+    <PhotoTimeline v-else @detail="handleDetailId" />
+
+    <!-- 分页（仅网格视图） -->
+    <div v-if="viewMode === 'grid' && store.total > store.pageSize" class="flex justify-center mt-6">
       <el-pagination
         v-model:current-page="store.currentPage"
         :page-size="store.pageSize"
@@ -97,9 +108,17 @@ import { extractImagesFromDrop } from '@/utils/dropFiles'
 import PhotoGrid from '@/components/photo/PhotoGrid.vue'
 import UploadDialog from '@/components/photo/UploadDialog.vue'
 import PhotoDetailDrawer from '@/components/photo/PhotoDetailDrawer.vue'
+import PhotoTimeline from '@/components/photo/PhotoTimeline.vue'
 import type { PhotoItem } from '@/types/photo'
 
 const store = usePhotoStore()
+
+// ── 视图模式：网格 / 时间线 ─────
+const viewMode = ref<'grid' | 'timeline'>('grid')
+const viewOptions = [
+  { label: '网格', value: 'grid' },
+  { label: '时间线', value: 'timeline' },
+]
 
 const showUpload = ref(false)
 const pendingFiles = ref<File[]>([])
@@ -193,6 +212,11 @@ const detailPhotoId = ref<string | null>(null)
 
 function handleDetail(photo: PhotoItem) {
   detailPhotoId.value = photo.id
+  detailVisible.value = true
+}
+
+function handleDetailId(id: string) {
+  detailPhotoId.value = id
   detailVisible.value = true
 }
 

@@ -114,7 +114,16 @@
               size="small"
               style="width: 130px"
             />
-            <span v-else class="text-sm text-gray-500">{{ barYear }} 年</span>
+            <el-date-picker
+              v-else
+              v-model="selectedYear"
+              type="year"
+              value-format="YYYY"
+              :clearable="false"
+              placeholder="选择年份"
+              size="small"
+              style="width: 110px"
+            />
           </div>
 
           <div class="min-h-[300px]">
@@ -180,7 +189,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { InfoFilled } from '@element-plus/icons-vue'
 import VChart from 'vue-echarts'
@@ -217,7 +226,8 @@ const heatmapData = ref<[string, number][]>([])
 const selectedMonth = ref<string>(
   `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`
 )
-const barYear = computed(() => selectedMonth.value.slice(0, 4))
+// 柱状图选中年份（可独立于日历月份切换）
+const selectedYear = ref<string>(selectedMonth.value.slice(0, 4))
 
 const monthLabels = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月']
 
@@ -228,6 +238,11 @@ const segmentOptions = [
   { label: '拍摄热度', value: 'calendar' },
   { label: '月度统计', value: 'bar' },
 ]
+
+// 切到月度统计时，默认落在当前日历上下文的年份
+watch(viewMode, (mode) => {
+  if (mode === 'bar') selectedYear.value = selectedMonth.value.slice(0, 4)
+})
 
 // 日历表头（周一开头）
 const weekLabels = ['一', '二', '三', '四', '五', '六', '日']
@@ -284,7 +299,7 @@ function cellStyle(count: number) {
 const monthlyTotals = computed(() => {
   const totals = new Array(12).fill(0)
   for (const [date, count] of heatmapData.value) {
-    if (date.slice(0, 4) !== barYear.value) continue
+    if (date.slice(0, 4) !== selectedYear.value) continue
     const month = Number(date.slice(5, 7))
     if (month >= 1 && month <= 12) totals[month - 1] += count
   }
@@ -319,7 +334,7 @@ const barOption = computed(() => ({
 // 点击柱子切换到对应月份，与日历联动
 function handleBarClick(params: { dataIndex: number }) {
   const month = String(params.dataIndex + 1).padStart(2, '0')
-  selectedMonth.value = `${barYear.value}-${month}`
+  selectedMonth.value = `${selectedYear.value}-${month}`
   viewMode.value = 'calendar'
 }
 
@@ -354,6 +369,7 @@ function buildHeatmap(photos: PhotoItem[]) {
   if (entries.length > 0) {
     const months = entries.map(([d]) => d.slice(0, 7)).sort()
     selectedMonth.value = months[months.length - 1]
+    selectedYear.value = selectedMonth.value.slice(0, 4)
   }
 }
 

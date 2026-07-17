@@ -12,8 +12,9 @@ from datetime import datetime
 from sqlalchemy.orm import Session, joinedload, contains_eager
 from sqlalchemy import and_, or_, desc, asc, func
 from app.models.photo import Photo, PhotoMetadata
-from app.models.description import ImageDescription, PhotoTag, PhotoTagRelation
+from app.models.description import ImageDescription, ImageVector, PhotoTag, PhotoTagRelation
 from app.models.face import Face, FaceIdentity
+from app.models.album import Album
 
 
 # ── 创建 ──────────────────────────────────────────
@@ -267,6 +268,22 @@ def batch_restore(
     return len(photos), len(photo_ids) - len(photos)
 
 
+def _purge_photo_dependencies(db: Session, photo_ids: List[uuid.UUID]) -> None:
+    """清理没有配置级联删除的关联记录，避免物理删除照片时触发外键约束错误。
+
+    - image_vectors：photo_id 外键无级联，且 Photo 上无 ORM 关系，需手动删除
+    - albums.cover_photo_id：封面引用需先置空，否则外键约束阻止删除
+    """
+    if not photo_ids:
+        return
+    db.query(ImageVector).filter(ImageVector.photo_id.in_(photo_ids)).delete(
+        synchronize_session=False
+    )
+    db.query(Album).filter(Album.cover_photo_id.in_(photo_ids)).update(
+        {Album.cover_photo_id: None}, synchronize_session=False
+    )
+
+
 def batch_permanent_delete(
     db: Session,
     photo_ids: List[uuid.UUID],
@@ -283,6 +300,7 @@ def batch_permanent_delete(
         .filter(Photo.id.in_(photo_ids), Photo.owner_id == owner_id, Photo.is_deleted)
         .all()
     )
+    _purge_photo_dependencies(db, [photo.id for photo in photos])
     for photo in photos:
         db.delete(photo)
     db.commit()
@@ -305,6 +323,7 @@ def get_deleted_photo_file_paths(
 
 def permanent_delete_photo(db: Session, photo: Photo):
     """物理删除（数据库记录 + 文件由 Service 层处理）"""
+    _purge_photo_dependencies(db, [photo.id])
     db.delete(photo)
     db.commit()
 

@@ -94,6 +94,7 @@ class TrainingTaskResponse(BaseModel):
     model_name: str
     description: Optional[str] = None
     dataset_id: Optional[str] = None
+    dataset_name: Optional[str] = None
     status: str = "pending"
     config: Optional[Dict[str, Any]] = {}
     current_epoch: int = 0

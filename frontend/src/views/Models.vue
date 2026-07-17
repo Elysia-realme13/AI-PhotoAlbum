@@ -22,8 +22,9 @@
     <div class="flex-1 overflow-y-auto">
       <el-table :data="modelList" stripe v-loading="loading" style="width: 100%">
         <el-table-column prop="model_name" label="模型名称" min-width="140" />
-        <el-table-column prop="task_name" label="任务名称" min-width="160" />
-        <el-table-column label="状态" width="90">
+       <el-table-column prop="task_name" label="任务名称" min-width="160" />
+        <el-table-column prop="dataset_name" label="数据集" min-width="130" />
+       <el-table-column label="状态" width="90">
           <template #default="{ row }">
             <el-tag :type="statusTagType(row.status)" size="small">{{ statusTagLabel(row.status) }}</el-tag>
           </template>
@@ -78,8 +79,9 @@
       <el-divider class="my-2" />
       <div class="grid grid-cols-2 gap-4 text-sm">
         <div class="space-y-2">
-          <div><span class="text-gray-500">任务名称: </span>{{ detailData.model?.task_name }}</div>
-          <div><span class="text-gray-500">状态: </span><el-tag :type="statusTagType(detailData.model?.status)" size="small">{{ statusTagLabel(detailData.model?.status) }}</el-tag></div>
+         <div><span class="text-gray-500">任务名称: </span>{{ detailData.model?.task_name }}</div>
+          <div><span class="text-gray-500">数据集: </span>{{ detailData.model?.dataset_name || '-' }}</div>
+         <div><span class="text-gray-500">状态: </span><el-tag :type="statusTagType(detailData.model?.status)" size="small">{{ statusTagLabel(detailData.model?.status) }}</el-tag></div>
           <div><span class="text-gray-500">Epochs: </span>{{ epochDisplay(detailData.task_detail?.current_epoch, detailData.task_detail?.total_epochs, detailData.task_detail?.status) }}</div>
           <div v-if="detailData.task_detail?.description"><span class="text-gray-500">描述: </span>{{ detailData.task_detail?.description }}</div>
         </div>

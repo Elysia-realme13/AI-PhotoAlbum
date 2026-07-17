@@ -6,6 +6,7 @@ import asyncio
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from fastapi.exceptions import RequestValidationError
 
 from app.config.settings import settings
@@ -133,6 +134,12 @@ app.include_router(recycle_bin_router)
 app.include_router(training_router)
 app.include_router(models_router)
 app.include_router(datasets_router)
+
+# ── 挂载静态文件 ───────────────────────────────────
+from pathlib import Path
+_avatar_dir = Path(settings.AVATAR_DIR)
+_avatar_dir.mkdir(parents=True, exist_ok=True)
+app.mount("/api/avatars", StaticFiles(directory=str(_avatar_dir)), name="avatars")
 
 
 @app.get("/")

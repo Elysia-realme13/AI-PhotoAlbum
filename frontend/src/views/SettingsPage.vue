@@ -50,9 +50,9 @@
     <div class="bg-white dark:bg-dark-card rounded-xl shadow-sm border border-gray-100 dark:border-dark-border p-5 mb-4">
       <h3 class="text-lg font-semibold text-gray-800 dark:text-dark-text mb-4">偏好设置</h3>
       <el-form label-width="120px" label-position="left">
-        <el-form-item label="主题模式">
+        <el-form-item label="主题模式" for="theme-mode-group">
           <div class="flex items-center gap-3">
-            <el-radio-group v-model="currentTheme" @change="onThemeChange">
+            <el-radio-group id="theme-mode-group" v-model="currentTheme" @change="onThemeChange">
               <el-radio-button value="light">
                 <el-icon class="mr-1"><Sunny /></el-icon> 浅色
               </el-radio-button>
@@ -86,8 +86,31 @@
         <el-form-item label="昵称" prop="nickname">
           <el-input id="profile-nickname" v-model="profileForm.nickname" placeholder="请输入昵称" style="max-width: 320px" />
         </el-form-item>
+        <el-form-item label="头像" prop="avatar_url">
+          <div class="flex items-center gap-4">
+            <div
+              class="w-16 h-16 rounded-full bg-blue-500 text-white flex items-center justify-center text-2xl font-bold overflow-hidden shrink-0"
+            >
+              <img v-if="profileForm.avatar_url" :src="profileForm.avatar_url" class="w-full h-full object-cover" />
+              <span v-else>{{ avatarText }}</span>
+            </div>
+            <div class="space-y-2">
+              <el-upload
+                :show-file-list="false"
+                :auto-upload="false"
+                accept="image/jpeg,image/png,image/webp,image/gif"
+                :on-change="onAvatarChange"
+              >
+                <el-button :loading="avatarUploading">
+                  <el-icon class="mr-1"><Upload /></el-icon> 上传图片
+                </el-button>
+              </el-upload>
+              <p class="text-xs text-gray-400 dark:text-dark-text-secondary">支持 JPG/PNG/WebP/GIF，不超过 5MB</p>
+            </div>
+          </div>
+        </el-form-item>
         <el-form-item label="头像链接" prop="avatar_url">
-          <el-input id="profile-avatar" v-model="profileForm.avatar_url" placeholder="请输入头像图片 URL" style="max-width: 320px" />
+          <el-input id="profile-avatar" v-model="profileForm.avatar_url" placeholder="或直接输入头像图片 URL" style="max-width: 320px" />
         </el-form-item>
         <el-form-item>
           <el-button type="primary" :loading="profileSaving" @click="saveProfile">保存资料</el-button>
@@ -120,7 +143,7 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { storeToRefs } from 'pinia'
 import { ElMessage } from 'element-plus'
-import type { FormInstance, FormRules } from 'element-plus'
+import type { FormInstance, FormRules, UploadFile } from 'element-plus'
 import { useUserStore } from '@/stores/user'
 import { useThemeStore, type ThemeMode } from '@/stores/theme'
 import { authApi } from '@/api/auth'
@@ -230,6 +253,36 @@ const profileForm = reactive({
 })
 const profileRules: FormRules = {
   nickname: [{ max: 30, message: '昵称不超过 30 个字符', trigger: 'blur' }],
+}
+
+// 头像上传
+const avatarUploading = ref(false)
+
+async function onAvatarChange(uploadFile: UploadFile) {
+  const raw = uploadFile.raw
+  if (!raw) return
+
+  const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
+  if (!allowedTypes.includes(raw.type)) {
+    ElMessage.error('仅支持 JPG/PNG/WebP/GIF 格式')
+    return
+  }
+  if (raw.size > 5 * 1024 * 1024) {
+    ElMessage.error('头像文件不能超过 5MB')
+    return
+  }
+
+  avatarUploading.value = true
+  try {
+    const res = await authApi.uploadAvatar(raw)
+    profileForm.avatar_url = res.data.avatar_url
+    ElMessage.success('头像上传成功')
+    await userStore.fetchUser()
+  } catch {
+    ElMessage.error('头像上传失败')
+  } finally {
+    avatarUploading.value = false
+  }
 }
 
 async function saveProfile() {

@@ -39,6 +39,7 @@ class Settings(BaseSettings):
     # ── 文件存储 ───────────────────────────────────────
     UPLOAD_DIR: str = "./data/uploads"
     THUMBNAIL_DIR: str = "./data/thumbnails"
+    AVATAR_DIR: str = "./data/avatars"
     MAX_UPLOAD_SIZE_MB: int = 50
 
     # ── AI 模型路径 ────────────────────────────────────

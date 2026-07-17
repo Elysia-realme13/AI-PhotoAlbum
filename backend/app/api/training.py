@@ -14,6 +14,7 @@ from app.database.session import get_db, SessionLocal
 from app.api.deps import get_required_user
 from app.models.user import User
 from app.models.training import TrainingTask
+from sqlalchemy.orm import joinedload
 from app.schemas.training import (
     TrainingTaskCreate,
     TrainingTaskResponse,
@@ -124,12 +125,18 @@ def list_training_tasks(
 ):
     """获取训练任务列表"""
     try:
-        query = db.query(TrainingTask).order_by(TrainingTask.created_at.desc())
+        query = db.query(TrainingTask).options(joinedload(TrainingTask.dataset_rel)).order_by(TrainingTask.created_at.desc())
         if status:
             query = query.filter(TrainingTask.status == status)
         tasks = query.all()
-
-        items = [TrainingTaskResponse.model_validate(t) for t in tasks]
+ 
+        items = []
+        for t in tasks:
+            item = TrainingTaskResponse.model_validate(t)
+            if t.dataset_id:
+                item.dataset_name = t.dataset_rel.name if t.dataset_rel else None
+            items.append(item)
+ 
         return TrainingTaskListResponse(total=len(items), items=items)
     except Exception as e:
         logger.error(f"获取训练任务列表失败: {e}", exc_info=True)
@@ -153,8 +160,13 @@ def get_training_task(
 
     metrics = training_service.get_task_metrics(task_id, db)
 
+    # 填充数据集名称
+    task_resp = TrainingTaskResponse.model_validate(task)
+    if task.dataset_id and task.dataset_rel:
+        task_resp.dataset_name = task.dataset_rel.name
+ 
     return TrainingTaskDetailResponse(
-        task=TrainingTaskResponse.model_validate(task),
+        task=task_resp,
         metrics=[TrainingMetricResponse.model_validate(m) for m in metrics],
     )
 

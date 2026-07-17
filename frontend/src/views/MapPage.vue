@@ -88,6 +88,8 @@ async function initMap() {
 
   // 动态导入 Leaflet，避免静态导入时的运行时问题
   const L = await import('leaflet')
+  // 标记聚合插件（副作用式扩展 L，需在 leaflet 之后导入）
+  await import('leaflet.markercluster')
 
   // 初始化地图，默认中心设为中国
   mapInstance = L.map(mapContainer.value, {
@@ -106,7 +108,13 @@ async function initMap() {
   }).addTo(mapInstance)
 
   // 添加标记点（GPS 为 WGS-84，需转换为高德 GCJ-02 避免偏移）
+  // 使用标记聚合组：点位密集时自动合并为聚合圈，缩放展开
   const bounds = L.latLngBounds([])
+  const clusterGroup = L.markerClusterGroup({
+    maxClusterRadius: 50,
+    showCoverageOnHover: false,
+    chunkedLoading: true,
+  })
 
   locations.value.forEach((loc) => {
     const [gcjLng, gcjLat] = wgs84ToGcj02(loc.longitude, loc.latitude)
@@ -115,9 +123,11 @@ async function initMap() {
       maxWidth: 220,
       className: 'photo-popup',
     })
-    marker.addTo(mapInstance)
+    clusterGroup.addLayer(marker)
     bounds.extend([gcjLat, gcjLng])
   })
+
+  mapInstance.addLayer(clusterGroup)
 
   // 自适应边界
   if (locations.value.length === 1) {
@@ -167,6 +177,8 @@ onUnmounted(() => {
 
 <style>
 @import 'leaflet/dist/leaflet.css';
+@import 'leaflet.markercluster/dist/MarkerCluster.css';
+@import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
 
 /* 自定义 popup 样式 */
 .photo-popup .leaflet-popup-content-wrapper {

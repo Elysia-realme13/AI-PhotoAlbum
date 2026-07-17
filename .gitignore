@@ -61,4 +61,5 @@ backend/data/models/
 *.temp
 
 # ── Others ──────────────────────────────────────────────
-/backend/runs/yolo11n.pt\n*.zip
+/backend/runs/
+*.zip

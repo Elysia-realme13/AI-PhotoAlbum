@@ -264,8 +264,11 @@ def run_training(
             try:
                 if hasattr(trainer, "metrics") and trainer.metrics:
                     for k, v in trainer.metrics.items():
-                        if isinstance(v, (int, float)):
-                            final_metrics[k] = round(float(v), 6)
+                        try:
+                            val = float(v)
+                            final_metrics[k] = round(val, 6)
+                        except (TypeError, ValueError):
+                            pass
             except Exception:
                 pass
 
@@ -287,10 +290,14 @@ def run_training(
             try:
                 if hasattr(trainer, "metrics") and trainer.metrics:
                     for k, v in trainer.metrics.items():
-                        if isinstance(v, (int, float)):
-                            metrics[k] = round(float(v), 6)
+                        try:
+                            val = float(v)
+                            metrics[k] = round(val, 6)
+                        except (TypeError, ValueError):
+                            pass
             except Exception:
                 pass
+            logger.info(f"[训练器] 验证结束回调: epoch={epoch}, task_id={task_id}, metrics_keys={list(metrics.keys())}")
             try:
                 callback.on_val_end(task_id, epoch, metrics)
             except Exception as cb_err:

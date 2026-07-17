@@ -17,7 +17,7 @@ RUN pip install uv
 COPY pyproject.toml .
 
 # 安装 Python 依赖
-RUN uv sync --no-dev && rm -rf /root/.cache/uv
+RUN uv sync --no-dev
 
 # 复制应用代码
 COPY . .

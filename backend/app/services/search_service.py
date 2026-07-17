@@ -58,12 +58,16 @@ def extract_nouns(text: str) -> List[str]:
         logger.warning("jieba 未安装，使用简单分词")
         return _simple_tokenize(text)
 
-    NOUN_TAGS = {"n", "nr", "nr1", "nr2", "nrj", "nrf", "ns", "nsf", "nt", "nz", "nl", "ng"}
+    CONTENT_TAGS = {"n", "nr", "nr1", "nr2", "nrj", "nrf", "ns", "nsf", "nt", "nz", "nl", "ng",
+                    "s", "t", "a", "v", "i"}  # s=place, t=time, a=adj, v=verb, i=idiom
     words = pseg.cut(text)
     nouns = []
     for word, flag in words:
-        if flag in NOUN_TAGS and len(word.strip()) > 0:
-            nouns.append(word.strip())
+        if flag in CONTENT_TAGS and len(word.strip()) > 0:
+            stripped = word.strip()
+            if flag == "t" and _is_pure_time_marker(stripped):
+                continue
+            nouns.append(stripped)
 
     seen = set()
     unique_nouns = []
@@ -72,6 +76,33 @@ def extract_nouns(text: str) -> List[str]:
             seen.add(n)
             unique_nouns.append(n)
     return unique_nouns
+
+
+
+def _is_pure_time_marker(word: str) -> bool:
+    """Check if a time-tagged word has no visual semantic value for CLIP"""
+    import re as _re
+    pure_time_patterns = [
+        _re.compile(r"^\d{4}年$"),
+        _re.compile(r"^\d{1,2}月$"),
+        _re.compile(r"^\d{1,2}日$"),
+        _re.compile(r"^\d{1,2}号$"),
+        _re.compile(r"^\d{1,2}年前$"),
+        _re.compile(r"^[一二三四五六七八九十]+年前$"),
+        _re.compile(r"^\d{4}-\d{1,2}-\d{1,2}$"),
+    ]
+    non_visual = {"去年", "今年", "明年", "前年", "后年",
+                  "上个月", "这个月", "下个月", "本月",
+                  "上周", "这周", "下周", "本周",
+                  "昨天", "今天", "明天", "前天", "后天",
+                  "早上", "上午", "中午", "下午", "晚上", "傍晚", "凌晨",
+                  "刚刚", "最近", "以前", "以后", "之前", "之后"}
+    if word in non_visual:
+        return True
+    for pat in pure_time_patterns:
+        if pat.fullmatch(word):
+            return True
+    return False
 
 
 def _simple_tokenize(text: str) -> List[str]:

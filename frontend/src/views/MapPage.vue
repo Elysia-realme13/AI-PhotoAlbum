@@ -40,6 +40,11 @@ import { mapApi } from '@/api/map'
 import { photoApi } from '@/api/photo'
 import { wgs84ToGcj02 } from '@/utils/coord'
 import type { PhotoLocation } from '@/types/map'
+// Leaflet 默认标记图标：打包后其自动探测的图片路径会失效导致标记不可见，
+// 需显式导入图片资源交由 Vite 生成正确 URL。
+import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png'
+import markerIcon from 'leaflet/dist/images/marker-icon.png'
+import markerShadow from 'leaflet/dist/images/marker-shadow.png'
 
 const mapContainer = ref<HTMLElement | null>(null)
 const loading = ref(true)
@@ -87,9 +92,20 @@ async function initMap() {
   if (!mapContainer.value || locations.value.length === 0) return
 
   // 动态导入 Leaflet，避免静态导入时的运行时问题
-  const L = await import('leaflet')
+  // Leaflet 仅提供 UMD/CJS 构建，Vite 下命名空间上不会挂载插件运行时添加的
+  // markerClusterGroup，必须取 default（即 leaflet 真正的导出对象）才能拿到插件方法。
+  const leaflet = await import('leaflet')
+  const L: any = (leaflet as any).default ?? leaflet
   // 标记聚合插件（副作用式扩展 L，需在 leaflet 之后导入）
   await import('leaflet.markercluster')
+
+  // 修正默认标记图标路径（打包后自动探测会失效，导致标记不显示）
+  delete (L.Icon.Default.prototype as any)._getIconUrl
+  L.Icon.Default.mergeOptions({
+    iconRetinaUrl: markerIcon2x,
+    iconUrl: markerIcon,
+    shadowUrl: markerShadow,
+  })
 
   // 初始化地图，默认中心设为中国
   mapInstance = L.map(mapContainer.value, {

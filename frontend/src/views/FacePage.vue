@@ -4,7 +4,24 @@
     <template v-if="view === 'list'">
       <div class="flex items-center justify-between mb-6">
         <h2 class="text-2xl font-bold text-gray-800 dark:text-dark-text">人物</h2>
-        <p class="text-sm text-gray-400 dark:text-dark-text-secondary">系统自动识别照片中的人脸并聚类</p>
+        <div class="flex items-center gap-2">
+          <template v-if="mergeMode">
+            <span class="text-sm text-gray-500 dark:text-dark-text-secondary">已选 {{ selectedIds.size }} 个</span>
+            <el-button
+              type="primary"
+              :disabled="selectedIds.size < 2"
+              :loading="merging"
+              @click="openMergeDialog"
+            >
+              合并
+            </el-button>
+            <el-button @click="exitMergeMode">退出</el-button>
+          </template>
+          <template v-else>
+            <p class="text-sm text-gray-400 dark:text-dark-text-secondary mr-2">系统自动识别照片中的人脸并聚类</p>
+            <el-button :disabled="identities.length < 2" @click="enterMergeMode">合并人物</el-button>
+          </template>
+        </div>
       </div>
 
       <!-- 加载骨架屏 -->
@@ -22,9 +39,22 @@
           <div
             v-for="person in identities"
             :key="person.identity_id"
-            class="group relative bg-white dark:bg-dark-card rounded-xl p-4 shadow-sm border border-gray-100 dark:border-dark-border cursor-pointer hover:shadow-md transition-shadow flex flex-col items-center"
-            @click="openPerson(person)"
+            class="group relative bg-white dark:bg-dark-card rounded-xl p-4 shadow-sm border cursor-pointer hover:shadow-md transition-shadow flex flex-col items-center"
+            :class="mergeMode && selectedIds.has(person.identity_id)
+              ? 'border-blue-500 ring-2 ring-blue-500/40'
+              : 'border-gray-100 dark:border-dark-border'"
+            @click="onCardClick(person)"
           >
+            <!-- 多选勾选标记 -->
+            <div
+              v-if="mergeMode"
+              class="absolute top-2 left-2 w-5 h-5 rounded-full border-2 flex items-center justify-center"
+              :class="selectedIds.has(person.identity_id)
+                ? 'bg-blue-500 border-blue-500 text-white'
+                : 'bg-white/80 border-gray-300'"
+            >
+              <el-icon v-if="selectedIds.has(person.identity_id)" :size="12"><Check /></el-icon>
+            </div>
             <!-- 圆形头像 -->
             <div class="w-20 h-20 rounded-full overflow-hidden bg-blue-500 text-white flex items-center justify-center text-2xl font-bold mb-3">
               <img
@@ -39,8 +69,9 @@
             </p>
             <p class="text-xs text-gray-400 dark:text-dark-text-secondary mt-0.5">{{ person.face_count }} 张照片</p>
 
-            <!-- hover 重命名按钮 -->
+            <!-- hover 重命名按钮（合并模式下隐藏） -->
             <button
+              v-if="!mergeMode"
               class="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/40 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-blue-500"
               @click.stop="renamePerson(person)"
               title="重命名"
@@ -103,13 +134,36 @@
 
     <!-- 详情抽屉 -->
     <PhotoDetailDrawer v-model:visible="detailVisible" :photo-id="detailPhotoId" />
+
+    <!-- 合并确认对话框：选择保留的目标人物 -->
+    <el-dialog v-model="mergeDialogVisible" title="合并人物" width="420px">
+      <p class="text-sm text-gray-500 dark:text-dark-text-secondary mb-3">
+        选择保留的人物，其余选中的人物将合并到它名下（不可撤销）。
+      </p>
+      <el-radio-group v-model="mergeTargetId" class="flex flex-col gap-2">
+        <el-radio
+          v-for="person in selectedPersons"
+          :key="person.identity_id"
+          :value="person.identity_id"
+        >
+          {{ person.identity_name || '未命名' }}
+          <span class="text-xs text-gray-400">({{ person.face_count }} 张)</span>
+        </el-radio>
+      </el-radio-group>
+      <template #footer>
+        <el-button @click="mergeDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="merging" :disabled="!mergeTargetId" @click="confirmMerge">
+          确认合并
+        </el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { ArrowLeft, InfoFilled, EditPen } from '@element-plus/icons-vue'
+import { ArrowLeft, InfoFilled, EditPen, Check } from '@element-plus/icons-vue'
 import { photoApi } from '@/api/photo'
 import { faceApi } from '@/api/face'
 import PhotoDetailDrawer from '@/components/photo/PhotoDetailDrawer.vue'
@@ -184,6 +238,78 @@ async function renamePerson(person: FaceCluster) {
     ElMessage.success('已重命名')
   } catch {
     // 用户取消或请求失败
+  }
+}
+
+// ── 多选合并 ──────────────────
+const mergeMode = ref(false)
+const selectedIds = ref(new Set<string>())
+const merging = ref(false)
+const mergeDialogVisible = ref(false)
+const mergeTargetId = ref('')
+
+const selectedPersons = computed(() =>
+  identities.value.filter((p) => selectedIds.value.has(p.identity_id))
+)
+
+function enterMergeMode() {
+  mergeMode.value = true
+  selectedIds.value = new Set()
+}
+
+function exitMergeMode() {
+  mergeMode.value = false
+  selectedIds.value = new Set()
+}
+
+function onCardClick(person: FaceCluster) {
+  if (mergeMode.value) {
+    toggleSelect(person.identity_id)
+  } else {
+    openPerson(person)
+  }
+}
+
+function toggleSelect(id: string) {
+  if (selectedIds.value.has(id)) {
+    selectedIds.value.delete(id)
+  } else {
+    selectedIds.value.add(id)
+  }
+  // 触发响应式更新
+  selectedIds.value = new Set(selectedIds.value)
+}
+
+function openMergeDialog() {
+  if (selectedIds.value.size < 2) return
+  // 默认目标：选中中照片最多、且已命名优先
+  const sorted = [...selectedPersons.value].sort((a, b) => {
+    const an = a.identity_name ? 1 : 0
+    const bn = b.identity_name ? 1 : 0
+    if (an !== bn) return bn - an
+    return b.face_count - a.face_count
+  })
+  mergeTargetId.value = sorted[0]?.identity_id || ''
+  mergeDialogVisible.value = true
+}
+
+async function confirmMerge() {
+  const targetId = mergeTargetId.value
+  if (!targetId) return
+  const sourceIds = [...selectedIds.value].filter((id) => id !== targetId)
+  if (sourceIds.length === 0) return
+
+  merging.value = true
+  try {
+    await faceApi.mergeClustersBatch(sourceIds, targetId)
+    ElMessage.success(`已合并 ${sourceIds.length} 个人物`)
+    mergeDialogVisible.value = false
+    exitMergeMode()
+    await fetchIdentities()
+  } catch {
+    ElMessage.error('合并失败，请重试')
+  } finally {
+    merging.value = false
   }
 }
 

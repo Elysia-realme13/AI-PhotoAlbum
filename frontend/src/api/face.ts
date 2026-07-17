@@ -25,4 +25,12 @@ export const faceApi = {
       target_id: targetClusterId,
     })
   },
+
+  /** 批量合并多个聚类到目标聚类 */
+  mergeClustersBatch(sourceClusterIds: string[], targetClusterId: string) {
+    return request.post('/faces/identities/merge', {
+      source_ids: sourceClusterIds,
+      target_id: targetClusterId,
+    })
+  },
 }

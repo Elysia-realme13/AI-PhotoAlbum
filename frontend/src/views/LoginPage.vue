@@ -2,13 +2,23 @@
   <div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-dark-bg dark:to-dark-card">
     <div class="w-full max-w-md">
       <div class="bg-white dark:bg-dark-card rounded-2xl shadow-xl p-8">
-        <!-- Logo -->
+        <!-- Logo / 上次登录用户头像 -->
         <div class="text-center mb-8">
-          <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-blue-50 dark:bg-blue-900/30 mb-4">
-            <el-icon :size="32" color="#409EFF"><PictureFilled /></el-icon>
-          </div>
-          <h2 class="text-2xl font-bold text-gray-800 dark:text-dark-text">AI 智能相册</h2>
-          <p class="text-gray-500 dark:text-dark-text-secondary mt-1 text-sm">让每一张照片都值得珍藏</p>
+          <template v-if="isLogin && displayUser">
+            <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-blue-500 text-white text-2xl font-bold overflow-hidden mb-4">
+              <img v-if="displayUser.avatar_url" :src="displayUser.avatar_url" class="w-full h-full object-cover" alt="头像" />
+              <span v-else>{{ displayInitial }}</span>
+            </div>
+            <h2 class="text-2xl font-bold text-gray-800 dark:text-dark-text">欢迎回来，{{ displayUser.nickname || displayUser.username }}</h2>
+            <p class="text-gray-500 dark:text-dark-text-secondary mt-1 text-sm">登录以继续你的智能相册</p>
+          </template>
+          <template v-else>
+            <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-blue-50 dark:bg-blue-900/30 mb-4">
+              <el-icon :size="32" color="#409EFF"><PictureFilled /></el-icon>
+            </div>
+            <h2 class="text-2xl font-bold text-gray-800 dark:text-dark-text">AI 智能相册</h2>
+            <p class="text-gray-500 dark:text-dark-text-secondary mt-1 text-sm">让每一张照片都值得珍藏</p>
+          </template>
         </div>
 
         <!-- 切换 Tab -->
@@ -65,12 +75,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { ref, reactive, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { User, Lock, Message } from '@element-plus/icons-vue'
 import { authApi } from '@/api/auth'
-import { useUserStore } from '@/stores/user'
+import { useUserStore, getLastLoginUser, getKnownUsers } from '@/stores/user'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -78,12 +88,33 @@ const userStore = useUserStore()
 const isLogin = ref(true)
 const loading = ref(false)
 
+// 本地登录过的用户（最近登录 + 全部列表）
+const lastUser = getLastLoginUser()
+const knownUsers = getKnownUsers()
+
 // 登录表单
 const loginForm = reactive({ username: '', password: '' })
 const loginRules = {
   username: [{ required: true, message: '请输入用户名或邮箱', trigger: 'blur' }],
   password: [{ required: true, message: '请输入密码', trigger: 'blur' }],
 }
+
+// 顶部展示的用户：优先按当前输入的用户名/邮箱匹配本地登录过的账号，未输入时回退到最近登录用户
+const displayUser = computed(() => {
+  const input = loginForm.username.trim().toLowerCase()
+  if (input) {
+    return (
+      knownUsers.find(
+        (u) => u.username.toLowerCase() === input || u.email?.toLowerCase() === input,
+      ) || null
+    )
+  }
+  return lastUser
+})
+const displayInitial = computed(() => {
+  const name = displayUser.value?.nickname || displayUser.value?.username || '?'
+  return name.charAt(0).toUpperCase()
+})
 
 // 注册表单
 const registerForm = reactive({ username: '', email: '', password: '' })

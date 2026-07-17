@@ -20,4 +20,11 @@ export const authApi = {
   changePassword(data: ChangePasswordParams) {
     return request.post('/auth/change-password', data)
   },
+  uploadAvatar(file: File) {
+    const formData = new FormData()
+    formData.append('file', file)
+    return request.post('/auth/avatar', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+  },
 }

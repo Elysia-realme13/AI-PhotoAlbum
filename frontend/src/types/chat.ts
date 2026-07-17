@@ -22,6 +22,12 @@ export interface NameConfirmData {
   confirmed?: boolean
 }
 
+/** 检索命中的照片结果 */
+export interface ChatPhotoResult {
+  photo_id: string
+  score: number
+}
+
 /** 单条聊天消息 */
 export interface ChatMessage {
   id: string
@@ -32,6 +38,7 @@ export interface ChatMessage {
   image?: File
   imageUrl?: string
   nameConfirm?: NameConfirmData | null
+  results?: ChatPhotoResult[]
 }
 
 /** 对话会话 */

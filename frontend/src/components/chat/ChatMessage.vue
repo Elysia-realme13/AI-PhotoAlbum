@@ -42,6 +42,40 @@
         class="mt-2 max-w-48 max-h-48 rounded-lg object-cover"
       />
 
+      <!-- 检索命中的照片卡片（AI 消息） -->
+      <div
+        v-if="msg.role === 'assistant' && msg.results && msg.results.length > 0"
+        class="mt-3 grid grid-cols-3 gap-2"
+      >
+        <div
+          v-for="(hit, index) in msg.results"
+          :key="hit.photo_id"
+          class="group relative aspect-square rounded-lg overflow-hidden bg-gray-100 cursor-pointer"
+          @click="openPreview(index)"
+        >
+          <img
+            :src="photoApi.thumbnailUrl(hit.photo_id)"
+            class="w-full h-full object-cover group-hover:opacity-80 transition-opacity"
+            loading="lazy"
+          />
+          <span
+            v-if="hit.score"
+            class="absolute bottom-1 right-1 px-1.5 py-0.5 rounded bg-black/50 text-white text-[10px]"
+          >
+            {{ (hit.score * 100).toFixed(0) }}%
+          </span>
+        </div>
+      </div>
+
+      <!-- 图片预览器 -->
+      <el-image-viewer
+        v-if="previewVisible"
+        :url-list="previewList"
+        :initial-index="previewIndex"
+        @close="previewVisible = false"
+        :hide-on-click-modal="true"
+      />
+
       <!-- 流式输出光标 -->
       <span
         v-if="msg.streaming"
@@ -70,10 +104,11 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { CircleCheck } from '@element-plus/icons-vue'
 import MarkdownIt from 'markdown-it'
 import type { ChatMessage } from '@/types/chat'
+import { photoApi } from '@/api/photo'
 import NameConfirmDialog from './NameConfirmDialog.vue'
 
 const props = withDefaults(defineProps<{
@@ -102,6 +137,18 @@ const renderedContent = computed(() => {
   if (!props.msg.content) return ''
   return md.render(props.msg.content)
 })
+
+// ── 照片结果预览 ──
+const previewVisible = ref(false)
+const previewIndex = ref(0)
+const previewList = computed(() =>
+  (props.msg.results || []).map((hit) => photoApi.fileUrl(hit.photo_id))
+)
+
+function openPreview(index: number) {
+  previewIndex.value = index
+  previewVisible.value = true
+}
 </script>
 
 <style scoped>

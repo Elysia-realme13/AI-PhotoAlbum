@@ -66,16 +66,22 @@ export const useChatStore = defineStore('chat', () => {
       messages.value = res.data.map((m) => {
         // 后端 assistant 消息的 content 是 JSON {text, results, total}
         let content = ''
+        let results: { photo_id: string; score: number }[] | undefined
         if (m.role === 'assistant') {
+          let parsed: unknown = null
           if (typeof m.content === 'string') {
             try {
-              const parsed = JSON.parse(m.content)
-              content = parsed.text || m.content
+              parsed = JSON.parse(m.content)
+              content = (parsed as { text?: string }).text || m.content
             } catch {
               content = m.content as string
             }
           } else if (typeof m.content === 'object' && m.content !== null) {
+            parsed = m.content
             content = (m.content as { text?: string }).text || ''
+          }
+          if (parsed && typeof parsed === 'object' && Array.isArray((parsed as { results?: unknown }).results)) {
+            results = (parsed as { results: { photo_id: string; score: number }[] }).results
           }
         } else {
           content = typeof m.content === 'string' ? m.content : JSON.stringify(m.content)
@@ -85,6 +91,7 @@ export const useChatStore = defineStore('chat', () => {
           role: m.role as 'user' | 'assistant',
           content,
           created_at: m.created_at,
+          results,
         }
       })
     } catch {
@@ -141,6 +148,7 @@ export const useChatStore = defineStore('chat', () => {
       const reply = res.data.reply
       const needsConfirmation = res.data.needs_confirmation
       const pendingCandidates = res.data.pending_candidates || []
+      const photoResults = res.data.results || []
 
       // 提取人名（用于确认对话框）
       const personName = extractPersonName(query)
@@ -162,6 +170,10 @@ export const useChatStore = defineStore('chat', () => {
           const last = messages.value[messages.value.length - 1]
           if (last && last.streaming) {
             last.streaming = false
+            // 流式结束后附加检索到的照片结果
+            if (photoResults.length > 0) {
+              last.results = photoResults
+            }
             // 流式结束后附加名称确认数据
             if (needsConfirmation && pendingCandidates.length > 0 && personName) {
               last.nameConfirm = {

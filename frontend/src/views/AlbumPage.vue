@@ -134,7 +134,7 @@
     </template>
 
     <!-- 创建/编辑相册对话框 -->
-    <el-dialog v-model="formDialogVisible" :title="editingAlbum ? '编辑相册' : '创建相册'" width="420px">
+    <el-dialog v-model="formDialogVisible" :title="editingAlbum ? '编辑相册' : '创建相册'" width="480px">
       <el-form :model="albumForm" label-width="70px">
         <el-form-item label="名称" required>
           <el-input v-model="albumForm.name" placeholder="输入相册名称" maxlength="200" show-word-limit />
@@ -142,6 +142,70 @@
         <el-form-item label="描述">
           <el-input v-model="albumForm.description" type="textarea" :rows="3" placeholder="输入相册描述（可选）" />
         </el-form-item>
+        <!-- 相册类型（仅创建时可选） -->
+        <template v-if="!editingAlbum">
+          <el-form-item label="类型">
+            <el-radio-group v-model="albumForm.album_type">
+              <el-radio-button value="manual">手动相册</el-radio-button>
+              <el-radio-button value="smart">智能相册</el-radio-button>
+            </el-radio-group>
+          </el-form-item>
+          <!-- 智能相册条件构造器 -->
+          <template v-if="albumForm.album_type === 'smart'">
+            <el-form-item label="时间范围">
+              <el-date-picker
+                v-model="albumForm.dateRange"
+                type="daterange"
+                range-separator="至"
+                start-placeholder="开始日期"
+                end-placeholder="结束日期"
+                value-format="YYYY-MM-DD"
+                class="!w-full"
+              />
+            </el-form-item>
+            <el-form-item label="城市">
+              <el-select
+                v-model="albumForm.cities"
+                multiple
+                filterable
+                allow-create
+                default-first-option
+                placeholder="输入城市名回车，可多个"
+                class="w-full"
+              />
+            </el-form-item>
+            <el-form-item label="标签">
+              <el-select
+                v-model="albumForm.tags"
+                multiple
+                filterable
+                allow-create
+                default-first-option
+                placeholder="输入标签回车，可多个"
+                class="w-full"
+              />
+            </el-form-item>
+            <el-form-item label="人物">
+              <el-select
+                v-model="albumForm.identityIds"
+                multiple
+                filterable
+                placeholder="选择人物"
+                class="w-full"
+              >
+                <el-option
+                  v-for="person in identityOptions"
+                  :key="person.identity_id"
+                  :label="person.identity_name || '未命名'"
+                  :value="person.identity_id"
+                />
+              </el-select>
+            </el-form-item>
+            <p class="text-xs text-gray-400 pl-[70px] -mt-2">
+              智能相册根据条件自动聚集照片，至少设置一项条件。
+            </p>
+          </template>
+        </template>
       </el-form>
       <template #footer>
         <el-button @click="formDialogVisible = false">取消</el-button>
@@ -245,9 +309,11 @@ import { ArrowLeft, InfoFilled, Delete, Edit, Close, PictureFilled, Plus, Check,
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { photoApi } from '@/api/photo'
 import { albumApi } from '@/api/album'
+import { faceApi } from '@/api/face'
 import PhotoDetailDrawer from '@/components/photo/PhotoDetailDrawer.vue'
 import type { Album } from '@/types/album'
 import type { PhotoItem } from '@/types/photo'
+import type { FaceCluster } from '@/types/face'
 
 // ── 列表状态 ─────────────────
 const loading = ref(true)
@@ -301,26 +367,74 @@ function handleDetailPageChange(page: number) {
 const formDialogVisible = ref(false)
 const formLoading = ref(false)
 const editingAlbum = ref<Album | null>(null)
-const albumForm = ref({ name: '', description: '' })
+
+interface AlbumFormState {
+  name: string
+  description: string
+  album_type: 'manual' | 'smart'
+  dateRange: [string, string] | null
+  cities: string[]
+  tags: string[]
+  identityIds: string[]
+}
+
+function emptyForm(): AlbumFormState {
+  return { name: '', description: '', album_type: 'manual', dateRange: null, cities: [], tags: [], identityIds: [] }
+}
+
+const albumForm = ref<AlbumFormState>(emptyForm())
+
+// 智能相册人物选项
+const identityOptions = ref<FaceCluster[]>([])
+async function fetchIdentityOptions() {
+  if (identityOptions.value.length > 0) return
+  try {
+    const res = await faceApi.listIdentities()
+    identityOptions.value = res.data
+  } catch {
+    // handled by interceptor
+  }
+}
 
 function openCreateDialog() {
   editingAlbum.value = null
-  albumForm.value = { name: '', description: '' }
+  albumForm.value = emptyForm()
   formDialogVisible.value = true
+  fetchIdentityOptions()
 }
 
 function openEditDialog(album: Album) {
   editingAlbum.value = album
   albumForm.value = {
+    ...emptyForm(),
     name: album.name,
     description: album.description || '',
   }
   formDialogVisible.value = true
 }
 
+/** 根据表单组装智能相册条件 JSON */
+function buildConditions(): Record<string, unknown> {
+  const c: Record<string, unknown> = {}
+  const f = albumForm.value
+  if (f.dateRange && f.dateRange.length === 2) {
+    c.date_from = f.dateRange[0]
+    c.date_to = f.dateRange[1]
+  }
+  if (f.cities.length) c.cities = f.cities
+  if (f.tags.length) c.tags = f.tags
+  if (f.identityIds.length) c.identity_ids = f.identityIds
+  return c
+}
+
 async function handleSubmitForm() {
   if (!albumForm.value.name.trim()) {
     ElMessage.warning('请输入相册名称')
+    return
+  }
+  const isSmart = !editingAlbum.value && albumForm.value.album_type === 'smart'
+  if (isSmart && Object.keys(buildConditions()).length === 0) {
+    ElMessage.warning('智能相册至少需要设置一项条件')
     return
   }
   formLoading.value = true
@@ -331,6 +445,14 @@ async function handleSubmitForm() {
         description: albumForm.value.description || undefined,
       })
       ElMessage.success('相册更新成功')
+    } else if (isSmart) {
+      await albumApi.create({
+        name: albumForm.value.name,
+        description: albumForm.value.description || undefined,
+        album_type: 'smart',
+        conditions: buildConditions(),
+      })
+      ElMessage.success('智能相册创建成功')
     } else {
       await albumApi.create({
         name: albumForm.value.name,

@@ -5,17 +5,35 @@ import { photoApi } from '@/api/photo'
 import { clearPhotosCache } from '@/api/search'
 import type { PhotoItem, PhotoDetail } from '@/types/photo'
 
+// 与设置页偏好保持一致的 localStorage key
+const PREF_KEY = 'settings.preferences'
+
 export const usePhotoStore = defineStore('photo', () => {
   const photos = ref<PhotoItem[]>([])
   const total = ref(0)
   const loading = ref(false)
   const currentPage = ref(1)
-  const pageSize = ref(20)
+  const pageSize = ref(40)
+  const order = ref<'asc' | 'desc'>('desc')
+
+  /** 从设置页偏好（localStorage）同步每页数量与排序方向 */
+  function loadPrefs() {
+    try {
+      const raw = localStorage.getItem(PREF_KEY)
+      if (!raw) return
+      const saved = JSON.parse(raw)
+      if (saved.pageSize) pageSize.value = saved.pageSize
+      if (saved.sortOrder === 'asc' || saved.sortOrder === 'desc') order.value = saved.sortOrder
+    } catch {
+      // ignore
+    }
+  }
 
   async function fetchPhotos(page = 1) {
+    loadPrefs()
     loading.value = true
     try {
-      const res = await photoApi.list({ page, page_size: pageSize.value, sort_by: 'photo_time' })
+      const res = await photoApi.list({ page, page_size: pageSize.value, sort_by: 'photo_time', order: order.value })
       photos.value = res.data.items
       total.value = res.data.total
       currentPage.value = page

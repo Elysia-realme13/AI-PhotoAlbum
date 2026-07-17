@@ -295,10 +295,10 @@ def get_unnamed_candidates(
 _SEASON_MONTHS = {"春": (3, 5), "夏": (6, 8), "秋": (9, 11), "冬": (12, 2)}
 _RELATIVE_YEARS = {"去年": (-1, 0), "前年": (-2, 0), "今年": (0, 0), "上一年": (-1, 0), "前一年": (-1, 0)}
 _RELATIVE_MONTHS = {"上个月": (0, -1), "这个月": (0, 0), "本月": (0, 0)}
-_RE_N_YEARS_AGO = _re.compile(r"(\d{1,2})\s*年前")
-_RE_YEAR = _re.compile(r"(\d{4})\s*年")
-_RE_MONTH = _re.compile(r"(\d{1,2})\s*月")
-_RE_SEASON = _re.compile(r"(春|夏|秋|冬)(?:天|季)?")
+_RE_N_YEARS_AGO = re.compile(r"(\d{1,2})\s*年前")
+_RE_YEAR = re.compile(r"(\d{4})\s*年")
+_RE_MONTH = re.compile(r"(\d{1,2})\s*月")
+_RE_SEASON = re.compile(r"(春|夏|秋|冬)(?:天|季)?")
 
 # Location suffixes for recognizing place names
 _LOCATION_SUFFIXES = {
@@ -449,10 +449,10 @@ def filter_photos_by_location(db, owner_id, keywords):
 _SEASON_MONTHS = {"春": (3, 5), "夏": (6, 8), "秋": (9, 11), "冬": (12, 2)}
 _RELATIVE_YEARS = {"去年": (-1, 0), "前年": (-2, 0), "今年": (0, 0)}
 _RELATIVE_MONTHS = {"上个月": (0, -1), "这个月": (0, 0), "本月": (0, 0)}
-_RE_N_YEARS_AGO = _re.compile(r"(\d{1,2}|[一二三四五六七八九十]{1,2})\s*年前")
-_RE_YEAR = _re.compile(r"(\d{4})\s*年")
-_RE_MONTH = _re.compile(r"(\d{1,2})\s*月")
-_RE_SEASON = _re.compile(r"(春|夏|秋|冬)(?:天|季)?")
+_RE_N_YEARS_AGO = re.compile(r"(\d{1,2}|[一二三四五六七八九十]{1,2})\s*年前")
+_RE_YEAR = re.compile(r"(\d{4})\s*年")
+_RE_MONTH = re.compile(r"(\d{1,2})\s*月")
+_RE_SEASON = re.compile(r"(春|夏|秋|冬)(?:天|季)?")
 _CN_DIGITS = {"一": 1, "二": 2, "三": 3, "四": 4, "五": 5, "六": 6, "七": 7, "八": 8, "九": 9, "十": 10}
 
 

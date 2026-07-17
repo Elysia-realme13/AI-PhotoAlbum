@@ -349,7 +349,7 @@ async function savePassword() {
     await authApi.changePassword({
       old_password: pwdForm.old_password,
       new_password: pwdForm.new_password,
-    })
+    }, { silent: true })
     ElMessage.success('密码已修改')
     pwdFormRef.value.resetFields()
   } catch {

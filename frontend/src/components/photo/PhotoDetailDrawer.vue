@@ -60,10 +60,13 @@
         </el-descriptions-item>
       </el-descriptions>
 
-      <!-- 添加到相册 -->
-      <div class="mt-4">
+      <!-- 操作区 -->
+      <div class="mt-4 flex flex-wrap gap-2">
         <el-button type="primary" plain size="small" @click="openAddToAlbumDialog">
           添加到相册
+        </el-button>
+        <el-button type="warning" plain size="small" @click="openReanalyzeDialog">
+          重新分析
         </el-button>
       </div>
     </div>
@@ -102,6 +105,31 @@
         </div>
       </div>
     </el-dialog>
+
+    <!-- 重新分析对话框 -->
+    <el-dialog v-model="reanalyzeVisible" title="重新分析" width="380px" append-to-body>
+      <p class="text-xs text-gray-400 mb-3">选择需要重新执行的 AI 分析任务：</p>
+      <el-checkbox-group v-model="reanalyzeTasks" class="flex flex-col gap-1">
+        <el-checkbox
+          v-for="opt in REANALYZE_TASK_OPTIONS"
+          :key="opt.value"
+          :value="opt.value"
+          :label="opt.label"
+        />
+      </el-checkbox-group>
+      <template #footer>
+        <el-button size="small" @click="reanalyzeVisible = false">取消</el-button>
+        <el-button
+          type="primary"
+          size="small"
+          :loading="reanalyzeSubmitting"
+          :disabled="reanalyzeTasks.length === 0"
+          @click="handleReanalyze"
+        >
+          提交
+        </el-button>
+      </template>
+    </el-dialog>
   </el-drawer>
 </template>
 
@@ -111,6 +139,7 @@ import { ElMessage } from 'element-plus'
 import { Check } from '@element-plus/icons-vue'
 import { photoApi } from '@/api/photo'
 import { albumApi } from '@/api/album'
+import { REANALYZE_TASK_OPTIONS } from '@/types/task'
 import type { PhotoDetail } from '@/types/photo'
 import type { Album } from '@/types/album'
 
@@ -160,6 +189,34 @@ async function handleAddToAlbum(album: Album) {
     ElMessage.success(`已添加到「${album.name}」`)
   } catch {
     // handled by interceptor
+  }
+}
+
+// ── 重新分析 ─────────
+const reanalyzeVisible = ref(false)
+const reanalyzeSubmitting = ref(false)
+const reanalyzeTasks = ref<string[]>([
+  'image_description',
+  'image_embedding',
+  'quality_assessment',
+])
+
+function openReanalyzeDialog() {
+  reanalyzeTasks.value = ['image_description', 'image_embedding', 'quality_assessment']
+  reanalyzeVisible.value = true
+}
+
+async function handleReanalyze() {
+  if (!detail.value || reanalyzeTasks.value.length === 0) return
+  reanalyzeSubmitting.value = true
+  try {
+    const res = await photoApi.reanalyze(detail.value.id, reanalyzeTasks.value)
+    reanalyzeVisible.value = false
+    ElMessage.success(`已创建 ${res.data.tasks.length} 个分析任务，可在任务中心查看进度`)
+  } catch {
+    // handled by interceptor
+  } finally {
+    reanalyzeSubmitting.value = false
   }
 }
 

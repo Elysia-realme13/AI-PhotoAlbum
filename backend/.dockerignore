@@ -9,36 +9,37 @@ __pycache__/
 dist/
 build/
 
-# ??????? docker-compose volume ???????????
+# 运行时数据（由 docker-compose volume 挂载）
 data/
 uploads/
 thumbnails/
 logs/
 models/
 training/
-
 runs/
 
+# 测试
 tests/
 
-# ????
+# 版本控制
 .git/
 .gitignore
 
-# ????
+# 环境配置
 .env
 .env.*
 .env.example
 
-# IDE
+# 开发工具
 .idea/
 .vscode/
 *.swp
 *.swo
 *~
 
-# ??
+# 操作系统
 .DS_Store
 Thumbs.db
 
+# 文档
 **/*.md

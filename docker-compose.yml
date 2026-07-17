@@ -67,7 +67,6 @@ services:
     volumes:
       - ./backend/app:/app/app
       - ./backend/main.py:/app/main.py
-      - ./backend/yolo11n.pt:/app/yolo11n.pt
       - ./data:/app/data
       - ./data/logs:/app/logs
     depends_on:

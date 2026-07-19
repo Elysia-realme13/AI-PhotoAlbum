@@ -88,7 +88,7 @@ class _MetricCallback(TrainingCallback):
                 task.current_epoch = epoch
                 task.updated_at = datetime.now()
 
-                best = metrics.get("metrics/mAP50", metrics.get("val/mAP50", None))
+                best = metrics.get("metrics/mAP50", metrics.get("metrics/mAP50(B)", metrics.get("val/mAP50", None)))
                 if best is not None and (task.best_metric is None or best > task.best_metric):
                     task.best_metric = round(float(best), 6)
 
@@ -105,7 +105,7 @@ class _MetricCallback(TrainingCallback):
         try:
             task = db.query(TrainingTask).filter(TrainingTask.id == uuid.UUID(task_id)).first()
             if task:
-                best = metrics.get("metrics/mAP50", metrics.get("val/mAP50", None))
+                best = metrics.get("metrics/mAP50", metrics.get("metrics/mAP50(B)", metrics.get("val/mAP50", None)))
                 if best is not None and (task.best_metric is None or best > task.best_metric):
                     task.best_metric = round(float(best), 6)
                 task.updated_at = datetime.now()
@@ -622,11 +622,15 @@ def get_task_metrics(task_id: str, db: Session) -> List[Dict[str, Any]]:
                .order_by(TrainingMetric.epoch).all())
     if metrics:
         for m in metrics:
+            metrics_populated = dict(m.metrics or {})
+            for k in list(metrics_populated.keys()):
+                if k.endswith('(B)'):
+                    metrics_populated[k.replace('(B)', '').strip()] = metrics_populated[k]
             result.append({
                 "id": str(m.id),
                 "task_id": str(m.task_id),
                 "epoch": m.epoch,
-                "metrics": m.metrics,
+                "metrics": metrics_populated,
                 "created_at": m.created_at.isoformat() if m.created_at else None,
             })
         return result
@@ -668,6 +672,9 @@ def get_task_metrics(task_id: str, db: Session) -> List[Dict[str, Any]]:
                                 metrics_dict[k] = float(v)
                             except (ValueError, TypeError):
                                 pass
+                        for k in list(metrics_dict.keys()):
+                            if k.endswith('(B)'):
+                                metrics_dict[k.replace('(B)', '').strip()] = metrics_dict[k]
                         result.append({
                             "id": None,
                             "task_id": task_id,
@@ -759,10 +766,10 @@ def get_models(db: Session) -> List[Dict[str, Any]]:
                        .order_by(TrainingMetric.epoch.desc()).first())
         if last_metric:
             m = last_metric.metrics or {}
-            mAP50 = m.get("metrics/mAP50", m.get("val/mAP50", None))
-            mAP50_95 = m.get("metrics/mAP50-95", m.get("val/mAP50-95", None))
-            recall = m.get("metrics/recall", m.get("val/recall", None))
-            precision = m.get("metrics/precision", m.get("val/precision", None))
+            mAP50 = m.get("metrics/mAP50", m.get("metrics/mAP50(B)", m.get("val/mAP50", None)))
+            mAP50_95 = m.get("metrics/mAP50-95", m.get("metrics/mAP50-95(B)", m.get("val/mAP50-95", None)))
+            recall = m.get("metrics/recall", m.get("metrics/recall(B)", m.get("val/recall", None)))
+            precision = m.get("metrics/precision", m.get("metrics/precision(B)", m.get("val/precision", None)))
         dataset_name = None
         class_count = None
         if task.dataset_id:
@@ -816,6 +823,12 @@ def get_model_detail(model_name: str, db: Session) -> Dict[str, Any]:
     duration = None
     if task.started_at and task.completed_at:
         duration = (task.completed_at - task.started_at).total_seconds()
+    best_metric = task.best_metric
+    if best_metric is None:
+        last_metric = db.query(TrainingMetric).filter(TrainingMetric.task_id == task.id).order_by(TrainingMetric.epoch.desc()).first()
+        if last_metric:
+            m = last_metric.metrics or {}
+            best_metric = m.get("metrics/mAP50", m.get("metrics/mAP50(B)", m.get("val/mAP50", None)))
     return {
         "model": {
             "id": str(task.id),
@@ -824,7 +837,7 @@ def get_model_detail(model_name: str, db: Session) -> Dict[str, Any]:
             "status": task.status,
             "file_size": file_size,
             "file_path": task.model_path,
-            "best_metric": task.best_metric,
+            "best_metric": best_metric,
             "config": task.config,
             "created_at": task.created_at.isoformat() if task.created_at else None,
             "started_at": task.started_at.isoformat() if task.started_at else None,

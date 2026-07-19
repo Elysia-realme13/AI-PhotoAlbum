@@ -232,6 +232,9 @@ def run_training(
             except Exception:
                 pass
 
+            # 正常化 YOLO 指标键名（去掉 (B) 等后缀）
+            metrics = {k.replace('(B)', '').strip(): v for k, v in metrics.items()}
+
             # 更新数据库中的 current_epoch
             try:
                 callback.on_epoch_end(task_id, epoch, metrics)
@@ -287,6 +290,9 @@ def run_training(
             except Exception:
                 pass
 
+            # 正常化 YOLO 指标键名
+            final_metrics = {k.replace('(B)', '').strip(): v for k, v in final_metrics.items()}
+
             save_dir = getattr(trainer, "save_dir", output_path)
             best_path = str(save_dir / "weights" / "best.pt")
             if not Path(best_path).exists():
@@ -312,6 +318,9 @@ def run_training(
                             pass
             except Exception:
                 pass
+
+            # 正常化 YOLO 指标键名
+            metrics = {k.replace('(B)', '').strip(): v for k, v in metrics.items()}
             logger.info(f"[训练器] 验证结束回调: epoch={epoch}, task_id={task_id}, metrics_keys={list(metrics.keys())}")
             try:
                 callback.on_val_end(task_id, epoch, metrics)

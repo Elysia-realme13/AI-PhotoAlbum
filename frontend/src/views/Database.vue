@@ -165,8 +165,8 @@ async function loadTaskList() {
   finally { loading.tasks = false }
 }
 async function loadStorageInfo() {
-  try { const r = await trainingApi.getStorageInfo(); storageInfo.value = r.data }
   loading.storage = true
+  try { const r = await trainingApi.getStorageInfo(); storageInfo.value = r.data }
   catch { /* ignore */ }
   finally { loading.storage = false }
 }

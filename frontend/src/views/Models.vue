@@ -93,16 +93,16 @@
       <el-divider class="my-2" />
       <div class="grid grid-cols-2 gap-4 text-sm">
         <div class="space-y-2">
-         <div><span class="text-gray-500">任务名称: </span>{{ detailData.model?.task_name }}</div>
-         <div v-if="!detailData.model?.config?.imported"><span class="text-gray-500">数据集: </span>{{ detailData.model?.dataset_name || '-' }}</div>
-         <div v-if="!detailData.model?.config?.imported"><span class="text-gray-500">状态: </span><el-tag :type="detailData.model?.config?.imported ? 'info' : statusTagType(detailData.model?.status)" size="small">{{ detailData.model?.config?.imported ? '-' : statusTagLabel(detailData.model?.status) }}</el-tag></div>
-         <div v-if="!detailData.model?.config?.imported"><span class="text-gray-500">Epochs: </span>{{ epochDisplay(detailData.task_detail?.current_epoch, detailData.task_detail?.total_epochs, detailData.task_detail?.status) }}</div>
-          <div v-if="detailData.task_detail?.description"><span class="text-gray-500">描述: </span>{{ detailData.task_detail?.description }}</div>
+        <div><span class="text-gray-500 dark:text-dark-text-secondary">任务名称: </span>{{ detailData.model?.task_name }}</div>
+         <div v-if="!detailData.model?.config?.imported"><span class="text-gray-500 dark:text-dark-text-secondary">数据集: </span>{{ detailData.model?.dataset_name || '-' }}</div>
+         <div v-if="!detailData.model?.config?.imported"><span class="text-gray-500 dark:text-dark-text-secondary">状态: </span><el-tag :type="detailData.model?.config?.imported ? 'info' : statusTagType(detailData.model?.status)" size="small">{{ detailData.model?.config?.imported ? '-' : statusTagLabel(detailData.model?.status) }}</el-tag></div>
+         <div v-if="!detailData.model?.config?.imported"><span class="text-gray-500 dark:text-dark-text-secondary">Epochs: </span>{{ epochDisplay(detailData.task_detail?.current_epoch, detailData.task_detail?.total_epochs, detailData.task_detail?.status) }}</div>
+          <div v-if="detailData.task_detail?.description"><span class="text-gray-500 dark:text-dark-text-secondary">描述: </span>{{ detailData.task_detail?.description }}</div>
         </div>
         <div class="space-y-2">
-          <div v-if="!detailData.model?.config?.imported"><span class="text-gray-500">最佳 mAP50: </span><strong>{{ detailData.model?.best_metric?.toFixed(4) || "-" }}</strong></div>
-          <div><span class="text-gray-500">文件大小: </span>{{ formatSize(detailData.model?.file_size) }}</div>
-          <div v-if="!detailData.model?.config?.imported"><span class="text-gray-500">训练耗时: </span>{{ formatDuration(detailData.model?.duration_seconds) }}</div>
+          <div v-if="!detailData.model?.config?.imported"><span class="text-gray-500 dark:text-dark-text-secondary">最佳 mAP50: </span><strong>{{ detailData.model?.best_metric?.toFixed(4) || "-" }}</strong></div>
+          <div><span class="text-gray-500 dark:text-dark-text-secondary">文件大小: </span>{{ formatSize(detailData.model?.file_size) }}</div>
+          <div v-if="!detailData.model?.config?.imported"><span class="text-gray-500 dark:text-dark-text-secondary">训练耗时: </span>{{ formatDuration(detailData.model?.duration_seconds) }}</div>
         </div>
       </div>
 
@@ -112,7 +112,7 @@
         <h4 class="text-sm font-semibold text-gray-700 mb-2">训练指标</h4>
         <v-chart :option="detailChartOption" autoresize class="w-full" style="height: 280px" />
       </div>
-      <div v-else class="border-t pt-4 text-center text-gray-400">
+      <div v-else class="border-t pt-4 text-center text-gray-400 dark:text-dark-text-secondary">
         <p>暂无指标数据</p>
       </div>
       </div>
@@ -131,7 +131,7 @@
             <el-icon><Upload /></el-icon> 选择文件
           </el-button>
         </el-upload>
-        <span v-if="importFile" class="ml-2 text-sm text-gray-500">{{ importFile.name }}</span>
+        <span v-if="importFile" class="ml-2 text-sm text-gray-500 dark:text-dark-text-secondary">{{ importFile.name }}</span>
       </el-form-item>
     </el-form>
     <template #footer>

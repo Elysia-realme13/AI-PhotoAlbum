@@ -84,7 +84,7 @@
           </div>
           <div class="bg-white rounded-lg border p-4">
             <h4 class="text-sm font-semibold text-gray-700 mb-3">空间清理</h4>
-            <p class="text-sm text-gray-500 mb-4">清理失败训练任务产生的临时文件，释放磁盘空间。</p>
+            <p class="text-sm text-gray-500 mb-4 dark:text-dark-text-secondary">清理失败训练任务产生的临时文件，释放磁盘空间。</p>
             <el-button type="warning" @click="handleCleanStorage" :loading="cleaning">
               <el-icon><Delete /></el-icon> 清理临时文件
             </el-button>
@@ -104,7 +104,7 @@
         <span>类别: {{ previewDialog.data.class_names?.join(', ') || '-' }}</span>
       </div>
       <div v-if="previewDialog.data.sample_image_urls?.length" class="grid grid-cols-2 sm:grid-cols-3 gap-3">
-        <div v-for="(url, idx) in previewDialog.data.sample_image_urls" :key="idx" class="rounded-lg overflow-hidden border bg-gray-50">
+        <div v-for="(url, idx) in previewDialog.data.sample_image_urls" :key="idx" class="rounded-lg overflow-hidden border bg-gray-50 dark:bg-gray-800">
           <img :src="url" class="w-full h-36 object-cover" :alt="'样本图片 ' + (idx + 1)" loading="lazy" @error="(e: any) => e.target.style.display = 'none'" />
         </div>
       </div>

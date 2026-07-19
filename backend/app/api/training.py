@@ -170,6 +170,7 @@ def get_training_task(
     return TrainingTaskDetailResponse(
         task=task_resp,
         metrics=[TrainingMetricResponse.model_validate(m) for m in metrics],
+        logs=training_service.get_task_logs(task_id, db).get("lines", []),
     )
 
 
@@ -280,3 +281,14 @@ def get_task_metrics(
     """获取任务所有指标数据"""
     metrics = training_service.get_task_metrics(task_id, db)
     return {"metrics": metrics}
+
+
+@router.get("/tasks/{task_id}/logs")
+def get_task_logs(
+    task_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_required_user),
+):
+    """获取训练日志"""
+    logs = training_service.get_task_logs(task_id, db)
+    return logs

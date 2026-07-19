@@ -73,12 +73,23 @@
           </div>
         </div>
 
+        <!-- 可拖动的分隔线 -->
+        <div
+          class="h-1.5 bg-gray-200 dark:bg-dark-border rounded cursor-row-resize hover:bg-blue-300 active:bg-blue-400 flex-shrink-0"
+          @mousedown.prevent="startLogDrag"
+        />
+
         <!-- 日志输出 -->
-        <div class="bg-gray-900 rounded-lg p-3 h-32 overflow-y-auto font-mono text-xs text-green-400">
-          <div v-if="logLines.length === 0" class="text-gray-500 dark:text-gray-400">等待训练日志输出...</div>
+        <div
+          ref="logContainer"
+          class="bg-white dark:bg-gray-800 rounded-lg p-3 overflow-y-auto font-mono text-xs text-gray-700 dark:text-gray-200 flex-shrink-0"
+          :style="{ height: logHeight + 'px' }"
+          @mousedown="(e: MouseEvent) => e.stopPropagation()"
+        >
+          <div v-if="logLines.length === 0" class="text-gray-500 dark:text-dark-text-secondary">等待训练日志输出...</div>
           <div v-for="(line, i) in logLines" :key="i" class="leading-5">{{ line }}</div>
         </div>
-      </div>
+ </div>
 
       <!-- 未选择任务时的引导 -->
       <div v-else class="flex-1 flex flex-col gap-4 overflow-y-auto p-2">
@@ -172,7 +183,7 @@
               </el-button>
             </el-upload>
             <span v-if="datasetFile" class="text-sm text-gray-600">{{ datasetFile.name }}</span>
-            <span v-else class="text-sm text-gray-400">支持 .zip / .tar / .tar.gz / .7z / .rar</span>
+            <span v-else class="text-sm text-gray-400 dark:text-dark-text-secondary">支持 .zip / .tar / .tar.gz / .7z / .rar</span>
           </div>
         </el-form-item>
         <el-form-item label="验证集比例">
@@ -180,7 +191,7 @@
         </el-form-item>
         <el-form-item label="使用默认划分">
           <el-switch v-model="form.config.use_dataset_split" />
-          <span class="text-gray-400 text-xs ml-2">使用原数据集默认的 train/val 划分</span>
+          <span class="text-gray-400 text-xs ml-2 dark:text-dark-text-secondary">使用原数据集默认的 train/val 划分</span>
         </el-form-item>
 
         <!-- 模型参数 -->
@@ -261,13 +272,13 @@
               <el-col :span="12">
                 <el-form-item label="保存间隔" label-width="70px">
                   <el-input-number v-model="form.config.save_period" :min="-1" :max="100" controls-position="right" />
-                  <span class="text-gray-400 text-xs ml-1">(-1 仅保存最后)</span>
+                  <span class="text-gray-400 text-xs ml-1 dark:text-dark-text-secondary">(-1 仅保存最后)</span>
                 </el-form-item>
               </el-col>
             </el-row>
             <el-form-item label="早停耐心">
               <el-input-number v-model="form.config.patience" :min="0" :max="500" controls-position="right" />
-              <span class="text-gray-400 text-xs ml-2">验证集 loss 连续 N 轮不下降则停止</span>
+              <span class="text-gray-400 text-xs ml-2 dark:text-dark-text-secondary">验证集 loss 连续 N 轮不下降则停止</span>
             </el-form-item>
             <el-divider content-position="left">数据增强</el-divider>
             <el-form-item label="多尺度训练">
@@ -353,6 +364,12 @@ const taskList = ref<TrainingTask[]>([])
 const datasetList = ref<DatasetItem[]>([])
 const metricsData = ref<MetricItem[]>([])
 const logLines = ref<string[]>([])
+const logHeight = ref(160)
+const logDragging = ref(false)
+let logDragStartY = 0
+let logDragStartHeight = 160
+const logContainer = ref<HTMLElement | null>(null)
+const isDark = ref(document.documentElement.classList.contains('dark'))
 const pollTimer = ref<number | null>(null)
 const datasetMode = ref<'select' | 'upload'>('select')
 const datasetFile = ref<File | null>(null)
@@ -475,13 +492,13 @@ const chartOption = computed(() => {
       top: 0,
       textStyle: { fontSize: 11 },
     },
-    grid: { left: 50, right: 20, top: 40, bottom: 30 },
+    grid: { left: 50, right: 20, top: 40, bottom: 45 },
     xAxis: {
       type: 'category',
       data: epochs,
       name: 'Epoch',
-      nameLocation: 'center',
-      nameGap: 25,
+      nameLocation: 'end',
+      nameGap: 5,
     },
     yAxis: {
       type: 'value',
@@ -489,7 +506,7 @@ const chartOption = computed(() => {
     },
     dataZoom: [
       { type: 'inside', start: 0, end: 100 },
-      { type: 'slider', start: 0, end: 100, height: 20, bottom: 0 },
+      { type: 'slider', start: 0, end: 100, height: 18, bottom: 2 },
     ],
     series,
   }
@@ -544,6 +561,7 @@ async function loadMetrics(taskId: string) {
     const res = await trainingApi.getTaskDetail(taskId)
     if (selectedTaskId.value !== taskId) return
     metricsData.value = res.data.metrics || []
+    logLines.value = res.data.logs || []
 
     // 更新 taskList 中的状态
     const idx = taskList.value.findIndex(t => t.id === taskId)
@@ -778,6 +796,37 @@ onMounted(async () => {
 onUnmounted(() => {
   stopPolling()
 })
+
+function startLogDrag(e: MouseEvent) {
+  logDragging.value = true
+  document.body.style.cursor = 'row-resize'
+  logDragStartY = e.clientY
+  logDragStartHeight = logHeight.value
+  document.addEventListener('mousemove', onLogDrag)
+  document.addEventListener('mouseup', stopLogDrag)
+}
+
+function onLogDrag(e: MouseEvent) {
+  if (!logDragging.value) return
+  const delta = logDragStartY - e.clientY
+  logHeight.value = Math.max(60, Math.min(500, logDragStartHeight + delta))
+}
+
+function stopLogDrag() {
+  logDragging.value = false
+  document.body.style.cursor = ''
+  logDragStartHeight = logHeight.value
+  document.removeEventListener('mousemove', onLogDrag)
+  document.removeEventListener('mouseup', stopLogDrag)
+}
+
+watch(logLines, () => {
+  nextTick(() => {
+    if (logContainer.value) {
+      logContainer.value.scrollTop = logContainer.value.scrollHeight
+    }
+  })
+}, { flush: 'post' })
 </script>
 
 <style scoped>

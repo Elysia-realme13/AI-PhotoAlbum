@@ -16,6 +16,7 @@ import threading
 from pathlib import Path
 from typing import Optional, Callable, Dict, Any
 from datetime import datetime
+import contextlib
 
 logger = logging.getLogger(__name__)
 
@@ -325,7 +326,9 @@ def run_training(
         logger.info(f"[训练器] 开始训练 task={task_id}, 设备={device}")
 
         try:
-            results = model.train(**train_kwargs)
+            log_collector = LogCollector(task_id, callback=callback.on_log_line)
+            with contextlib.redirect_stdout(log_collector), contextlib.redirect_stderr(log_collector):
+                results = model.train(**train_kwargs)
 
             # 由于 on_train_end 已在回调中处理，这里不做重复处理
             logger.info(f"[训练器] 训练正常完成 task={task_id}")

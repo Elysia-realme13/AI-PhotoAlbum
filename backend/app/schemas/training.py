@@ -143,6 +143,7 @@ class TrainingTaskDetailResponse(BaseModel):
     """训练任务详情（含指标数据）"""
     task: TrainingTaskResponse
     metrics: List[TrainingMetricResponse] = []
+    logs: List[str] = []
 
 
 # ── 模型管理 Schema ──────────────────────────────────────────────

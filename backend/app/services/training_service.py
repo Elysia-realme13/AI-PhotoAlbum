@@ -46,6 +46,8 @@ MODELS_DIR.mkdir(parents=True, exist_ok=True)
 
 
 # ── 全局线程追踪 ────────────────────────────────────────────────
+_task_log_lines: Dict[str, List[str]] = {}
+
 _training_threads: Dict[str, threading.Thread] = {}
 _threads_lock = threading.Lock()
 
@@ -73,6 +75,12 @@ class _MetricCallback(TrainingCallback):
                 metrics=metrics,
             )
             db.add(metric_record)
+            # 删除该 epoch 已有的旧记录（防止重复）
+            db.query(TrainingMetric).filter(
+                TrainingMetric.task_id == uuid.UUID(task_id),
+                TrainingMetric.epoch == epoch,
+                TrainingMetric.id != metric_record.id
+            ).delete(synchronize_session=False)
 
             task = db.query(TrainingTask).filter(TrainingTask.id == uuid.UUID(task_id)).first()
             if task:
@@ -121,6 +129,8 @@ class _MetricCallback(TrainingCallback):
                 target_path = MODELS_DIR / f"{task.model_name}.pt"
                 shutil.copy2(model_path, str(target_path))
                 task.model_path = str(target_path)
+                task.status = "completed"
+                task.completed_at = datetime.now()
 
                 # 导出 ONNX
                 try:
@@ -132,9 +142,10 @@ class _MetricCallback(TrainingCallback):
                 except Exception as e:
                     logger.warning(f"ONNX 导出失败: {e}")
 
-            # 更新最终状态
-            task.status = "completed"
-            task.completed_at = datetime.now()
+            else:
+                task.status = "failed"
+                logger.warning(f"训练未产生模型文件: {model_path}")
+
             task.updated_at = datetime.now()
 
             best = final_metrics.get("metrics/mAP50", final_metrics.get("val/mAP50", None))
@@ -150,8 +161,22 @@ class _MetricCallback(TrainingCallback):
             db.close()
 
     def on_log_line(self, task_id: str, line: str):
-        """收集日志行"""
-        pass
+        """写入训练日志到文件"""
+        try:
+            import re
+            line = re.sub('\x1b\[[0-9;]*[a-zA-Z]', '', line)
+            _task_log_lines.setdefault(task_id, []).append(line)
+            from app.database.session import SessionLocal
+            db = SessionLocal()
+            task = db.query(TrainingTask).filter(TrainingTask.id == uuid.UUID(task_id)).first()
+            if task and task.log_path:
+                log_file = Path(task.log_path)
+                log_file.parent.mkdir(parents=True, exist_ok=True)
+                with open(str(log_file), "a", encoding="utf-8") as f:
+                    f.write(line + "\n")
+            db.close()
+        except Exception as e:
+            logger.warning(f"写入训练日志失败: {e}")
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -589,19 +614,95 @@ def get_task_status(task_id: str, db: Session) -> Dict[str, Any]:
 
 def get_task_metrics(task_id: str, db: Session) -> List[Dict[str, Any]]:
     """获取任务的所有指标数据"""
+    import csv
+    result = []
     metrics = (db.query(TrainingMetric)
                .filter(TrainingMetric.task_id == uuid.UUID(task_id))
                .order_by(TrainingMetric.epoch).all())
-    result = []
-    for m in metrics:
-        result.append({
-            "id": str(m.id),
-            "task_id": str(m.task_id),
-            "epoch": m.epoch,
-            "metrics": m.metrics,
-            "created_at": m.created_at.isoformat() if m.created_at else None,
-        })
+    if metrics:
+        for m in metrics:
+            result.append({
+                "id": str(m.id),
+                "task_id": str(m.task_id),
+                "epoch": m.epoch,
+                "metrics": m.metrics,
+                "created_at": m.created_at.isoformat() if m.created_at else None,
+            })
+        return result
+
+    # 回退：从 YOLO 自动保存的 results.csv 读取
+    task = db.query(TrainingTask).filter(TrainingTask.id == uuid.UUID(task_id)).first()
+    if task and task.log_path:
+        candidates = [Path(task.log_path).parent / "results.csv"]
+        if TRAINING_DIR.exists():
+            for sub in TRAINING_DIR.iterdir():
+                if sub.is_dir():
+                    candidates.append(sub / "results.csv")
+        # 也检查 YOLO 默认的 runs/train/ 目录
+        runs_dir = Path("./runs/train")
+        if runs_dir.exists():
+            for sub in runs_dir.iterdir():
+                if sub.is_dir():
+                    candidates.append(sub / "results.csv")
+        results_path = None
+        for c in candidates:
+            if c.exists():
+                results_path = c
+                break
+        if results_path and results_path.exists():
+            try:
+                with open(str(results_path), "r", encoding="utf-8") as f:
+                    reader = csv.DictReader(f)
+                    for row in reader:
+                        epoch_str = row.get("epoch", "")
+                        try:
+                            epoch_int = int(float(epoch_str))
+                        except (ValueError, TypeError):
+                            continue
+                        metrics_dict = {}
+                        for k, v in row.items():
+                            if k == "epoch":
+                                continue
+                            try:
+                                metrics_dict[k] = float(v)
+                            except (ValueError, TypeError):
+                                pass
+                        result.append({
+                            "id": None,
+                            "task_id": task_id,
+                            "epoch": epoch_int,
+                            "metrics": metrics_dict,
+                            "created_at": None,
+                        })
+                if result:
+                    return result
+            except Exception as e:
+                logger.warning(f"读取 results.csv 失败: {e}")
+
     return result
+
+
+def get_task_logs(task_id: str, db: Session) -> Dict[str, Any]:
+    """获取训练日志内容"""
+    # 优先从内存缓存读取
+    if task_id in _task_log_lines:
+        lines = _task_log_lines[task_id]
+        return {"lines": lines, "total": len(lines)}
+    # 再从文件读取
+    task = db.query(TrainingTask).filter(TrainingTask.id == uuid.UUID(task_id)).first()
+    if not task or not task.log_path:
+        return {"lines": [], "total": 0}
+    log_file = Path(task.log_path)
+    if not log_file.exists():
+        return {"lines": [], "total": 0}
+    try:
+        with open(str(log_file), "r", encoding="utf-8", errors="replace") as f:
+            lines = f.readlines()
+        stripped = [l.rstrip("\n\r") for l in lines]
+        return {"lines": stripped, "total": len(stripped)}
+    except Exception as e:
+        logger.warning(f"读取训练日志失败: {e}")
+        return {"lines": [], "total": 0}
 
 
 def delete_training_task(task_id: str, db: Session) -> bool:

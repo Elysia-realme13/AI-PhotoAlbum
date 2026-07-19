@@ -63,6 +63,11 @@
         </el-table>
       </el-tab-pane>
       <el-tab-pane label="磁盘空间" name="storage">
+      <div v-if="loading.storage" class="flex flex-col items-center justify-center py-16 text-gray-400">
+        <el-icon class="is-loading" :size="32"><Loading /></el-icon>
+        <p class="mt-3 text-sm">正在计算磁盘占用空间...</p>
+      </div>
+      <template v-else>
         <div class="max-w-2xl mx-auto pt-4 space-y-6">
           <div class="grid grid-cols-2 gap-4">
             <div class="bg-blue-50 rounded-lg p-4 border border-blue-200">
@@ -93,6 +98,7 @@
             </span>
           </div>
         </div>
+      </template>
       </el-tab-pane>
    </el-tabs>
   </div>
@@ -115,6 +121,7 @@
 <script setup lang="ts">
 import { ref, onMounted, reactive } from 'vue'
 import { ElMessage, ElLoading } from 'element-plus'
+import { Loading } from '@element-plus/icons-vue'
 import trainingApi, { type DatasetItem, type TrainingTask, type StorageInfo, type DatasetPreview } from '@/api/training'
 
 const activeTab = ref('datasets')
@@ -129,7 +136,7 @@ const storageInfo = ref<StorageInfo>({
 })
 const cleaning = ref(false)
 const cleanResult = ref<{cleaned_count: number; cleaned_size: number; cleaned_size_display: string} | null>(null)
-const loading = reactive({ datasets: false, tasks: false })
+const loading = reactive({ datasets: false, tasks: false, storage: false })
 
 function formatSize(bytes: number) {
   if (!bytes) return '0 B'
@@ -159,7 +166,9 @@ async function loadTaskList() {
 }
 async function loadStorageInfo() {
   try { const r = await trainingApi.getStorageInfo(); storageInfo.value = r.data }
+  loading.storage = true
   catch { /* ignore */ }
+  finally { loading.storage = false }
 }
 async function onDatasetUpload(f: any) {
   if (!f.raw) return

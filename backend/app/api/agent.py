@@ -9,7 +9,7 @@ import asyncio
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import List, Optional, Any
 from sqlalchemy.orm import Session
 from app.database.session import get_db
 from app.api.deps import get_required_user
@@ -42,7 +42,7 @@ class MessageItem(BaseModel):
     id: int
     role: str
     content: object
-    tool_calls: Optional[dict] = None
+    tool_calls: Optional[list] = None
     created_at: str
 
 
@@ -136,4 +136,4 @@ def delete_session(
     if str(sess.user_id) != str(current_user.id):
         raise HTTPException(403, "forbidden")
     _delete_session(db, session_id)
-    return {"message": "已删除"}
+    return {"message": "deleted"}

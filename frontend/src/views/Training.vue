@@ -423,13 +423,13 @@ const progressPercent = computed(() => {
   if (!selectedTask.value) return 0
   const t = selectedTask.value
   if (t.total_epochs === 0) return 0
-  const done = t.status === "pending" ? 0 : Math.min(t.current_epoch + 1, t.total_epochs)
+  const done = t.status === "pending" ? 0 : Math.min(t.current_epoch, t.total_epochs)
   return Math.round((done / t.total_epochs) * 100)
 })
 
 function epochDisplay(current: number, total: number, status: string): string {
-  if (status === "pending" && current === 0) return `0 / ${total}`
-  const done = Math.min(current + 1, total)
+  if (current < 0) return `0 / ${total}`
+  const done = Math.min(current, total)
   return `${done} / ${total}`
 }
 

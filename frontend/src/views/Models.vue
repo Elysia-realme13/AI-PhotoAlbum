@@ -232,8 +232,8 @@ const detailChartOption = computed(() => {
 
 function epochDisplay(current: number | undefined, total: number | undefined, status: string | undefined): string {
   if (current === undefined || total === undefined || total === 0) return '0 / 0'
-  if (status === "pending" && current === 0) return `0 / ${total}`
-  const done = Math.min(current + 1, total)
+  if (current! < 0) return `0 / ${total}`
+  const done = Math.min(current, total)
   return `${done} / ${total}`
 }
 

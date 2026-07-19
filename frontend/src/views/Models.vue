@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="h-full flex flex-col space-y-4">
     <div class="flex items-center justify-between">
       <div class="flex items-center space-x-3">
@@ -110,7 +110,7 @@
       <div v-if="!detailData.model?.config?.imported">
       <div v-if="detailMetrics.length > 0" class="border-t pt-4">
         <h4 class="text-sm font-semibold text-gray-700 dark:text-dark-text mb-2">训练指标</h4>
-        <v-chart :option="detailChartOption" autoresize class="w-full" style="height: 280px" />
+        <v-chart :key="detailData.model?.model_name" :option="detailChartOption" autoresize class="w-full" style="height: 280px" />
       </div>
       <div v-else class="border-t pt-4 text-center text-gray-400 dark:text-dark-text-secondary">
         <p>暂无指标数据</p>
@@ -142,6 +142,7 @@
 </template>
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
 import { ArrowDown } from '@element-plus/icons-vue'
 import VChart from 'vue-echarts'
@@ -210,7 +211,7 @@ const detailChartOption = computed(() => {
   return {
     tooltip: { trigger: 'axis' },
     legend: { type: 'scroll', textStyle: { fontSize: 11, color: isDark.value ? '#ffffff' : '#333' } },
-    grid: { left: 50, right: 20, top: 40, bottom: 30 },
+    grid: { left: 50, right: 20, top: 40, bottom: 65 },
     xAxis: {
       type: 'category',
       data: epochs,
@@ -330,6 +331,7 @@ async function showDetail(model: ModelInfo) {
     detailData.value = res.data
     detailMetrics.value = res.data.metrics || []
     detailVisible.value = true
+    await nextTick()
   } catch {
     ElMessage.error('加载模型详情失败')
   }

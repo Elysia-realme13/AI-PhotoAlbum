@@ -28,6 +28,33 @@
         <el-descriptions-item label="上传时间">{{ formatDateTime(detail.upload_time) }}</el-descriptions-item>
       </el-descriptions>
 
+      <!-- AI 描述 -->
+      <el-descriptions title="AI 描述" :column="1" border size="small" class="mt-4">
+        <template v-if="hasDescription">
+        <el-descriptions-item label="画面描述">
+          <p class="text-sm leading-relaxed text-gray-700 dark:text-dark-text">{{ detail.description.description }}</p>
+        </el-descriptions-item>
+        <el-descriptions-item v-if="hasNarrative" label="详细叙述">
+          <p class="text-sm leading-relaxed text-gray-700 dark:text-dark-text whitespace-pre-wrap">{{ detail.description.narrative }}</p>
+        </el-descriptions-item>
+        <el-descriptions-item v-if="detail.description?.quality_score != null" label="质量评分">
+          <span class="inline-flex items-center gap-1">
+            <span class="text-sm font-medium">{{ (detail.description.quality_score * 100).toFixed(0) }}</span>
+            <span class="text-xs text-gray-400">/ 100</span>
+          </span>
+        </el-descriptions-item>
+        <el-descriptions-item v-if="detail.description?.memory_score != null" label="记忆评分">
+          <span class="inline-flex items-center gap-1">
+            <span class="text-sm font-medium">{{ (detail.description.memory_score * 100).toFixed(0) }}</span>
+            <span class="text-xs text-gray-400">/ 100</span>
+          </span>
+        </el-descriptions-item>
+        </template>
+        <el-descriptions-item v-else label="AI 分析">
+          <span class="text-gray-400 text-sm">暂未分析（上传后系统会自动分析）</span>
+        </el-descriptions-item>
+      </el-descriptions>
+
       <!-- 相机信息 -->
       <el-descriptions
         v-if="hasCameraInfo"
@@ -281,6 +308,9 @@ const hasCameraInfo = computed(() => {
       m.iso
   )
 })
+
+const hasDescription = computed(() => !!detail.value?.description?.description)
+const hasNarrative = computed(() => !!detail.value?.description?.narrative)
 
 const hasCoords = computed(() =>
   meta.value?.latitude != null && meta.value?.longitude != null

@@ -4,8 +4,10 @@ import type { PhotoItem } from '@/types/photo'
 
 export const faceApi = {
   /** 获取所有人物聚类（含已命名和未命名） */
-  listIdentities() {
-    return request.get<FaceCluster[]>('/faces/identities')
+  listIdentities(q?: string) {
+    const params: Record<string, string> = {}
+    if (q) params.q = q
+    return request.get<FaceCluster[]>('/faces/identities', { params })
   },
 
   /** 获取某人物聚类下的所有照片 */
@@ -24,6 +26,11 @@ export const faceApi = {
       source_ids: [sourceClusterId],
       target_id: targetClusterId,
     })
+  },
+
+  /** 清理无人脸的空聚类 */
+  cleanupEmpty() {
+    return request.post('/faces/identities/cleanup')
   },
 
   /** 批量合并多个聚类到目标聚类 */

@@ -1,11 +1,11 @@
 """Face detection service using InsightFace (ONNX backend).
 
-Detects faces, extracts 512-dim embeddings (ArcFace), and stores results
-in the Face table. Requires insightface package.
+Model is stored at the default ~/.insightface/ path,
+which is mapped to a Docker volume for persistence.
 """
 
 import logging
-from typing import List, Optional
+from typing import List
 
 logger = logging.getLogger(__name__)
 

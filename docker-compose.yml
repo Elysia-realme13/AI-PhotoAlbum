@@ -68,6 +68,7 @@ services:
       - ./backend/main.py:/app/main.py
       - ./data:/app/data
       - ./data/logs:/app/logs
+      - ./data/insightface_home:/root/.insightface
     depends_on:
       postgres:
         condition: service_healthy

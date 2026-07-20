@@ -4,7 +4,17 @@
     <template v-if="view === 'list'">
       <div class="flex items-center justify-between mb-6">
         <h2 class="text-2xl font-bold text-gray-800 dark:text-dark-text">人物</h2>
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-3">
+          <el-input
+            v-model="searchQuery"
+            placeholder="搜索人物…"
+            clearable
+            :prefix-icon="Search"
+            size="small"
+            class="w-52"
+            @input="onSearchInput"
+            @clear="onSearchClear"
+          />
           <template v-if="mergeMode">
             <span class="text-sm text-gray-500 dark:text-dark-text-secondary">已选 {{ selectedIds.size }} 个</span>
             <el-button
@@ -18,8 +28,9 @@
             <el-button @click="exitMergeMode">退出</el-button>
           </template>
           <template v-else>
-            <p class="text-sm text-gray-400 dark:text-dark-text-secondary mr-2">系统自动识别照片中的人脸并聚类</p>
+            <p class="text-sm text-gray-400 dark:text-dark-text-secondary">系统自动识别照片中的人脸并聚类</p>
             <el-button :disabled="identities.length < 2" @click="enterMergeMode">合并人物</el-button>
+            <el-button size="small" @click="handleCleanup">清理空聚类</el-button>
           </template>
         </div>
       </div>
@@ -163,7 +174,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { ArrowLeft, InfoFilled, EditPen, Check } from '@element-plus/icons-vue'
+import { ArrowLeft, InfoFilled, EditPen, Check, Search } from '@element-plus/icons-vue'
 import { photoApi } from '@/api/photo'
 import { faceApi } from '@/api/face'
 import PhotoDetailDrawer from '@/components/photo/PhotoDetailDrawer.vue'
@@ -173,6 +184,8 @@ import type { FaceCluster } from '@/types/face'
 // ── 状态 ─────────────────────────
 const loading = ref(true)
 const identities = ref<FaceCluster[]>([])
+const searchQuery = ref('')
+let searchTimer: ReturnType<typeof setTimeout> | null = null
 
 const view = ref<'list' | 'detail'>('list')
 const currentPerson = ref<FaceCluster | null>(null)
@@ -186,16 +199,29 @@ function personInitial(person: FaceCluster): string {
 }
 
 // ── 列表数据 ─────────────────────────
-async function fetchIdentities() {
+async function fetchIdentities(q?: string) {
   loading.value = true
   try {
-    const res = await faceApi.listIdentities()
+    const res = await faceApi.listIdentities(q || undefined)
     identities.value = res.data
   } catch {
     // handled by interceptor
   } finally {
     loading.value = false
   }
+}
+
+// ── 搜索 ─────────────────────────
+function onSearchInput() {
+  if (searchTimer) clearTimeout(searchTimer)
+  searchTimer = setTimeout(() => {
+    fetchIdentities(searchQuery.value.trim() || undefined)
+  }, 300)
+}
+
+function onSearchClear() {
+  searchQuery.value = ''
+  fetchIdentities()
 }
 
 // ── 详情：加载某人物的照片 ─────────────────
@@ -312,6 +338,16 @@ async function confirmMerge() {
     merging.value = false
   }
 }
+
+    async function handleCleanup() {
+      try {
+        const res = await faceApi.cleanupEmpty()
+        ElMessage.success('已清理 ' + res.data.deleted + ' 个空聚类')
+        fetchIdentities(searchQuery.value.trim() || undefined)
+      } catch {
+        // handled by interceptor
+      }
+    }
 
 // ── 图片预览 ─────────────────────────
 const previewVisible = ref(false)

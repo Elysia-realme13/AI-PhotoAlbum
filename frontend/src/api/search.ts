@@ -49,6 +49,19 @@ function textMatches(text: string | undefined, keyword: string): boolean {
   return text.toLowerCase().includes(keyword.toLowerCase())
 }
 
+/** 从 PhotoItem.tags（对象结构）提取标签文本数组，兼容旧的字符串数组结构 */
+function toTagLabels(tags: PhotoItem['tags']): string[] {
+  if (!tags) return []
+  if (Array.isArray(tags)) {
+    return tags
+      .map((t) => (typeof t === 'string' ? t : (t as { label?: string })?.label))
+      .filter((t): t is string => !!t)
+  }
+  return (tags.summary || [])
+    .map((s) => s?.label)
+    .filter((t): t is string => !!t)
+}
+
 /** 前端本地搜索（关键词/标签模式） */
 export function searchPhotos(request: SearchRequest, allPhotos: PhotoItem[]): SearchResponse {
   const mode = request.mode || 'keyword'
@@ -73,7 +86,7 @@ export function searchPhotos(request: SearchRequest, allPhotos: PhotoItem[]): Se
     if (query && query.trim()) {
       const tagQuery = query.toLowerCase().trim()
       results = allPhotos.filter((p) =>
-        p.tags?.some((t) => t.toLowerCase().includes(tagQuery))
+        toTagLabels(p.tags).some((t) => t.toLowerCase().includes(tagQuery))
       )
     } else {
       results = allPhotos
@@ -97,8 +110,9 @@ export function searchPhotos(request: SearchRequest, allPhotos: PhotoItem[]): Se
   const suggestedTags: string[] = []
   const tagCounter: Record<string, number> = {}
   results.slice(0, 50).forEach((p) => {
-    if (p.tags) {
-      p.tags.forEach((tag) => {
+    const labels = toTagLabels(p.tags)
+    if (labels.length) {
+      labels.forEach((tag) => {
         tagCounter[tag] = (tagCounter[tag] || 0) + 1
       })
     } else if (p.original_name) {
@@ -127,7 +141,7 @@ export function searchPhotos(request: SearchRequest, allPhotos: PhotoItem[]): Se
     photo_time: p.photo_time ? new Date(p.photo_time).toISOString() : undefined,
     city: undefined,
     score: undefined,
-    tags: p.tags || [],
+    tags: toTagLabels(p.tags),
   }))
 
   return {

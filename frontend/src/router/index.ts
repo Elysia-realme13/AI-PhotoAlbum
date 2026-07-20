@@ -16,6 +16,12 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/views/LoginPage.vue'),
     meta: { title: '登录', noAuth: true },
   },
+  {
+    path: '/terms',
+    name: 'Terms',
+    component: () => import('@/views/TermsPage.vue'),
+    meta: { title: '服务协议与隐私声明', noAuth: true },
+  },
   // ── 认证路由（MainLayout 包裹）──────────
   {
     path: '/',

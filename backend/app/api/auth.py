@@ -16,6 +16,7 @@ from app.core.security import create_access_token, hash_password, verify_passwor
 from app.api.deps import get_current_user, get_required_user
 from app.models.user import User
 from app.config.settings import settings
+from app.services.captcha_service import generate_captcha, verify_captcha
 
 router = APIRouter(prefix="/api/auth", tags=["认证"])
 
@@ -46,9 +47,25 @@ def register(data: UserCreate, db: Session = Depends(get_db)):
     )
 
 
+class CaptchaResponse(BaseModel):
+    captcha_id: str
+    captcha_image: str
+
+
+@router.get("/captcha", response_model=CaptchaResponse)
+def get_captcha():
+    """获取登录验证码"""
+    captcha_id, captcha_image = generate_captcha()
+    return CaptchaResponse(captcha_id=captcha_id, captcha_image=captcha_image)
+
+
 @router.post("/login", response_model=TokenResponse)
 def login(data: UserLogin, db: Session = Depends(get_db)):
     """用户登录"""
+    # 验证码校验
+    if not verify_captcha(data.captcha_id or "", data.captcha_code or ""):
+        raise HTTPException(status_code=400, detail="验证码错误或已过期")
+
     user = authenticate_user(db, data.username, data.password)
     if not user:
         raise HTTPException(status_code=401, detail="用户名或密码错误")

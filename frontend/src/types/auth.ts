@@ -1,6 +1,13 @@
 export interface LoginParams {
   username: string
   password: string
+  captcha_id?: string
+  captcha_code?: string
+}
+
+export interface CaptchaResponse {
+  captcha_id: string
+  captcha_image: string
 }
 
 export interface RegisterParams {

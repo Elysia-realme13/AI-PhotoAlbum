@@ -271,7 +271,10 @@
 
     <!-- 底部 -->
     <footer class="border-t border-gray-100 dark:border-dark-border py-8">
-      <div class="max-w-7xl mx-auto px-6 text-center text-sm text-gray-400 dark:text-dark-text-secondary">
+      <div class="max-w-7xl mx-auto px-6 text-center text-sm text-gray-400 dark:text-dark-text-secondary space-y-2">
+        <p class="text-xs text-gray-300 dark:text-gray-600">
+          ※ 本页面展示的数据（用户数、照片量、准确率等）均为示例数据，仅用于产品功能介绍，不代表真实运营数据。
+        </p>
         © {{ new Date().getFullYear() }} AI 智能相册 · 让每一张照片都有故事可讲
       </div>
     </footer>

@@ -1,9 +1,12 @@
 import request from '@/utils/request'
-import type { LoginParams, RegisterParams, UpdateProfileParams, ChangePasswordParams } from '@/types/auth'
+import type { LoginParams, RegisterParams, UpdateProfileParams, ChangePasswordParams, CaptchaResponse } from '@/types/auth'
 
-export type { LoginParams, RegisterParams, UpdateProfileParams, ChangePasswordParams }
+export type { LoginParams, RegisterParams, UpdateProfileParams, ChangePasswordParams, CaptchaResponse }
 
 export const authApi = {
+  getCaptcha() {
+    return request.get<CaptchaResponse>('/auth/captcha')
+  },
   login(data: LoginParams) {
     return request.post('/auth/login', data)
   },

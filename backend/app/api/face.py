@@ -98,11 +98,14 @@ def list_identities(
     result = []
     for identity, face_count in rows:
         reps = get_representative_faces(db, identity.id, top_k=3)
+        cover_photo_id = reps[0]["photo_id"] if reps else None
         result.append({
             "id": str(identity.id),
+            "identity_id": str(identity.id),
             "identity_name": identity.identity_name,
             "description": identity.description,
             "face_count": face_count,
+            "cover_photo_id": cover_photo_id,
             "representative_faces": reps,
             "is_hidden": identity.is_hidden,
         })

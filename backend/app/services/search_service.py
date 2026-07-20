@@ -129,7 +129,10 @@ def clip_search_by_text(
         return _tag_fallback_search(db, query_text, top_k, owner_id)
 
     vector_str = "[" + ",".join(str(v) for v in query_vector) + "]"
-    return _vector_search(db, vector_str, top_k, owner_id, photo_ids=photo_ids)
+    results = _vector_search(db, vector_str, top_k, owner_id, photo_ids=photo_ids)
+    if not results:
+        return _tag_fallback_search(db, query_text, top_k, owner_id)
+    return results
 
 
 def _get_query_embedding(text: str) -> Optional[List[float]]:
@@ -202,7 +205,10 @@ def clip_search_by_image(
         return []
 
     vector_str = "[" + ",".join(str(v) for v in query_vector) + "]"
-    return _vector_search(db, vector_str, top_k, owner_id, photo_ids=photo_ids)
+    results = _vector_search(db, vector_str, top_k, owner_id, photo_ids=photo_ids)
+    if not results:
+        return _tag_fallback_search(db, query_text, top_k, owner_id)
+    return results
 
 
 def _tag_fallback_search(

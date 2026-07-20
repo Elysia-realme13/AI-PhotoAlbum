@@ -41,38 +41,34 @@ logger = logging.getLogger(__name__)
 
 SUPERVISOR_PROMPT = """You are a supervisor agent that routes user requests to specialist agents.
 
-Available specialist agents and when to use them:
+CRITICAL INSTRUCTIONS:
+1. You MUST call tools when the user asks for an action. Text-only replies do nothing.
+2. Use Chinese keywords when user speaks Chinese. CLIP works with any language.
+3. Focus on the CURRENT request. Ignore unrelated context from previous messages.
+4. You have up to 8 rounds. Work STEP BY STEP across rounds.
+5. For albums: search_photos FIRST, then create_album_tool + add_to_album.
 
-1. **search_photos(keyword, person_name, objects, top_k)** --- General photo search.
-   Use when: the user wants to find photos by description, scene, or general content.
+1. **search_photos(keyword, person_name, objects, top_k)** --- CLIP + YOLO search.
+   keyword: user''s language (Chinese if user uses Chinese)
+   objects: COCO-80 English labels for YOLO filter (optional)
+   Examples: keyword=植物, objects=["potted plant"]
+   Chinese-to-COCO: 猫=cat 狗=dog 鸟=bird 人=person 车=car
+   花/植物="potted plant"  手机="cell phone"  食物="pizza"/"cake"
 
-2. **detection_agent(target_objects, photo_ids)** --- YOLO object detection specialist.
-   Use when: the user asks about specific physical objects (animals, vehicles, furniture, etc.)
-   Examples: "photos with dogs", "find a car", "show me cats and birds"
-
-3. **face_agent(action, person_name)** --- Face recognition specialist.
-   Use when: the user asks about specific people or unnamed faces.
-   Examples: "photos of mom", "who are these people", "show unnamed faces"
-
-4. **metadata_agent(time_range, location, camera_model)** --- Time/location/camera specialist.
-   Use when: the user mentions time periods, places, or camera devices.
-   Examples: "photos from last summer", "Shanghai photos", "iPhone 15 photos"
-
+2. **detection_agent(target_objects, photo_ids)** --- YOLO for known photos.
+3. **face_agent(action, person_name)** --- Face recognition.
+4. **metadata_agent(time_range, location, camera_model)** --- Metadata search.
 5. **list_albums / create_album_tool / add_to_album** --- Album management.
-   Use when: the user wants to manage albums.
-
-6. **get_stats** --- Photo statistics.
-   Use when: the user asks about counts or storage.
-
-7. **analyze_image** --- Analyze an uploaded image.
-   Use when: the user uploads an image and asks what''s in it.
+6. **get_stats** --- Statistics.
+7. **analyze_image** --- Image analysis.
 
 Routing rules:
-- If the user mentions both objects AND a person, call both search_photos (with objects) and face_agent, then intersect.
-- If the user mentions time/location AND objects, call metadata_agent first, then search_photos with those photo_ids.
-- If the user just chats or asks a simple question, reply directly without calling any tool.
-- Use Chinese in your replies. Be warm and helpful.
-- When the tool result includes photo_display_names, reference them in your reply so the user knows which photos were found."""
+- You have 8 rounds; use them to complete the full task.
+- If search returns 0 results, try different keywords next round.
+- Keep calling tools until the task is fully done. Do NOT stop early.
+- If you say you will do it, CALL THE TOOL NOW. Do not describe plans, execute.
+- After all tools are called and the task is done, summarize in Chinese.
+- Be warm and helpful. When result includes photo_display_names, reference them."""
 
 
 @tool
@@ -272,7 +268,7 @@ def run_supervisor(
     all_photos = []
     shared_photo_ids: List[str] = []
 
-    for _round in range(3):
+    for _round in range(8):
         if not response.tool_calls:
             break
 
@@ -312,6 +308,7 @@ def run_supervisor(
         messages.append(response)
         messages.extend(tool_messages)
         response = llm_with_tools.invoke(messages)
+        messages.append(SystemMessage(content=f"[STATE] Round {_round + 1}. Photos collected: {len(all_photos)}. IDs available: {len(shared_photo_ids)}. Tool count: {len(tool_results_for_frontend)}."))
 
     reply = response.content if hasattr(response, 'content') else str(response)
 

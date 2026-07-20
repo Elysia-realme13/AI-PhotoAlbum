@@ -38,6 +38,8 @@ docker-compose.override.yml
 data/uploads/
 data/logs/
 data/thumbnails/
+data/avatars/
+data/insightface_home/
 backend/data/uploads/
 backend/data/logs/
 backend/data/thumbnails/

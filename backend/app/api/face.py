@@ -76,23 +76,32 @@ def _get_identity_or_404(db: Session, identity_id: str, owner_id: str) -> FaceId
 
 @router.get("")
 def list_identities(
+    q: Optional[str] = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_required_user),
 ):
     """返回当前用户的所有人脸身份（含命名和未命名）"""
     owner_uuid = _uuid.UUID(str(current_user.id))
-    rows = (
+    query = (
         db.query(
             FaceIdentity,
-            func.count(Face.id).label("face_count"),
+            func.count(Face.photo_id.distinct()).label("face_count"),
         )
         .outerjoin(Face, Face.face_identity_id == FaceIdentity.id)
         .filter(
             FaceIdentity.owner_id == owner_uuid,
             FaceIdentity.is_hidden == False,
         )
+    )
+    if q:
+        query = query.filter(FaceIdentity.identity_name.ilike(f"%{q}%"))
+    rows = (
+        query
         .group_by(FaceIdentity.id)
-        .order_by(func.count(Face.id).desc())
+        .order_by(
+            FaceIdentity.identity_name.is_(None).asc(),
+            func.count(Face.photo_id.distinct()).desc(),
+        )
         .all()
     )
 

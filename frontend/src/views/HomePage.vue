@@ -200,6 +200,7 @@ import { GridComponent, TooltipComponent } from 'echarts/components'
 import { photoApi } from '@/api/photo'
 import { albumApi } from '@/api/album'
 import { mapApi } from '@/api/map'
+import { faceApi } from '@/api/face'
 import PhotoDetailDrawer from '@/components/photo/PhotoDetailDrawer.vue'
 import type { PhotoItem } from '@/types/photo'
 
@@ -398,15 +399,17 @@ function handleDetail(photo: PhotoItem) {
 async function fetchData() {
   loading.value = true
   try {
-    const [statsRes, recentRes, locationsRes, albumsRes, heatmapPhotos] = await Promise.all([
+    const [statsRes, recentRes, locationsRes, albumsRes, facesRes, heatmapPhotos] = await Promise.all([
       photoApi.list({ page: 1, page_size: 1 }),
       photoApi.list({ page: 1, page_size: 6, sort_by: 'upload_time', order: 'desc' }),
       mapApi.getLocations(),
       albumApi.list(),
+      faceApi.listIdentities(),
       fetchHeatmapPhotos(),
     ])
     stats.value.photos = statsRes.data.total
     stats.value.albums = Array.isArray(albumsRes.data) ? albumsRes.data.length : 0
+    stats.value.faces = Array.isArray(facesRes.data) ? facesRes.data.length : 0
     recentPhotos.value = recentRes.data.items
     buildHeatmap(heatmapPhotos || [])
     // 与足迹页相同的去重逻辑：优先用 city，回退 province

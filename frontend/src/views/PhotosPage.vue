@@ -20,7 +20,7 @@
         <!-- 选择模式下的操作按钮 -->
         <template v-if="isSelectMode">
           <span class="text-sm text-gray-500 dark:text-dark-text-secondary">已选 {{ selectedIds.size }} 张</span>
-          <el-button :disabled="selectedIds.size === 0" @click="selectAll">全选</el-button>
+          <el-button :disabled="store.photos.length === 0" @click="selectAll">全选</el-button>
           <el-button :disabled="selectedIds.size === 0" @click="selectedIds.clear()">取消</el-button>
           <el-button type="danger" :disabled="selectedIds.size === 0" :loading="batchDeleting" @click="handleBatchDelete">
             删除选中

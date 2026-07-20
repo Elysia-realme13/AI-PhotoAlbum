@@ -73,7 +73,7 @@ def _get_identity_or_404(db: Session, identity_id: str, owner_id: str) -> FaceId
 
 # ── GET / — 列出所有 identities ────────────────────────────
 
-@router.get("/identities")
+@router.get("")
 def list_identities(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_required_user),
@@ -114,7 +114,7 @@ def list_identities(
 
 # ── GET /{identity_id}/photos ──────────────────────────────
 
-@router.get("/identities/{identity_id}/photos")
+@router.get("/{identity_id}/photos")
 def identity_photos(
     identity_id: str,
     db: Session = Depends(get_db),
@@ -153,7 +153,7 @@ def identity_photos(
 
 # ── PUT /{identity_id} ────────────────────────────────────
 
-@router.put("/identities/{identity_id}")
+@router.put("/{identity_id}")
 def update_identity(
     identity_id: str,
     data: FaceIdentityUpdate,
@@ -182,7 +182,7 @@ def update_identity(
 
 # ── POST /merge ───────────────────────────────────────────
 
-@router.post("/identities/merge")
+@router.post("/merge")
 def merge_identities(
     req: MergeRequest,
     db: Session = Depends(get_db),
@@ -226,7 +226,7 @@ def merge_identities(
 
 # ── POST /name — 绑定名称（agent 确认流程）────────────────
 
-@router.post("/identities/name")
+@router.post("/name")
 def bind_name(
     req: NameBindRequest,
     db: Session = Depends(get_db),
@@ -254,23 +254,3 @@ def bind_name(
     identity.identity_name = req.name
     db.commit()
     return {"message": "name set", "cluster_id": req.cluster_id, "name": req.name}
-
-
-@router.get("/identities/ping")
-def ping():
-    return {"ping": True}
-
-
-@router.post("/cleanup")
-def cleanup_empty_identities(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_required_user),
-):
-    """删除所有没有关联人脸的空身份聚类（0 张照片的集群）"""
-    from app.services.face_cluster_service import cleanup_orphaned_identities
-
-    result = cleanup_orphaned_identities(db, current_user.id)
-    return BaseResponse(
-        msg=f"已清理 {result['deleted']} 个空聚类",
-        data={"deleted": result["deleted"]},
-    )

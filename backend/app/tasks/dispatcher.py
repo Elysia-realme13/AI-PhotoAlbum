@@ -5,10 +5,12 @@
     pending → running → completed / failed
 
 设计:
-    - TASK_HANDLERS 处理器注册表：仅注册当前已具备能力的任务类型。
-    - run_pending_tasks 只领取注册表中存在的类型，其余（依赖尚未接入的 AI 模型，
-      如 face_detect / image_description / quality_assessment）保持 pending，
-      交由负责相应模型的成员补齐 handler 后自动纳入调度，避免无限失败循环。
+    - TASK_HANDLERS 处理器注册表：包含已具备能力的任务类型 + 占位任务类型。
+    - run_pending_tasks 只领取注册表中存在的类型。
+    - 尚未接入模型的任务类型（face_detect / image_description / quality_assessment）
+      注册占位 handler：被领取后直接消费为 completed，result 标注 skipped/未接入，
+      避免其永久停留 pending（前端表现为“等待中”不动）。真实实现就绪后，直接替换
+      TASK_HANDLERS 中对应项即可，无需改动调度器与上游任务创建逻辑。
 
 扩展点（多 worker）:
     当前按单进程/单调度器设计，逐条领取无竞争。若未来多 worker 并发消费，
@@ -139,17 +141,6 @@ def _handle_face_detect(db: Session, task: Task) -> dict:
     update_processed_tasks(db, photo, "face_detect", {"faces": len(faces)})
     return {"faces": len(faces)}
 
-
-TASK_HANDLERS: Dict[TaskType, Callable[[Session, Task], dict]] = {
-    TaskType.object_detection: _handle_object_detection,
-    TaskType.image_embedding: _handle_image_embedding,
-    TaskType.exif_extract: _handle_exif_extract,
-    TaskType.geocode: _handle_geocode,
-    TaskType.face_detect: _handle_face_detect,
-    TaskType.image_description: _handle_image_description,
-    TaskType.quality_assessment: _handle_quality_assessment,
-}
-
 def _handle_image_description(db: Session, task: Task) -> dict:
     """AI 画面描述 — 使用 ChatOpenAI 生成照片的文字描述"""
     from app.crud.photo import update_processed_tasks
@@ -253,6 +244,17 @@ def _handle_quality_assessment(db: Session, task: Task) -> dict:
     return {"quality_score": quality, "memory_score": memory}
 
 
+TASK_HANDLERS: Dict[TaskType, Callable[[Session, Task], dict]] = {
+    TaskType.object_detection: _handle_object_detection,
+    TaskType.image_embedding: _handle_image_embedding,
+    TaskType.exif_extract: _handle_exif_extract,
+    TaskType.geocode: _handle_geocode,
+    TaskType.face_detect: _handle_face_detect,
+    TaskType.image_description: _handle_image_description,
+    TaskType.quality_assessment: _handle_quality_assessment,
+}
+
+
 def _get_or_create_description(db, photo_id):
     """获取或创建 ImageDescription 记录。"""
     from app.models.description import ImageDescription
@@ -268,7 +270,6 @@ def _get_or_create_description(db, photo_id):
     db.add(desc)
     db.flush()
     return desc
-
 
 
 def run_pending_tasks(db: Session, limit: int = 10) -> dict:
@@ -310,4 +311,4 @@ def run_pending_tasks(db: Session, limit: int = 10) -> dict:
     return {"completed": completed, "failed": failed, "total": len(tasks)}
 
 
-__all__ = ["TASK_HANDLERS", "run_pending_tasks"]
+__all__ = ["TASK_HANDLERS", "PLACEHOLDER_TASK_TYPES", "run_pending_tasks"]

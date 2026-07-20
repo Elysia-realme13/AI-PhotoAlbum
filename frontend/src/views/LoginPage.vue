@@ -136,7 +136,7 @@ import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { ArrowLeft, User, Lock, Message, Key } from '@element-plus/icons-vue'
 import { authApi } from '@/api/auth'
-import { useUserStore, getLastLoginUser, getKnownUsers } from '@/stores/user'
+import { useUserStore, getKnownUsers } from '@/stores/user'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -208,7 +208,6 @@ if (savedCred) {
 }
 
 // 本地登录过的用户
-const lastUser = getLastLoginUser()
 const knownUsers = getKnownUsers()
 
 const loginRules = {
@@ -227,7 +226,7 @@ const displayUser = computed(() => {
       ) || null
     )
   }
-  return lastUser
+  return null
 })
 const displayInitial = computed(() => {
   const name = displayUser.value?.nickname || displayUser.value?.username || '?'

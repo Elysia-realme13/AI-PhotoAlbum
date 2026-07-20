@@ -44,7 +44,6 @@ dependencies = [
     "aiofiles>=24.1.0",
     "ultralytics>=8.4.95",
     "apscheduler>=3.11.3",
-    "apscheduler>=3.11.3",
 ]
 
 [dependency-groups]

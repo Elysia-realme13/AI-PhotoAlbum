@@ -36,18 +36,26 @@ def _db_returning(tasks):
 
 
 class TestHandledTypes:
-    def test_only_capable_types_registered(self):
-        """依赖尚未接入模型的任务类型不应被领取"""
+    def test_capable_and_placeholder_types_registered(self):
+        """已具备能力的类型 + 占位类型均已注册"""
         keys = set(dispatcher.TASK_HANDLERS.keys())
         assert keys == {
             TaskType.object_detection,
             TaskType.image_embedding,
             TaskType.exif_extract,
             TaskType.geocode,
+            TaskType.face_detect,
+            TaskType.image_description,
+            TaskType.quality_assessment,
         }
-        for excluded in (TaskType.face_detect, TaskType.image_description,
-                         TaskType.quality_assessment):
-            assert excluded not in keys
+
+    def test_placeholder_types_exposed(self):
+        """占位类型集合与未接入模型的三类任务一致"""
+        assert dispatcher.PLACEHOLDER_TASK_TYPES == {
+            TaskType.face_detect,
+            TaskType.image_description,
+            TaskType.quality_assessment,
+        }
 
 
 class TestRunPendingTasks:
@@ -104,6 +112,35 @@ class TestRunPendingTasks:
         db = _db_returning([])
         stats = dispatcher.run_pending_tasks(db, limit=10)
         assert stats == {"completed": 0, "failed": 0, "total": 0}
+
+
+class TestPlaceholderHandlers:
+    def test_placeholder_tasks_complete_as_skipped(self):
+        """占位任务被领取后置 completed，result 标注 skipped/未接入"""
+        tasks = [
+            _make_task(TaskType.face_detect),
+            _make_task(TaskType.image_description),
+            _make_task(TaskType.quality_assessment),
+        ]
+        db = _db_returning(tasks)
+
+        with patch.object(dispatcher, "update_task_status", side_effect=_fake_update):
+            stats = dispatcher.run_pending_tasks(db, limit=10)
+
+        assert stats == {"completed": 3, "failed": 0, "total": 3}
+        assert all(t.status == TaskStatus.completed for t in tasks)
+        for t in tasks:
+            assert t.result["skipped"] is True
+            assert t.result["reason"]
+
+    def test_placeholder_reason_matches_task_type(self):
+        task = _make_task(TaskType.image_description)
+        handler = dispatcher.TASK_HANDLERS[TaskType.image_description]
+        result = handler(MagicMock(), task)
+        assert result == {
+            "skipped": True,
+            "reason": dispatcher._PLACEHOLDER_REASONS[TaskType.image_description],
+        }
 
 
 class TestGeocodeHandler:

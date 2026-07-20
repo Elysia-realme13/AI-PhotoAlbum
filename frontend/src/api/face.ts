@@ -28,7 +28,7 @@ export const faceApi = {
 
   /** 清理无人脸的空聚类 */
   cleanupEmpty() {
-    return request.post('/faces/cleanup')
+    return request.post('/faces/identities/cleanup')
   },
 
   /** 批量合并多个聚类到目标聚类 */

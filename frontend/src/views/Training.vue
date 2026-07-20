@@ -567,13 +567,10 @@ async function loadMetrics(taskId: string) {
     metricsData.value = res.data.metrics || []
     logLines.value = res.data.logs || []
 
-    // 更新 taskList 和 selectedTask 中的状态
+    // 更新 taskList 中的状态（selectedTask 为 computed，会自动跟随）
     const idx = taskList.value.findIndex(t => t.id === taskId)
     if (idx >= 0) {
       taskList.value[idx] = res.data.task
-    }
-    if (selectedTask.value && selectedTask.value.id === taskId) {
-      selectedTask.value = res.data.task
     }
   } catch {
     // 忽略

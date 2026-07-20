@@ -59,7 +59,7 @@ class TestDetectObjects:
         assert result["error"] == "YOLO 模型加载失败"
 
     def test_default_model_name(self):
-        assert DEFAULT_MODEL == "yolo26n.pt"
+        assert DEFAULT_MODEL == "yolo11n.pt"
 
 
 class TestDrawDetections:

@@ -156,7 +156,7 @@ export const trainingApi = {
 
   /** 获取任务详情（含指标） */
   getTaskDetail(id: string) {
-    return request.get<{ task: TrainingTask; metrics: MetricItem[] }>(`/training/tasks/${id}`)
+    return request.get<{ task: TrainingTask; metrics: MetricItem[]; logs: string[] }>(`/training/tasks/${id}`)
   },
 
   /** 启动训练 */

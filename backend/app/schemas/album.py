@@ -4,7 +4,7 @@
 import uuid
 from typing import Optional, Any
 from datetime import datetime
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 class AlbumCreate(BaseModel):
@@ -13,6 +13,12 @@ class AlbumCreate(BaseModel):
     description: Optional[str] = None
     album_type: str = "manual"
     conditions: Optional[dict] = None
+
+    @model_validator(mode="after")
+    def _check_smart_conditions(self) -> "AlbumCreate":
+        if self.album_type in ("smart", "conditional") and not self.conditions:
+            raise ValueError("智能相册（smart/conditional）必须提供 conditions 筛选规则")
+        return self
 
 
 class AlbumUpdate(BaseModel):

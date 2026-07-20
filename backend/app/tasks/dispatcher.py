@@ -1,0 +1,161 @@
+"""
+任务分发器 — 任务队列的消费端
+
+上传时 photo_service 通过 create_tasks_batch 创建 pending 任务，本模块负责消费：
+    pending → running → completed / failed
+
+设计:
+    - TASK_HANDLERS 处理器注册表：仅注册当前已具备能力的任务类型。
+    - run_pending_tasks 只领取注册表中存在的类型，其余（依赖尚未接入的 AI 模型，
+      如 face_detect / image_description / quality_assessment）保持 pending，
+      交由负责相应模型的成员补齐 handler 后自动纳入调度，避免无限失败循环。
+
+扩展点（多 worker）:
+    当前按单进程/单调度器设计，逐条领取无竞争。若未来多 worker 并发消费，
+    应改为 SELECT ... FOR UPDATE SKIP LOCKED 原子领取，避免重复处理。
+"""
+
+import logging
+from typing import Callable, Dict, List
+
+from sqlalchemy.orm import Session
+
+from app.crud.task import update_task_status
+from app.models.photo import Photo, PhotoMetadata
+from app.models.task import Task, TaskStatus, TaskType
+
+logger = logging.getLogger("app.tasks.dispatcher")
+
+# PhotoMetadata 的可写列（用于过滤 extract_exif 返回的多余字段，如 width/height/photo_time）
+_META_FIELDS = {
+    c.name for c in PhotoMetadata.__table__.columns
+    if c.name not in ("id", "photo_id")
+}
+
+
+def _get_photo(db: Session, task: Task) -> Photo:
+    """取出任务关联照片，缺失则抛异常（由调用方置 failed）"""
+    if not task.photo_id:
+        raise ValueError("任务缺少 photo_id")
+    photo = db.query(Photo).filter(Photo.id == task.photo_id).first()
+    if not photo:
+        raise ValueError("照片不存在")
+    return photo
+
+
+def _handle_object_detection(db: Session, task: Task) -> dict:
+    """YOLO 目标检测 → 自动标签"""
+    from app.services.tag_service import generate_tags_for_photo
+
+    photo = _get_photo(db, task)
+    desc = generate_tags_for_photo(db, photo)
+    labels = desc.tags if desc else []
+    return {"labels": labels, "count": len(labels)}
+
+
+def _handle_image_embedding(db: Session, task: Task) -> dict:
+    """CLIP 向量嵌入"""
+    from app.services.photo_vector_service import generate_photo_vector, has_vector
+
+    photo = _get_photo(db, task)
+    if has_vector(db, photo.id):
+        return {"vector": True, "skipped": True}
+    vector = generate_photo_vector(db, str(photo.id), photo.file_path)
+    return {"vector": vector is not None}
+
+
+def _handle_exif_extract(db: Session, task: Task) -> dict:
+    """EXIF 元数据提取（上传时已内联提取，handler 幂等补齐）"""
+    from app.crud.photo import create_photo_metadata, update_processed_tasks
+    from app.services.exif_service import extract_exif
+
+    photo = _get_photo(db, task)
+
+    # 已有元数据则视为完成，避免重复解析
+    if photo.metadata_info is not None:
+        update_processed_tasks(db, photo, "exif_extract", {"applied": False})
+        return {"applied": False}
+
+    exif = extract_exif(photo.file_path)
+    # 仅保留 PhotoMetadata 列且非空的字段
+    meta = {k: v for k, v in exif.items() if k in _META_FIELDS and v is not None}
+    if meta:
+        create_photo_metadata(db, photo_id=photo.id, **meta)
+    update_processed_tasks(db, photo, "exif_extract", {"applied": bool(meta)})
+    return {"applied": bool(meta)}
+
+
+def _handle_geocode(db: Session, task: Task) -> dict:
+    """反向地理编码：GPS 经纬度 → 省/市/区，回填 PhotoMetadata"""
+    from app.crud.photo import create_photo_metadata, update_processed_tasks
+    from app.services.geocode_service import reverse_geocode
+
+    photo = _get_photo(db, task)
+    meta = photo.metadata_info
+    if meta is None or meta.latitude is None or meta.longitude is None:
+        update_processed_tasks(db, photo, "geocode", {"applied": False, "reason": "no_gps"})
+        return {"applied": False, "reason": "no_gps"}
+
+    # 已解析出城市则跳过，避免重复请求
+    if meta.city:
+        return {"applied": False, "reason": "already"}
+
+    geo = reverse_geocode(meta.latitude, meta.longitude)
+    if not geo:
+        update_processed_tasks(db, photo, "geocode", {"applied": False, "reason": "no_result"})
+        return {"applied": False, "reason": "no_result"}
+
+    create_photo_metadata(db, photo_id=photo.id, **geo)
+    update_processed_tasks(db, photo, "geocode", {"applied": True, "city": geo.get("city")})
+    return {"applied": True, "city": geo.get("city")}
+
+
+# 处理器注册表：仅注册当前已具备能力的任务类型
+TASK_HANDLERS: Dict[TaskType, Callable[[Session, Task], dict]] = {
+    TaskType.object_detection: _handle_object_detection,
+    TaskType.image_embedding: _handle_image_embedding,
+    TaskType.exif_extract: _handle_exif_extract,
+    TaskType.geocode: _handle_geocode,
+}
+
+
+def run_pending_tasks(db: Session, limit: int = 10) -> dict:
+    """
+    领取并执行 pending 任务
+
+    只处理 TASK_HANDLERS 中已注册的任务类型，按创建时间升序（FIFO）。
+    单个任务异常仅置该任务 failed，不影响其余任务。
+
+    Returns:
+        {"completed": int, "failed": int, "total": int}
+    """
+    handled_types: List[TaskType] = list(TASK_HANDLERS.keys())
+    tasks = (
+        db.query(Task)
+        .filter(
+            Task.status == TaskStatus.pending,
+            Task.task_type.in_(handled_types),
+        )
+        .order_by(Task.created_at.asc())
+        .limit(limit)
+        .all()
+    )
+
+    completed, failed = 0, 0
+    for task in tasks:
+        handler = TASK_HANDLERS[task.task_type]
+        try:
+            update_task_status(db, task, TaskStatus.running)
+            result = handler(db, task)
+            update_task_status(db, task, TaskStatus.completed, result=result)
+            completed += 1
+        except Exception as e:  # noqa: BLE001
+            logger.error(f"任务 {task.id}({task.task_type}) 失败: {e}")
+            db.rollback()
+            update_task_status(db, task, TaskStatus.failed, error_message=str(e))
+            failed += 1
+
+    return {"completed": completed, "failed": failed, "total": len(tasks)}
+
+
+__all__ = ["TASK_HANDLERS", "run_pending_tasks"]

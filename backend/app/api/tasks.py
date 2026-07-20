@@ -15,7 +15,8 @@ from sqlalchemy.orm import Session
 from app.database.session import get_db
 from app.api.deps import get_required_user
 from app.models.user import User
-from app.models.task import TaskStatus, TaskType
+from app.models.task import Task, TaskStatus, TaskType
+from app.models.photo import Photo, PhotoMetadata
 
 from app.schemas.response import BaseResponse, PaginatedData
 from app.schemas.task import TaskResponse, TaskStatsResponse
@@ -87,6 +88,52 @@ def get_task_stats(
     """任务统计（各类状态计数）"""
     stats = task_crud.get_task_stats(db, current_user.id)
     return BaseResponse(data=TaskStatsResponse(**stats))
+
+
+@router.post("/geocode-backfill", response_model=BaseResponse)
+def geocode_backfill(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_required_user),
+):
+    """
+    为存量照片补建反向地理编码任务
+
+    针对“有 GPS 经纬度但城市未解析”的自有照片创建 geocode 任务，
+    调度器随后自动消费。跳过已存在未完成 geocode 任务的照片，避免重复堆叠。
+    """
+    # 已有未完成 geocode 任务的照片，避免重复创建
+    active_photo_ids = {
+        row[0]
+        for row in db.query(Task.photo_id).filter(
+            Task.owner_id == current_user.id,
+            Task.task_type == TaskType.geocode,
+            Task.status.in_([TaskStatus.pending, TaskStatus.running]),
+        ).all()
+    }
+
+    photos = (
+        db.query(Photo)
+        .join(PhotoMetadata, PhotoMetadata.photo_id == Photo.id)
+        .filter(
+            Photo.owner_id == current_user.id,
+            Photo.is_deleted.is_(False),
+            PhotoMetadata.latitude.isnot(None),
+            PhotoMetadata.longitude.isnot(None),
+            PhotoMetadata.city.is_(None),
+        )
+        .all()
+    )
+
+    created = 0
+    for photo in photos:
+        if photo.id in active_photo_ids:
+            continue
+        task_crud.create_tasks_batch(
+            db, owner_id=current_user.id, photo_id=photo.id, task_types=[TaskType.geocode]
+        )
+        created += 1
+
+    return BaseResponse(msg=f"已创建 {created} 个反向地理编码任务", data={"created": created})
 
 
 @router.get("/{task_id}", response_model=BaseResponse[TaskResponse])

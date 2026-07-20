@@ -43,6 +43,7 @@ class TaskType(str, enum.Enum):
     exif_extract = "exif_extract"            # EXIF 元数据提取
     dedup_check = "dedup_check"              # 重复照片检测
     object_detection = "object_detection"    # YOLO 目标检测 → 自动标签
+    geocode = "geocode"                      # 反向地理编码 GPS → 省/市/区
 
 
 class Task(Base):

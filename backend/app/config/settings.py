@@ -52,6 +52,18 @@ class Settings(BaseSettings):
     # -- 日志目录 ----------------------------------------
     LOGS_DIR: str = "./data/logs"
 
+    # -- 任务调度器 --------------------------------------
+    TASK_SCHEDULER_ENABLED: bool = True
+    TASK_POLL_INTERVAL: int = 15  # 轮询间隔（秒）
+    TASK_BATCH_SIZE: int = 10  # 单次处理任务数上限
+
+    # -- 反向地理编码 ------------------------------------
+    GEOCODING_ENABLED: bool = True
+    NOMINATIM_URL: str = "https://nominatim.openstreetmap.org/reverse"
+    NOMINATIM_USER_AGENT: str = "AI-PhotoAlbum/0.1 (self-hosted)"
+    GEOCODING_LANG: str = "zh-CN"
+    GEOCODING_MIN_INTERVAL: float = 1.0  # Nominatim 使用策略：≥1s/次
+
     # -- CORS --------------------------------------------
     CORS_ORIGINS: str = "http://localhost:3000,http://localhost:5173"
 

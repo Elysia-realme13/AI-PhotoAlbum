@@ -272,6 +272,7 @@ async def upload_single_photo(
     # 8. 创建异步分析任务
     task_types = [
         TaskType.exif_extract,       # EXIF 提取
+        TaskType.geocode,            # 反向地理编码 GPS → 省/市/区
         TaskType.object_detection,   # YOLO 目标检测 → 自动标签
         TaskType.face_detect,        # 人脸检测
         TaskType.image_description,  # AI 描述

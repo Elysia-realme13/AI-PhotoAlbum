@@ -58,9 +58,16 @@
           {{ TASK_TYPE_LABELS[row.task_type] || row.task_type }}
         </template>
       </el-table-column>
-      <el-table-column label="状态" width="100">
+      <el-table-column label="状态" width="120">
         <template #default="{ row }">
-          <el-tag :type="statusMeta(row.status).type" size="small" effect="light">
+          <el-tooltip
+            v-if="placeholderReason(row)"
+            :content="placeholderReason(row)"
+            placement="top"
+          >
+            <el-tag type="warning" size="small" effect="light">未接入</el-tag>
+          </el-tooltip>
+          <el-tag v-else :type="statusMeta(row.status).type" size="small" effect="light">
             {{ statusMeta(row.status).label }}
           </el-tag>
         </template>
@@ -140,6 +147,15 @@ const statCards = computed(() => [
 
 function statusMeta(status: TaskStatus) {
   return TASK_STATUS_META[status] || { label: status, type: 'info' as const }
+}
+
+/** 占位任务（已完成但实际跳过）的说明，无则返回空串 */
+function placeholderReason(row: TaskItem): string {
+  const result = row.result as { skipped?: boolean; reason?: string } | undefined
+  if (row.status === 'completed' && result?.skipped) {
+    return result.reason || '该功能尚未接入'
+  }
+  return ''
 }
 
 /** 格式化时间 */

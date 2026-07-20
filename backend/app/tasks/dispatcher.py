@@ -140,7 +140,7 @@ def _handle_face_detect(db: Session, task: Task) -> dict:
     return {"faces": len(faces)}
 
 def _handle_image_description(db: Session, task: Task) -> dict:
-    """AI 画面描述 — 使用 ChatOpenAI 生成照片的文字描述"""
+    """AI 画面描述 — 优先用视觉模型，失败时从 YOLO 标签生成"""
     from app.crud.photo import update_processed_tasks
     from langchain_openai import ChatOpenAI
     from langchain_core.messages import HumanMessage
@@ -150,43 +150,90 @@ def _handle_image_description(db: Session, task: Task) -> dict:
     if not photo:
         return {"error": "photo not found"}
 
+    llm_success = False
+    existing = None
+
     try:
         with open(photo.file_path, "rb") as f:
             img_b64 = base64.b64encode(f.read()).decode("utf-8")
 
         from app.config.settings import settings as app_settings
-        if not app_settings.OPENAI_API_KEY:
-            raise RuntimeError("OPENAI_API_KEY not configured")
-        llm = ChatOpenAI(openai_api_key=app_settings.OPENAI_API_KEY,
-                           openai_api_base=app_settings.OPENAI_BASE_URL,
-                           model=app_settings.OPENAI_MODEL,
-                           temperature=0.3, max_tokens=300)
-        msg = HumanMessage(content=[
-            {"type": "text", "text": "用中文简洁描述这张照片的画面内容。先一句话概括，然后用几个关键词描述。格式：\\n```\\n描述：...\\n关键词：A, B, C\\n```"},
-            {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{img_b64}"}},
-        ])
-        resp = llm.invoke([msg])
-        text = resp.content if hasattr(resp, "content") else str(resp)
+        # 优先使用视觉模型（VISION_*），其次回退到普通 OPENAI 模型
+        api_key = app_settings.VISION_API_KEY or app_settings.OPENAI_API_KEY
+        base_url = app_settings.VISION_BASE_URL or app_settings.OPENAI_BASE_URL
+        model = app_settings.VISION_MODEL or app_settings.OPENAI_MODEL
 
-        desc_text = ""
-        keywords = ""
-        for line in text.split("\\n"):
-            if line.startswith("描述") or line.startswith("描述："):
-                desc_text = line.split("：", 1)[1] if "：" in line else line
-            elif line.startswith("关键词") or line.startswith("关键词："):
-                keywords = line.split("：", 1)[1] if "：" in line else line
+        if api_key:
+            llm = ChatOpenAI(
+                openai_api_key=api_key,
+                openai_api_base=base_url,
+                model=model,
+                temperature=0.3, max_tokens=300,
+            )
+            msg = HumanMessage(content=[
+                {"type": "text", "text": "用中文简洁描述这张照片的画面内容。先一句话概括，然后用几个关键词描述。格式：\n```\n描述：...\n关键词：A, B, C\n```"},
+                {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{img_b64}"}},
+            ])
+            resp = llm.invoke([msg])
+            text = resp.content if hasattr(resp, "content") else str(resp)
 
-        existing = _get_or_create_description(db, photo.id)
-        existing.description = desc_text or text
-        existing.narrative = keywords or text[:100]
-        db.commit()
+            desc_text = ""
+            keywords = ""
+            for line in text.split("\n"):
+                if line.startswith("描述") or line.startswith("描述："):
+                    desc_text = line.split("：", 1)[1] if "：" in line else line
+                elif line.startswith("关键词") or line.startswith("关键词："):
+                    keywords = line.split("：", 1)[1] if "：" in line else line
 
-        update_processed_tasks(db, photo, "image_description", {"applied": True})
-        return {"applied": True, "description": desc_text or text}
+            existing = _get_or_create_description(db, photo.id)
+            existing.description = desc_text or text
+            existing.narrative = keywords or text[:100]
+            db.commit()
+            llm_success = True
     except Exception as e:
-        logger.error(f"Image description failed: {e}")
-        update_processed_tasks(db, photo, "image_description", {"error": str(e)})
-        return {"applied": False, "error": str(e)}
+        logger.warning(f"LLM 描述失败，回退到 YOLO 标签: {e}")
+
+    # 回退：从 YOLO 标签生成描述
+    if not llm_success:
+        try:
+            from app.models.description import ImageDescription
+            from collections import Counter
+
+            existing = db.query(ImageDescription).filter(
+                ImageDescription.photo_id == photo.id
+            ).first()
+            tags = existing.tags if existing else None
+            if tags:
+                if isinstance(tags, dict):
+                    summary = tags.get("summary", [])
+                    items = [(s["label"], s.get("count", 1)) for s in summary if isinstance(s, dict)]
+                elif isinstance(tags, list):
+                    items = list(Counter(tags).items())
+                else:
+                    items = []
+
+                if items:
+                    desc_text = "照片中包含：" + "、".join(f"{label}×{c}" for label, c in items)
+                else:
+                    desc_text = None
+            else:
+                desc_text = None
+
+            existing = _get_or_create_description(db, photo.id)
+            if desc_text:
+                existing.description = desc_text
+                existing.narrative = desc_text
+            else:
+                existing.description = None
+                existing.narrative = None
+            db.commit()
+        except Exception as e:
+            logger.error(f"YOLO 标签描述也失败: {e}")
+            update_processed_tasks(db, photo, "image_description", {"error": str(e)})
+            return {"applied": False, "error": str(e)}
+
+    update_processed_tasks(db, photo, "image_description", {"applied": True})
+    return {"applied": True, "description": existing.description if existing else None}
 
 
 def _handle_quality_assessment(db: Session, task: Task) -> dict:

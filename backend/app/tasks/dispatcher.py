@@ -156,7 +156,13 @@ def _handle_image_description(db: Session, task: Task) -> dict:
         with open(photo.file_path, "rb") as f:
             img_b64 = base64.b64encode(f.read()).decode("utf-8")
 
-        llm = ChatOpenAI(model="gpt-4o", temperature=0.3, max_tokens=300)
+        from app.config.settings import settings as app_settings
+        if not app_settings.OPENAI_API_KEY:
+            raise RuntimeError("OPENAI_API_KEY not configured")
+        llm = ChatOpenAI(openai_api_key=app_settings.OPENAI_API_KEY,
+                           openai_api_base=app_settings.OPENAI_BASE_URL,
+                           model=app_settings.OPENAI_MODEL,
+                           temperature=0.3, max_tokens=300)
         msg = HumanMessage(content=[
             {"type": "text", "text": "用中文简洁描述这张照片的画面内容。先一句话概括，然后用几个关键词描述。格式：\\n```\\n描述：...\\n关键词：A, B, C\\n```"},
             {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{img_b64}"}},

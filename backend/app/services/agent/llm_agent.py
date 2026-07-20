@@ -79,15 +79,34 @@ def search_photos(
     keyword: str = "",
     person_name: Optional[str] = None,
     objects: Optional[List[str]] = None,
+    exclude_objects: Optional[List[str]] = None,
+    match_all: bool = False,
+    only: bool = False,
     top_k: int = 20,
 ) -> dict:
-    """Search photos. Call when the user wants to find photos of specific content, people, scenes, or objects.
+    """Search photos by natural-language description, object detection tags, and person names.
+
+    Supports complex semantic queries via parameter combinations:
+      - AND: keyword="车", objects=["car","person"], match_all=True  → 同时有车和人
+      - OR:  keyword="宠物", objects=["cat","dog"]  → 有猫或狗
+      - NOT: keyword="车", objects=["car"], exclude_objects=["person"]  → 有车但没人（只包含车）
+      - ONLY: keyword="车", objects=["car"], only=True  → 只有车的照片（比 exclude_objects 更简单）
 
     Args:
-        keyword: Search keyword, e.g. "beach", "sunset", "cat"
-        person_name: Person name, e.g. "mom", "Xiao Ming". Leave empty if not needed
-        objects: Concrete objects to detect with YOLO, e.g. ["dog", "cat", "car"]. Only use for physical COCO-detectable things.
-        top_k: Number of photos to return, default 20
+        keyword: Search keyword in USER'S language (Chinese if user uses Chinese), e.g. "车", "动物", "海边"
+        person_name: Person name, e.g. "妈妈", "小明". Leave empty if not needed.
+        objects: Objects to INCLUDE (YOLO COCO-80 labels, English only), e.g. ["car", "dog", "cat"]. OR logic by default.
+        exclude_objects: (不建议用于"只包含") Objects to EXCLUDE. 推荐用 only=True 代替.
+        match_all: When True, ALL objects in "objects" must be present (AND logic). Default False (OR logic, any match suffices).
+        top_k: Number of photos to return, default 20.
+
+    Chinese semantic patterns (how to use the parameters):
+      - "找车的照片"       → keyword="车", objects=["car"]
+      - "只包含车的照片"    → keyword="车", objects=["car"], only=True
+      - "包含车和人的照片"  → keyword="车人", objects=["car","person"], match_all=True
+      - "有车但没人的照片"  → keyword="车", objects=["car"], exclude_objects=["person"]
+      - "猫或狗的照片"      → keyword="猫狗", objects=["cat","dog"]
+      - "植物相关的照片"    → keyword="植物", objects=["potted plant"]
     """
     pass  # implemented in _execute_tool
 
@@ -174,6 +193,9 @@ def _execute_tool(
             person_name = tool_args.get("person_name")
             objects = tool_args.get("objects")
             top_k = tool_args.get("top_k", 20)
+            exclude_objects = tool_args.get("exclude_objects")
+            match_all = tool_args.get("match_all", False)
+            only = tool_args.get("only", False)
 
             if not keyword and not person_name and not objects:
                 keyword = "photo"
@@ -236,18 +258,46 @@ def _execute_tool(
                     if not isinstance(summary, list):
                         continue
                     matched = []
+                    excluded = []
+                    all_labels = set()
                     for item in summary:
                         if isinstance(item, dict) and item.get("label"):
                             label = item["label"].lower()
+                            all_labels.add(label)
+                            # Check inclusion (objects list)
                             for to in target_lower:
                                 if to == label or to in label or label in to:
                                     matched.append(item["label"])
-                    if matched:
+                            # Check exclusion (exclude_objects list)
+                            if exclude_objects:
+                                for eo in {e.lower() for e in exclude_objects}:
+                                    if eo == label or eo in label or label in eo:
+                                        excluded.append(item["label"])
+                    # Apply AND/OR/NOT logic
+                    should_include = bool(matched)
+                    if should_include and exclude_objects and excluded:
+                        should_include = False  # NOT: excluded object present
+                    if should_include and match_all:
+                        matched_set = set(matched)
+                        matched_normalized = set()
+                        for m in matched_set:
+                            ml = m.lower()
+                            for to in target_lower:
+                                if to == ml or to in ml or ml in to:
+                                    matched_normalized.add(to)
+                        if matched_normalized != target_lower:
+                            should_include = False  # AND: not all objects present
+                    if should_include and only:
+                        extra = all_labels - target_lower
+                        if extra:
+                            should_include = False  # ONLY: photo has extra objects
+                    if should_include:
                         tag_results.append({
                             "photo_id": str(row.photo_id),
                             "score": 0.5,
                             "matched_objects": list(set(matched)),
                             "source": "yolo_tag",
+                            "all_detections": list(all_labels),
                         })
 
                 # Merge tag results with CLIP results (tag results take priority)

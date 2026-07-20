@@ -68,7 +68,16 @@ Routing rules:
 - Keep calling tools until the task is fully done. Do NOT stop early.
 - If you say you will do it, CALL THE TOOL NOW. Do not describe plans, execute.
 - After all tools are called and the task is done, summarize in Chinese.
-- Be warm and helpful. When result includes photo_display_names, reference them."""
+- When result includes photo_display_names, reference them.
+
+Semantic query patterns (use search_photos parameters to express user intent):
+  "只包含车的照片" → keyword="车", objects=["car"], only=True  （简单，无须列出排除项）
+  "包含车和人的照片" → keyword="车人", objects=["car","person"], match_all=True
+  "有车但没人的照片" → keyword="车", objects=["car"], exclude_objects=["person"]
+  "猫或狗的照片" → keyword="猫狗", objects=["cat","dog"]
+  "植物的照片" → keyword="植物", objects=["potted plant"]
+  "去年夏天的照片" → use metadata_agent(time_range="去年夏天") first, then search_photos
+"""
 
 
 @tool

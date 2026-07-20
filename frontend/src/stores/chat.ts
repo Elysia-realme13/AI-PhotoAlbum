@@ -1,4 +1,4 @@
-import { ref, computed } from 'vue'
+﻿import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
 import { agentApi } from '@/api/agent'
 import type { ChatMessage, Conversation, CandidateCluster } from '@/types/chat'
@@ -9,22 +9,22 @@ function nextId() {
 }
 
 /**
- * 从用户输入中提取可能的中文人名（2-4个汉字，排除常见动词/名词）
- * 简单启发式：取第一个连续中文片段（2-4字）作为候选人名
+ * 浠庣敤鎴疯緭鍏ヤ腑鎻愬彇鍙兘鐨勪腑鏂囦汉鍚嶏紙2-4涓眽瀛楋紝鎺掗櫎甯歌鍔ㄨ瘝/鍚嶈瘝锛?
+ * 绠€鍗曞惎鍙戝紡锛氬彇绗竴涓繛缁腑鏂囩墖娈碉紙2-4瀛楋級浣滀负鍊欓€変汉鍚?
  */
 function extractPersonName(query: string): string {
-  // 匹配连续中文字符片段（2-4字）
+  // 鍖归厤杩炵画涓枃瀛楃鐗囨锛?-4瀛楋級
   const match = query.match(/[\u4e00-\u9fa5]{2,4}/)
   if (!match) return ''
   const candidate = match[0]
-  // 排除常见非人名词汇
-  const exclude = ['照片', '相册', '风景', '旅游', '海边', '夏天', '去年', '最近', '分析', '整理', '生成', '帮我', '找一', '一下', '创建', '精彩', '回顾']
+  // 鎺掗櫎甯歌闈炰汉鍚嶈瘝姹?
+  const exclude = ['鐓х墖', '鐩稿唽', '椋庢櫙', '鏃呮父', '娴疯竟', '澶忓ぉ', '鍘诲勾', '鏈€杩?, '鍒嗘瀽', '鏁寸悊', '鐢熸垚', '甯垜', '鎵句竴', '涓€涓?, '鍒涘缓', '绮惧僵', '鍥為【']
   if (exclude.some(w => candidate.includes(w) || w.includes(candidate))) return ''
   return candidate
 }
 
 export const useChatStore = defineStore('chat', () => {
-  // ── 状态 ──
+  // 鈹€鈹€ 鐘舵€?鈹€鈹€
   const conversations = ref<Conversation[]>([])
   const messages = ref<ChatMessage[]>([])
   const currentConversationId = ref<string | null>(null)
@@ -33,12 +33,12 @@ export const useChatStore = defineStore('chat', () => {
   const loadingConversations = ref(false)
   const loadingMessages = ref(false)
 
-  // ── 计算属性 ──
+  // 鈹€鈹€ 璁＄畻灞炴€?鈹€鈹€
   const currentConversation = computed(() =>
     conversations.value.find((c) => c.id === currentConversationId.value) ?? null
   )
 
-  // ── 加载对话列表 ──
+  // 鈹€鈹€ 鍔犺浇瀵硅瘽鍒楄〃 鈹€鈹€
   async function fetchConversations() {
     loadingConversations.value = true
     try {
@@ -57,14 +57,14 @@ export const useChatStore = defineStore('chat', () => {
     }
   }
 
-  // ── 加载对话消息 ──
+  // 鈹€鈹€ 鍔犺浇瀵硅瘽娑堟伅 鈹€鈹€
   async function fetchMessages(conversationId: string) {
     currentConversationId.value = conversationId
     loadingMessages.value = true
     try {
       const res = await agentApi.getMessages(conversationId)
       messages.value = res.data.map((m) => {
-        // 后端 assistant 消息的 content 是 JSON {text, results, total}
+        // 鍚庣 assistant 娑堟伅鐨?content 鏄?JSON {text, results, total}
         let content = ''
         let results: { photo_id: string; score: number }[] | undefined
         if (m.role === 'assistant') {
@@ -95,17 +95,17 @@ export const useChatStore = defineStore('chat', () => {
         }
       })
     } catch {
-      // handled by interceptor
+        messages.value = []
     } finally {
       loadingMessages.value = false
     }
   }
 
-  // ── 发送消息 ──
+  // 鈹€鈹€ 鍙戦€佹秷鎭?鈹€鈹€
   async function sendMessage(query: string, image?: File) {
     if (!query.trim() || isStreaming.value) return
 
-    // 添加用户消息
+    // 娣诲姞鐢ㄦ埛娑堟伅
     const userMsg: ChatMessage = {
       id: nextId(),
       role: 'user',
@@ -116,7 +116,7 @@ export const useChatStore = defineStore('chat', () => {
     }
     messages.value.push(userMsg)
 
-    // 创建临时 AI 消息占位
+    // 鍒涘缓涓存椂 AI 娑堟伅鍗犱綅
     const aiMsg: ChatMessage = {
       id: nextId(),
       role: 'assistant',
@@ -129,11 +129,11 @@ export const useChatStore = defineStore('chat', () => {
     streamingContent.value = ''
 
     try {
-      // 若无当前会话，先创建
+      // 鑻ユ棤褰撳墠浼氳瘽锛屽厛鍒涘缓
       if (!currentConversationId.value) {
         const sessionRes = await agentApi.createSession(query.slice(0, 50))
         currentConversationId.value = sessionRes.data.id
-        // 推入对话列表
+        // 鎺ㄥ叆瀵硅瘽鍒楄〃
         conversations.value.unshift({
           id: sessionRes.data.id,
           title: sessionRes.data.title || query.slice(0, 30) + (query.length > 30 ? '...' : ''),
@@ -143,17 +143,17 @@ export const useChatStore = defineStore('chat', () => {
         })
       }
 
-      // 发送消息到后端
+      // 鍙戦€佹秷鎭埌鍚庣
       const res = await agentApi.sendMessage(currentConversationId.value, query, image)
       const reply = res.data.reply
       const needsConfirmation = res.data.needs_confirmation
       const pendingCandidates = res.data.pending_candidates || []
       const photoResults = res.data.results || []
 
-      // 提取人名（用于确认对话框）
+      // 鎻愬彇浜哄悕锛堢敤浜庣‘璁ゅ璇濇锛?
       const personName = extractPersonName(query)
 
-      // 前端模拟流式效果（逐字显示）
+      // 鍓嶇妯℃嫙娴佸紡鏁堟灉锛堥€愬瓧鏄剧ず锛?
       let index = 0
       const streamTimer = setInterval(() => {
         if (index < reply.length) {
@@ -170,11 +170,11 @@ export const useChatStore = defineStore('chat', () => {
           const last = messages.value[messages.value.length - 1]
           if (last && last.streaming) {
             last.streaming = false
-            // 流式结束后附加检索到的照片结果
+            // 娴佸紡缁撴潫鍚庨檮鍔犳绱㈠埌鐨勭収鐗囩粨鏋?
             if (photoResults.length > 0) {
               last.results = photoResults
             }
-            // 流式结束后附加名称确认数据
+            // 娴佸紡缁撴潫鍚庨檮鍔犲悕绉扮‘璁ゆ暟鎹?
             if (needsConfirmation && pendingCandidates.length > 0 && personName) {
               last.nameConfirm = {
                 personName,
@@ -186,7 +186,7 @@ export const useChatStore = defineStore('chat', () => {
           isStreaming.value = false
           streamingContent.value = ''
 
-          // 更新对话元信息
+          // 鏇存柊瀵硅瘽鍏冧俊鎭?
           const conv = conversations.value.find((c) => c.id === currentConversationId.value)
           if (conv) {
             conv.message_count = (conv.message_count || 0) + 2
@@ -197,7 +197,7 @@ export const useChatStore = defineStore('chat', () => {
     } catch {
       const last = messages.value[messages.value.length - 1]
       if (last && last.streaming) {
-        last.content = '抱歉，处理时出了点问题，请稍后重试。'
+        last.content = '鎶辨瓑锛屽鐞嗘椂鍑轰簡鐐归棶棰橈紝璇风◢鍚庨噸璇曘€?
         last.streaming = false
       }
       isStreaming.value = false
@@ -205,20 +205,20 @@ export const useChatStore = defineStore('chat', () => {
     }
   }
 
-  // ── 中断生成 ──
+  // 鈹€鈹€ 涓柇鐢熸垚 鈹€鈹€
   function cancelStream() {
     const last = messages.value[messages.value.length - 1]
     if (last && last.streaming) {
       last.streaming = false
       if (!last.content) {
-        last.content = '（已取消）'
+        last.content = '锛堝凡鍙栨秷锛?
       }
     }
     isStreaming.value = false
     streamingContent.value = ''
   }
 
-  // ── 新建对话 ──
+  // 鈹€鈹€ 鏂板缓瀵硅瘽 鈹€鈹€
   function newConversation() {
     currentConversationId.value = null
     messages.value = []
@@ -226,7 +226,7 @@ export const useChatStore = defineStore('chat', () => {
     streamingContent.value = ''
   }
 
-  // ── 删除对话 ──
+  // 鈹€鈹€ 鍒犻櫎瀵硅瘽 鈹€鈹€
   async function deleteConversation(id: string) {
     await agentApi.deleteSession(id)
     conversations.value = conversations.value.filter(c => c.id !== id)
@@ -235,7 +235,7 @@ export const useChatStore = defineStore('chat', () => {
     }
   }
 
-  // ── 重置 ──
+  // 鈹€鈹€ 閲嶇疆 鈹€鈹€
   function reset() {
     conversations.value = []
     messages.value = []
@@ -244,7 +244,7 @@ export const useChatStore = defineStore('chat', () => {
     streamingContent.value = ''
   }
 
-  // ── 名称确认完成 ──
+  // 鈹€鈹€ 鍚嶇О纭瀹屾垚 鈹€鈹€
   function markNameConfirmed(messageId: string) {
     const msg = messages.value.find(m => m.id === messageId)
     if (msg && msg.nameConfirm) {
@@ -252,7 +252,7 @@ export const useChatStore = defineStore('chat', () => {
     }
   }
 
-  // ── 名称确认跳过 ──
+  // 鈹€鈹€ 鍚嶇О纭璺宠繃 鈹€鈹€
   function markNameSkipped(messageId: string) {
     const msg = messages.value.find(m => m.id === messageId)
     if (msg && msg.nameConfirm) {
@@ -280,3 +280,4 @@ export const useChatStore = defineStore('chat', () => {
     reset,
   }
 })
+

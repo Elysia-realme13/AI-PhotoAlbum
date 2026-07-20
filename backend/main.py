@@ -78,6 +78,7 @@ async def lifespan(_app: FastAPI):
     migrations = [
         "ALTER TABLE faces ADD COLUMN IF NOT EXISTS face_name VARCHAR(100)",
         "ALTER TABLE faces ADD COLUMN IF NOT EXISTS face_aliases JSON",
+        "ALTER TYPE tasktype ADD VALUE IF NOT EXISTS 'object_detection'",
         "ALTER TYPE tasktype ADD VALUE IF NOT EXISTS 'geocode'",
     ]
     for sql in migrations:

@@ -50,6 +50,25 @@ def get_model_detail(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+
+@router.patch("/{model_name}")
+def update_model(
+    model_name: str,
+    data: dict,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_required_user),
+):
+    """更新模型的任务名称和描述"""
+    task_name = data.get("task_name")
+    description = data.get("description")
+    if not task_name or not task_name.strip():
+        raise HTTPException(status_code=400, detail="任务名称不能为空")
+    result = training_service.update_model(model_name, task_name.strip(), description, db)
+    if "error" in result:
+        raise HTTPException(status_code=404, detail=result["error"])
+    return result
+
+
 @router.post("/{model_name}/export")
 def export_model(
     model_name: str,

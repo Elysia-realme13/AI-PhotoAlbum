@@ -899,6 +899,19 @@ def import_model(file_bytes: bytes, filename: str, model_name: str, db: Session)
     return True
 
 
+
+def update_model(model_name: str, task_name: str, description: Optional[str], db: Session) -> Dict[str, Any]:
+    """更新模型的任务名称和描述"""
+    task = db.query(TrainingTask).filter(TrainingTask.model_name == model_name).first()
+    if not task:
+        return {"error": "模型不存在"}
+    task.task_name = task_name
+    task.description = description
+    task.updated_at = datetime.now()
+    db.commit()
+    db.refresh(task)
+    return {"message": f"模型 {model_name} 已更新"}
+
 def delete_model(model_name: str, db: Session) -> bool:
     """删除模型及对应的训练任务"""
     task = db.query(TrainingTask).filter(TrainingTask.model_name == model_name).first()

@@ -2,6 +2,12 @@
   <div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-dark-bg dark:to-dark-card">
     <div class="w-full max-w-md">
       <div class="bg-white dark:bg-dark-card rounded-2xl shadow-xl p-8">
+        <!-- 返回首页 -->
+        <router-link to="/" class="inline-flex items-center gap-1 text-sm text-gray-400 dark:text-dark-text-secondary hover:text-blue-500 dark:hover:text-blue-400 transition-colors mb-6">
+          <el-icon><ArrowLeft /></el-icon>
+          返回首页
+        </router-link>
+
         <!-- Logo / 上次登录用户头像 -->
         <div class="text-center mb-8">
           <template v-if="isLogin && displayUser">
@@ -78,7 +84,7 @@
 import { ref, reactive, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { User, Lock, Message } from '@element-plus/icons-vue'
+import { ArrowLeft, User, Lock, Message } from '@element-plus/icons-vue'
 import { authApi } from '@/api/auth'
 import { useUserStore, getLastLoginUser, getKnownUsers } from '@/stores/user'
 

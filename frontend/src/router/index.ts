@@ -3,12 +3,20 @@ import type { RouteRecordRaw } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 
 const routes: RouteRecordRaw[] = [
+  // ── 公开路由 ──────────────────────────────
+  {
+    path: '/',
+    name: 'Landing',
+    component: () => import('@/views/LandingPage.vue'),
+    meta: { title: 'AI 智能相册', noAuth: true },
+  },
   {
     path: '/login',
     name: 'Login',
     component: () => import('@/views/LoginPage.vue'),
     meta: { title: '登录', noAuth: true },
   },
+  // ── 认证路由（MainLayout 包裹）──────────
   {
     path: '/',
     component: () => import('@/layouts/MainLayout.vue'),
@@ -119,6 +127,9 @@ router.beforeEach((to, _from, next) => {
 
   if (!to.meta.noAuth && !token) {
     next('/login')
+  } else if (to.path === '/' && token) {
+    // 已登录用户访问 Landing 页 → 跳转首页
+    next('/home')
   } else if (to.path === '/login' && token) {
     next('/home')
   } else {

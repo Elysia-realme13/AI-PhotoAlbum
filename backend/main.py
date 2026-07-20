@@ -89,6 +89,21 @@ async def lifespan(_app: FastAPI):
         except Exception:
             pass
 
+    # 清理上次异常中断遗留的 running 任务
+    from app.database.session import SessionLocal
+    from app.models.task import Task, TaskStatus
+    try:
+        db = SessionLocal()
+        stuck = db.query(Task).filter(Task.status == TaskStatus.running).all()
+        if stuck:
+            for t in stuck:
+                t.status = TaskStatus.pending
+            db.commit()
+            logger.info(f"重置 {len(stuck)} 个卡住的 running 任务 → pending")
+        db.close()
+    except Exception as e:
+        logger.warning(f"任务清理失败: {e}")
+
     # 启动后台任务 Worker
     from app.tasks.task_worker import start_worker, stop_worker
     start_worker(poll_interval=5, batch_size=5)

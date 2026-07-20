@@ -65,3 +65,4 @@ backend/data/models/
 # ── Others ──────────────────────────────────────────────
 /backend/runs/
 *.zip
+yolo11n.pt

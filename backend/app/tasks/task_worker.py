@@ -105,30 +105,58 @@ def _handle_image_description(db: Session, task: Task) -> dict:
 
 
 def _handle_quality_assessment(db: Session, task: Task) -> dict:
-    """照片质量评分（简易版：基于尺寸和标签数量）"""
+    """照片质量评分（视觉LLM看图评估）"""
+    import base64, os, json, re
+    from app.services.agent.llm_agent import get_vision_llm
+    from langchain_core.messages import HumanMessage, SystemMessage
+
     photo = db.query(Photo).filter(Photo.id == task.photo_id).first()
     if not photo:
         return {"error": "照片不存在"}
 
-    # 基础分：有尺寸信息+0.3
-    quality = 0.5
-    memory = 0.5
+    if not os.path.exists(photo.file_path):
+        return {"error": f"文件不存在: {photo.file_path}"}
 
-    if photo.width and photo.height:
-        # 分辨率越高分越高（max 1MP → 0.8）
-        mp = (photo.width * photo.height) / 1_000_000
-        quality = min(0.8, 0.4 + mp * 0.05)
+    with open(photo.file_path, "rb") as f:
+        image_data = base64.b64encode(f.read()).decode("utf-8")
 
-    # 有标签 → 回忆价值更高
+    ext = os.path.splitext(photo.file_path)[1].lower()
+    mime = {"jpg": "jpeg", "jpeg": "jpeg", "png": "png", "webp": "webp"}.get(ext.lstrip("."), "jpeg")
+
     from app.models.description import ImageDescription
     desc_row = db.query(ImageDescription).filter(ImageDescription.photo_id == task.photo_id).first()
-    if desc_row and desc_row.tags and len(desc_row.tags) > 0:
-        memory = min(0.9, 0.5 + len(desc_row.tags) * 0.1)
+    tags_hint = ""
+    if desc_row and desc_row.tags:
+        tags_hint = f" 已检测物体: {', '.join([t for t in desc_row.tags if isinstance(t, str)])}。"
+
+    try:
+        llm = get_vision_llm()
+        response = llm.invoke([
+            SystemMessage(content="你是专业摄影评审。严格按以下标准给照片评分(0-1)：\n"
+                "质量分: 清晰度/构图/光线/色彩。模糊/过曝/噪点多→低分，清晰/构图好/光线佳→高分\n"
+                "记忆分: 情感价值/独特性。普通随手拍→低分，重要时刻/人物/场景→高分\n"
+                "只返回JSON: {\"quality\":0.X,\"memory\":0.X,\"reason\":\"短评\"}"),
+            HumanMessage(content=[
+                {"type": "text", "text": f"请给这张照片打分。{tags_hint}"},
+                {"type": "image_url", "image_url": {"url": f"data:image/{mime};base64,{image_data}"}},
+            ]),
+        ])
+        text = response.content.strip() if hasattr(response, 'content') else str(response)
+        # 解析 JSON
+        json_match = re.search(r'\{[^}]+\}', text)
+        if json_match:
+            data = json.loads(json_match.group())
+            quality = max(0, min(1, float(data.get("quality", 0.5))))
+            memory = max(0, min(1, float(data.get("memory", 0.5))))
+            reason = data.get("reason", "")
+        else:
+            quality, memory, reason = 0.5, 0.5, "解析失败"
+    except Exception as e:
+        return {"error": f"评分失败: {e}"}
 
     quality = round(quality, 2)
     memory = round(memory, 2)
 
-    # 存储到 ImageDescription
     if desc_row:
         desc_row.quality_score = quality
         desc_row.memory_score = memory
@@ -140,7 +168,7 @@ def _handle_quality_assessment(db: Session, task: Task) -> dict:
         db.add(desc_row)
     db.commit()
 
-    return {"quality_score": quality, "memory_score": memory}
+    return {"quality_score": quality, "memory_score": memory, "reason": reason}
 
 
 def _handle_exif_extract(db: Session, task: Task) -> dict:

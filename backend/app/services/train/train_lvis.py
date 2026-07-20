@@ -220,7 +220,7 @@ def main():
     import shutil
 
     # Find the latest training run
-    runs_dir = os.path.join(project_root, "runs", "detect")
+    runs_dir = os.path.join(project_root, "backend", "runs", "detect")
     if os.path.exists(runs_dir):
         train_dirs = sorted(
             [d for d in os.listdir(runs_dir) if d.startswith(config.name)],

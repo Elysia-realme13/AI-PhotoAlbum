@@ -91,7 +91,7 @@ def create_album(
         is_system=album.is_system,
         album_type=album.album_type.value if hasattr(album.album_type, 'value') else str(album.album_type),
         conditions=album.conditions,
-        photo_count=0,
+        photo_count=_album_photo_count(db, album),
         created_at=album.created_at,
         updated_at=album.updated_at,
     ))

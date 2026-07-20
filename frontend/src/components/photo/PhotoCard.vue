@@ -12,7 +12,18 @@
       loading="lazy"
     />
 
-    <!-- 选择模式：左上角 checkbox -->
+    <!-- 检测标签 -->
+    <div v-if="photo.tags?.summary?.length" class="absolute bottom-0 left-0 right-0 px-2 pb-1 flex flex-wrap gap-1">
+      <span
+        v-for="tag in photo.tags.summary.slice(0, 4)"
+        :key="tag.label"
+        class="px-1.5 py-0.5 rounded text-[10px] font-medium leading-tight"
+        :style="'background: ' + (tag.max_confidence >= 0.8 ? '#166534cc' : '#854d0ecc') + '; color: white;'"
+      >
+        {{ tag.label }}
+        <small>x{{ tag.count }}</small>
+      </span>
+    </div>    <!-- 选择模式：左上角 checkbox -->
     <div
       v-if="selectable"
       class="absolute top-2 left-2 z-10"

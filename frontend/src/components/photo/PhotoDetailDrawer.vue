@@ -60,6 +60,42 @@
         </el-descriptions-item>
       </el-descriptions>
 
+      <!-- 目标检测结果 -->
+      <el-descriptions
+        title="目标检测"
+        :column="1"
+        border
+        size="small"
+        class="mt-4"
+      >
+        <el-descriptions-item label="检测结果">
+          <template v-if="detail?.description?.tags?.summary?.length">
+            <div class="flex flex-wrap gap-1.5">
+              <span
+                v-for="tag in detail.description.tags.summary"
+                :key="tag.label"
+                class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium"
+                :style="tagStyle(tag.max_confidence)"
+              >
+                <el-icon :size="10"><Orange /></el-icon>
+                {{ tag.label }}
+                <span class="opacity-70">x{{ tag.count }}</span>
+                <span class="opacity-50">({{ (tag.max_confidence * 100).toFixed(0) }}%)</span>
+              </span>
+            </div>
+            <div v-if="detail?.description?.tags?.model" class="mt-1 text-[10px] text-gray-400">
+              模型: {{ detail.description.tags.model }}
+            </div>
+          </template>
+          <template v-else-if="detail?.description">
+            <span class="text-gray-400 text-sm">未检测到物体</span>
+          </template>
+          <template v-else>
+            <span class="text-gray-300 text-sm">暂未分析</span>
+          </template>
+        </el-descriptions-item>
+      </el-descriptions>
+
       <!-- 操作区 -->
       <div class="mt-4 flex flex-wrap gap-2">
         <el-button type="primary" plain size="small" @click="openAddToAlbumDialog">
@@ -136,7 +172,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Check } from '@element-plus/icons-vue'
+import { Check, Orange } from '@element-plus/icons-vue'
 import { photoApi } from '@/api/photo'
 import { albumApi } from '@/api/album'
 import { REANALYZE_TASK_OPTIONS } from '@/types/task'
@@ -265,6 +301,12 @@ function formatFileSize(bytes?: number): string {
 }
 
 /** 格式化时间 */
+function tagStyle(confidence: number) {
+  if (confidence >= 0.8) return { background: '#dcfce7', color: '#166534' }
+  if (confidence >= 0.5) return { background: '#fef9c3', color: '#854d0e' }
+  return { background: '#fce7f3', color: '#9d174d' }
+}
+
 function formatDateTime(dateStr?: string): string {
   if (!dateStr) return '—'
   const d = new Date(dateStr)

@@ -73,7 +73,7 @@ class PhotoDescriptionResponse(BaseModel):
     """AI 描述"""
     description: Optional[str] = None
     narrative: Optional[str] = None
-    tags: Optional[list] = None
+    tags: Optional[Any] = None
     quality_score: Optional[float] = None
     memory_score: Optional[float] = None
 
@@ -142,7 +142,7 @@ class PhotoListItem(BaseModel):
     is_deleted: bool = False
     deleted_at: Optional[datetime] = None
     # 列表中也带简要的描述信息，方便前端展示标签
-    tags: Optional[list] = None
+    tags: Optional[Any] = None
     quality_score: Optional[float] = None
 
     @field_validator("id", mode="before")

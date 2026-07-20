@@ -1,7 +1,14 @@
 # 后端 Dockerfile
-FROM python:3.12
+FROM python:3.12-slim
 
 WORKDIR /app
+
+# 安装系统依赖
+RUN apt-get update && apt-get install -y \
+    libgl1 \
+    libglib2.0-0 \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
 
 # 安装 uv
 RUN pip install uv

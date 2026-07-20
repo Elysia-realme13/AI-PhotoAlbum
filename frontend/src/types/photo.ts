@@ -2,7 +2,7 @@
 export interface Detection {
   label: string
   confidence: number
-  bbox: [number, number, number, number] // x1, y1, x2, y2
+  bbox: [number, number, number, number]
 }
 
 /** 人脸检测信息 */
@@ -20,6 +20,15 @@ export interface TaskInfo {
   type: string
   status: 'pending' | 'running' | 'completed' | 'failed'
   result?: Record<string, unknown>
+}
+
+/** AI 描述信息（对应后端 ImageDescription 表） */
+export interface ImageDescription {
+  description?: string | null
+  narrative?: string | null
+  tags?: string[] | null
+  quality_score?: number | null
+  memory_score?: number | null
 }
 
 export interface PhotoItem {
@@ -44,6 +53,7 @@ export interface PhotoItem {
 
 export interface PhotoDetail extends PhotoItem {
   metadata?: Record<string, string | number | boolean | null>
+  description?: ImageDescription | null
   detections?: Detection[]
   faces?: FaceInfo[]
   tasks?: TaskInfo[]
@@ -58,7 +68,7 @@ export interface PhotoListResponse {
 
 /** 时间轴分组 */
 export interface TimelineGroup {
-  date: string // "2025-07" 或 "2025-07-14" 取决于 group_by
+  date: string
   count: number
   cover_photo?: PhotoItem | null
 }

@@ -2,42 +2,43 @@
 AI-PhotoAlbum 后端应用入口
 FastAPI 应用工厂 + 路由注册 + 生命周期管理
 """
+import asyncio
 from contextlib import asynccontextmanager
-from pathlib import Path
-
 from fastapi import FastAPI, HTTPException
-from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.exceptions import RequestValidationError
 
-# 确保所有模型被导入（使 Base.metadata 注册所有表）
-import app.models  # noqa: F401
-from app.api.agent import router as agent_router
-from app.api.album import router as album_router
-
-# 路由模块
-from app.api.auth import router as auth_router
-from app.api.datasets import router as datasets_router
-from app.api.face import router as face_router
-from app.api.models import router as models_router
-from app.api.photo import router as photo_router
-from app.api.recycle_bin import router as recycle_bin_router
-from app.api.search import router as search_router
-from app.api.system import router as system_router
-from app.api.tasks import router as tasks_router
-
-# 训练与管理路由
-from app.api.training import router as training_router
 from app.config.settings import settings
+from app.core.logger import setup_logger
 from app.core.exceptions import (
     AppException,
     app_exception_handler,
-    general_exception_handler,
     http_exception_handler,
     validation_exception_handler,
+    general_exception_handler,
 )
-from app.core.logger import setup_logger
 from app.middleware import RequestLoggerMiddleware
+
+# 路由模块
+from app.api.auth import router as auth_router
+from app.api.system import router as system_router
+from app.api.photo import router as photo_router
+from app.api.album import router as album_router
+from app.api.face import router as face_router
+from app.api.search import router as search_router
+from app.api.agent import router as agent_router
+from app.api.tasks import router as tasks_router
+from app.api.recycle_bin import router as recycle_bin_router
+from app.api.medias import router as medias_router
+
+# 训练与管理路由
+from app.api.training import router as training_router
+from app.api.models import router as models_router
+from app.api.datasets import router as datasets_router
+
+# 确保所有模型被导入（使 Base.metadata 注册所有表）
+import app.models  # noqa: F401
 
 # 初始化日志
 logger = setup_logger()
@@ -51,9 +52,8 @@ async def lifespan(_app: FastAPI):
     logger.info("=" * 60)
 
     # 初始化数据库表
+    from app.database.session import engine, Base
     from sqlalchemy import text
-
-    from app.database.session import Base, engine
     logger.info(f"数据库: {settings.DATABASE_URL[:50]}...")
 
     # 启用 pgvector 扩展（仅 PostgreSQL）
@@ -72,18 +72,14 @@ async def lifespan(_app: FastAPI):
         logger.error(f"数据库连接失败: {e}")
         logger.error("请检查:")
         logger.error("  1. PostgreSQL 是否已启动? docker compose up -d postgres")
-        logger.error(
-            "  2. 或使用 SQLite 测试: "
-            "DATABASE_URL=sqlite:///./data/app.db uv run uvicorn main:app ..."
-        )
+        logger.error("  2. 或使用 SQLite 测试: DATABASE_URL=sqlite:///./data/app.db uv run uvicorn main:app ...")
         raise
 
-    # 自动迁移：create_all 不会给已有表添加新列，需手动补齐
+    # 自动迁移：create_all 不会给已有表添加新列/枚举值，需手动补齐
     migrations = [
         "ALTER TABLE faces ADD COLUMN IF NOT EXISTS face_name VARCHAR(100)",
         "ALTER TABLE faces ADD COLUMN IF NOT EXISTS face_aliases JSON",
         "ALTER TYPE tasktype ADD VALUE IF NOT EXISTS 'object_detection'",
-        "ALTER TYPE tasktype ADD VALUE IF NOT EXISTS 'geocode'",
     ]
     for sql in migrations:
         try:
@@ -93,18 +89,14 @@ async def lifespan(_app: FastAPI):
         except Exception:
             pass
 
-    # 启动任务调度器（消费上传后创建的 AI 分析任务）
-    _app.state.scheduler = None
-    if settings.TASK_SCHEDULER_ENABLED:
-        from app.tasks.scheduler import start_scheduler
-        _app.state.scheduler = start_scheduler()
+    # 启动后台任务 Worker
+    from app.tasks.task_worker import start_worker, stop_worker
+    start_worker(poll_interval=5, batch_size=5)
+    logger.info("任务 Worker 已启动")
 
     yield
 
-    if getattr(_app.state, "scheduler", None):
-        from app.tasks.scheduler import shutdown_scheduler
-        shutdown_scheduler(_app.state.scheduler)
-
+    stop_worker()
     logger.info("服务已关闭")
 
 
@@ -145,6 +137,7 @@ app.include_router(search_router)
 app.include_router(agent_router)
 app.include_router(tasks_router)
 app.include_router(recycle_bin_router)
+app.include_router(medias_router)
 
 # 注册训练与管理路由
 app.include_router(training_router)
@@ -152,6 +145,7 @@ app.include_router(models_router)
 app.include_router(datasets_router)
 
 # ── 挂载静态文件 ───────────────────────────────────
+from pathlib import Path
 _avatar_dir = Path(settings.AVATAR_DIR)
 _avatar_dir.mkdir(parents=True, exist_ok=True)
 app.mount("/api/avatars", StaticFiles(directory=str(_avatar_dir)), name="avatars")

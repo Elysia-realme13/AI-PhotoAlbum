@@ -9,7 +9,8 @@ from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from app.database.session import get_db
 from app.crud.photo import get_photo_by_id
-from app.api.deps import get_current_user
+from app.api.deps import get_current_user, get_required_user
+from app.models.user import User
 from app.config.settings import settings
 
 router = APIRouter(prefix="/api/medias", tags=["媒体"])
@@ -20,8 +21,8 @@ def serve_thumbnail(
     photo_id: str,
     db: Session = Depends(get_db),
 ):
-    """获取照片缩略图（无需登录，用于页面展示）"""
-    photo = get_photo_by_id(db, photo_id)
+    """获取照片缩略图（无需登录，用于页面展示；含已删除照片的缩略图）"""
+    photo = get_photo_by_id(db, photo_id, include_deleted=True)
     if not photo:
         raise HTTPException(404, "照片不存在")
 
@@ -29,7 +30,6 @@ def serve_thumbnail(
     thumb_path = thumb_dir / f"{photo.filename}_thumb.jpg"
 
     if not thumb_path.exists():
-        # 回退到原始文件
         orig_path = Path(photo.file_path)
         if orig_path.exists():
             return FileResponse(str(orig_path), media_type="image/jpeg")
@@ -42,6 +42,7 @@ def serve_thumbnail(
 def serve_file(
     photo_id: str,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_required_user),
 ):
     """获取原始照片文件（需登录）"""
     photo = get_photo_by_id(db, photo_id)
@@ -52,17 +53,12 @@ def serve_file(
     if not file_path.exists():
         raise HTTPException(404, "文件不存在")
 
-    # 判断 MIME 类型
     ext = file_path.suffix.lower()
     mime_map = {
-        '.jpg': 'image/jpeg',
-        '.jpeg': 'image/jpeg',
-        '.png': 'image/png',
-        '.gif': 'image/gif',
-        '.webp': 'image/webp',
-        '.bmp': 'image/bmp',
-        '.heic': 'image/heic',
-        '.heif': 'image/heif',
+        '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
+        '.png': 'image/png', '.gif': 'image/gif',
+        '.webp': 'image/webp', '.bmp': 'image/bmp',
+        '.heic': 'image/heic', '.heif': 'image/heif',
     }
     media_type = mime_map.get(ext, 'application/octet-stream')
 

@@ -60,39 +60,41 @@
         </el-descriptions-item>
       </el-descriptions>
 
-      <!-- 目标检测结果 -->
+      <!-- AI 分析 -->
       <el-descriptions
-        title="目标检测"
+        v-if="hasAiInfo"
+        title="AI 分析"
         :column="1"
         border
         size="small"
         class="mt-4"
       >
-        <el-descriptions-item label="检测结果">
-          <template v-if="detail?.description?.tags?.summary?.length">
-            <div class="flex flex-wrap gap-1.5">
-              <span
-                v-for="tag in detail.description.tags.summary"
-                :key="tag.label"
-                class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium"
-                :style="tagStyle(tag.max_confidence)"
-              >
-                <el-icon :size="10"><Orange /></el-icon>
-                {{ tag.label }}
-                <span class="opacity-70">x{{ tag.count }}</span>
-                <span class="opacity-50">({{ (tag.max_confidence * 100).toFixed(0) }}%)</span>
-              </span>
-            </div>
-            <div v-if="detail?.description?.tags?.model" class="mt-1 text-[10px] text-gray-400">
-              模型: {{ detail.description.tags.model }}
-            </div>
-          </template>
-          <template v-else-if="detail?.description">
-            <span class="text-gray-400 text-sm">未检测到物体</span>
-          </template>
-          <template v-else>
-            <span class="text-gray-300 text-sm">暂未分析</span>
-          </template>
+        <el-descriptions-item v-if="aiTags.length > 0" label="标签">
+          <div class="flex flex-wrap gap-1">
+            <el-tag
+              v-for="tag in aiTags"
+              :key="tag"
+              size="small"
+              type="primary"
+              effect="plain"
+            >
+              {{ tag }}
+            </el-tag>
+          </div>
+        </el-descriptions-item>
+        <el-descriptions-item v-if="aiDesc" label="画面描述">
+          <span class="text-sm text-gray-700">{{ aiDesc }}</span>
+        </el-descriptions-item>
+        <el-descriptions-item v-if="detail?.description?.narrative" label="一句话">
+          {{ detail?.description?.narrative }}
+        </el-descriptions-item>
+        <el-descriptions-item v-if="hasScores" label="评分">
+          <span v-if="qualityScore != null" class="mr-3">
+            美观度: <b class="text-blue-600">{{ qualityScore }}</b>
+          </span>
+          <span v-if="memoryScore != null">
+            回忆价值: <b class="text-purple-600">{{ memoryScore }}</b>
+          </span>
         </el-descriptions-item>
       </el-descriptions>
 
@@ -172,7 +174,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Check, Orange } from '@element-plus/icons-vue'
+import { Check } from '@element-plus/icons-vue'
 import { photoApi } from '@/api/photo'
 import { albumApi } from '@/api/album'
 import { REANALYZE_TASK_OPTIONS } from '@/types/task'
@@ -292,6 +294,23 @@ const locationText = computed(() => {
 
 const hasLocation = computed(() => hasCoords.value || Boolean(locationText.value))
 
+// ── AI 分析字段 ───────────────
+const aiDesc = computed(() => detail.value?.description?.description || '')
+const aiTags = computed<string[]>(() => {
+  const tags = detail.value?.description?.tags
+  if (Array.isArray(tags)) return tags
+  if (typeof tags === 'string') {
+    try { return JSON.parse(tags) } catch { return [] }
+  }
+  return []
+})
+const qualityScore = computed(() => detail.value?.description?.quality_score ?? null)
+const memoryScore = computed(() => detail.value?.description?.memory_score ?? null)
+const hasScores = computed(() => qualityScore.value != null || memoryScore.value != null)
+const hasAiInfo = computed(() =>
+  aiTags.value.length > 0 || Boolean(aiDesc.value) || hasScores.value
+)
+
 /** 字节转可读大小 */
 function formatFileSize(bytes?: number): string {
   if (!bytes || bytes <= 0) return '—'
@@ -301,12 +320,6 @@ function formatFileSize(bytes?: number): string {
 }
 
 /** 格式化时间 */
-function tagStyle(confidence: number) {
-  if (confidence >= 0.8) return { background: '#dcfce7', color: '#166534' }
-  if (confidence >= 0.5) return { background: '#fef9c3', color: '#854d0e' }
-  return { background: '#fce7f3', color: '#9d174d' }
-}
-
 function formatDateTime(dateStr?: string): string {
   if (!dateStr) return '—'
   const d = new Date(dateStr)

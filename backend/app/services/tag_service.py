@@ -50,11 +50,9 @@ def generate_tags_for_photo(db: Session, photo: Photo) -> Optional[ImageDescript
     对一张照片运行检测，将标签写入 ImageDescription
 
     如果已有 ImageDescription 记录则更新 tags 字段，
-    否则创建新记录。
+    否则创建新记录。即使检测结果为空也写入空数组。
     """
     labels = run_object_detection(photo)
-    if not labels:
-        return None
 
     desc = db.query(ImageDescription).filter(
         ImageDescription.photo_id == photo.id

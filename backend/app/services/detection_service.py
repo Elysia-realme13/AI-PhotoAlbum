@@ -1,4 +1,4 @@
-"""
+﻿"""
 YOLO 目标检测服务
 
 使用 Ultralytics YOLO26（COCO 数据集训练）对图片进行目标检测。
@@ -13,7 +13,6 @@ import io
 import logging
 from pathlib import Path
 from typing import Optional
-from app.config.settings import settings
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +36,7 @@ _model = None
 _model_name: Optional[str] = None
 
 # 默认模型名称
-DEFAULT_MODEL = str(Path(settings.MODELS_DIR) / "yolo26n.pt")
+DEFAULT_MODEL = "yolo11m.pt"
 
 
 def _get_model(model_name: str = DEFAULT_MODEL):

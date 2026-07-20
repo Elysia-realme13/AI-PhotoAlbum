@@ -45,6 +45,11 @@ Response requirements:
 - If there is a feature you cannot fulfill, be honest and suggest alternatives
 - Keep replies concise and well-organized, use emoji appropriately
 
+IMPORTANT: When the user asks to browse, analyze, or look at their photos
+without giving a specific search keyword, call search_photos with keyword=""
+to get recent photos with their AI descriptions. Always try to show users
+what photos they have before asking them to upload.
+
 When a user mentions specific objects (animals, vehicles, furniture, etc.):
 - Pass those objects via the objects parameter to search_photos for YOLO-based verification.
 - YOLO can detect 80 COCO classes including: person, dog, cat, bird, car, bicycle, motorcycle, airplane, boat, furniture, food, etc.
@@ -81,13 +86,13 @@ def search_photos(
     objects: Optional[List[str]] = None,
     top_k: int = 20,
 ) -> dict:
-    """Search photos. Call when the user wants to find photos of specific content, people, scenes, or objects.
+    """Search or browse photos. Call WITHOUT keyword (keyword="") when user says 'analyze my photos', 'browse', 'show me what I have', or 'look at recent photos' — this returns recent photos with descriptions. Call WITH keyword when searching for specific content.
 
     Args:
-        keyword: Search keyword, e.g. "beach", "sunset", "cat"
-        person_name: Person name, e.g. "mom", "Xiao Ming". Leave empty if not needed
-        objects: Concrete objects to detect with YOLO, e.g. ["dog", "cat", "car"]. Only use for physical COCO-detectable things.
-        top_k: Number of photos to return, default 20
+        keyword: Search keyword. Leave "" to browse recent photos
+        person_name: Person name. Leave empty if not needed
+        objects: YOLO-detectable objects. Leave empty if not needed
+        top_k: Number of photos, default 20
     """
     pass  # implemented in _execute_tool
 
@@ -175,8 +180,28 @@ def _execute_tool(
             objects = tool_args.get("objects")
             top_k = tool_args.get("top_k", 20)
 
+            # 无任何筛选条件 → 返回最近上传的照片
             if not keyword and not person_name and not objects:
-                keyword = "photo"
+                from app.crud.photo import get_photo_list
+                photos, _ = get_photo_list(
+                    db=db, owner_id=uuid.UUID(owner_id),
+                    page=1, page_size=min(top_k, 20), sort_by="upload_time", order="desc",
+                    is_deleted=False,
+                )
+                return json.dumps({
+                    "found": len(photos),
+                    "photos": [
+                        {
+                            "id": str(p.id),
+                            "name": p.original_name or p.filename,
+                            "desc": p.image_description.description if p.image_description else "",
+                            "tags": p.image_description.tags if p.image_description else [],
+                            "time": str(p.photo_time) if p.photo_time else "",
+                            "size": f"{p.width}x{p.height}" if p.width else "",
+                        }
+                        for p in photos
+                    ],
+                }, ensure_ascii=False)
 
             # Phase 1: CLIP search
             results = clip_search_by_text(
@@ -289,11 +314,11 @@ def _execute_tool(
             }, ensure_ascii=False)
 
         elif tool_name == "get_stats":
-            count = photo_crud.get_user_photo_count(db, uuid.UUID(owner_id))
+            count = int(photo_crud.get_user_photo_count(db, uuid.UUID(owner_id)))
             storage = photo_crud.get_storage_used(db, uuid.UUID(owner_id))
             return json.dumps({
-                "total_photos": count,
-                "storage_mb": round(storage / 1024 / 1024, 1) if storage else 0,
+                "total_photos": int(count),
+                "storage_mb": round(float(storage or 0) / 1024 / 1024, 1),
             }, ensure_ascii=False)
 
         elif tool_name == "analyze_image":

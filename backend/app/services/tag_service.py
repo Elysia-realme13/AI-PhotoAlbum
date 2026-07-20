@@ -45,35 +45,60 @@ def run_object_detection(photo: Photo, top_k: int = 10) -> List[str]:
         return []
 
 
-def generate_tags_for_photo(db: Session, photo: Photo) -> Optional[ImageDescription]:
+def generate_tags_for_photo(
+    db: Session, photo: Photo, top_k: int = 20
+) -> Optional[ImageDescription]:
     """
-    对一张照片运行检测，将标签写入 ImageDescription
+    对一张照片运行 YOLO 检测，将结构化结果写入 ImageDescription.tags
 
-    如果已有 ImageDescription 记录则更新 tags 字段，
-    否则创建新记录。
+    tags 统一存为对象结构（与前端展示、自然语言搜索、detection_tasks 对齐）：
+        {
+            "detections": [...],
+            "summary": [{"label", "count", "max_confidence"}, ...],
+            "total": int,
+            "model": str,
+        }
+    未检测到任何物体时返回 None（不创建空描述）。
+    已有记录则覆写 tags（重新分析以最新检测为准）。
     """
-    labels = run_object_detection(photo)
-    if not labels:
+    result = detect_objects(photo.file_path, confidence_threshold=0.3)
+    if not result.get("success"):
+        logger.warning(f"检测失败 {photo.filename}: {result.get('error', '未知错误')}")
         return None
+
+    detections = result.get("detections", [])
+    summary = get_detection_summary(detections)
+    if not summary:
+        logger.info(f"未检测到物体: {photo.filename}")
+        return None
+
+    tags_payload = {
+        "detections": detections,
+        "summary": summary[:top_k] if top_k else summary,
+        "total": result.get("total", len(detections)),
+        "model": result.get("model", "yolo26n.pt"),
+    }
 
     desc = db.query(ImageDescription).filter(
         ImageDescription.photo_id == photo.id
     ).first()
 
     if desc:
-        existing = set(desc.tags or [])
-        desc.tags = list(existing | set(labels))
+        desc.tags = tags_payload
     else:
         import uuid
         desc = ImageDescription(
             id=uuid.uuid4(),
             photo_id=photo.id,
-            tags=labels,
+            tags=tags_payload,
         )
         db.add(desc)
 
     db.commit()
     db.refresh(desc)
+
+    labels = [item["label"] for item in tags_payload["summary"]]
+    logger.info(f"检测完成: {photo.filename} → {labels}")
 
     # 标记照片已完成此任务
     from app.crud.photo import update_processed_tasks
@@ -114,7 +139,8 @@ def process_pending_detection_tasks(db: Session, limit: int = 10) -> dict:
                 continue
 
             desc = generate_tags_for_photo(db, photo)
-            labels = desc.tags if desc else []
+            summary = (desc.tags or {}).get("summary", []) if desc else []
+            labels = [s["label"] for s in summary if isinstance(s, dict) and s.get("label")]
 
             update_task_status(
                 db, task, TaskStatus.completed,

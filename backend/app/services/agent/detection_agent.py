@@ -65,25 +65,23 @@ def _yolo_tag_filter(
     )
     tag_map = {str(r.photo_id): r.tags for r in rows}
 
-    target_lower = {o.lower() for o in target_objects}
     results = []
     for pid in photo_ids:
-        tags = tag_map.get(pid, [])
-        if not isinstance(tags, list):
-            tags = []
-        flat = set()
-        for t in tags:
-            if isinstance(t, dict):
-                flat.add(t.get("label", "").lower())
-            elif isinstance(t, list):
-                for item in t:
-                    if isinstance(item, dict):
-                        flat.add(item.get("label", "").lower())
-                    elif isinstance(item, str):
-                        flat.add(item.lower())
-            elif isinstance(t, str):
-                flat.add(t.lower())
-        matched = [o for o in target_objects if o.lower() in flat]
+        tags = tag_map.get(pid)
+        labels = set()
+        if isinstance(tags, dict):
+            # 规范结构：{"summary": [{"label": ...}], ...}
+            for item in tags.get("summary", []) or []:
+                if isinstance(item, dict) and item.get("label"):
+                    labels.add(item["label"].lower())
+        elif isinstance(tags, list):
+            # 兼容旧结构：字符串列表或 dict 列表
+            for t in tags:
+                if isinstance(t, dict) and t.get("label"):
+                    labels.add(t["label"].lower())
+                elif isinstance(t, str):
+                    labels.add(t.lower())
+        matched = [o for o in target_objects if o.lower() in labels]
         if matched:
             results.append({"photo_id": pid, "matched_objects": matched})
     return results

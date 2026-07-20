@@ -824,7 +824,8 @@ def detect_objects_on_photo(
 
     from app.services.tag_service import generate_tags_for_photo
     desc = generate_tags_for_photo(db, photo)
-    labels = desc.tags if desc else []
+    summary = (desc.tags or {}).get("summary", []) if desc else []
+    labels = [s["label"] for s in summary if isinstance(s, dict) and s.get("label")]
     return BaseResponse(data={"photo_id": photo_id, "labels": labels, "count": len(labels)})
 
 

@@ -5,12 +5,9 @@
     pending → running → completed / failed
 
 设计:
-    - TASK_HANDLERS 处理器注册表：包含已具备能力的任务类型 + 占位任务类型。
-    - run_pending_tasks 只领取注册表中存在的类型。
-    - 尚未接入模型的任务类型（face_detect / image_description / quality_assessment）
-      注册占位 handler：被领取后直接消费为 completed，result 标注 skipped/未接入，
-      避免其永久停留 pending（前端表现为“等待中”不动）。真实实现就绪后，直接替换
-      TASK_HANDLERS 中对应项即可，无需改动调度器与上游任务创建逻辑。
+    - TASK_HANDLERS 处理器注册表：注册所有已具备能力的任务类型对应的 handler。
+    - run_pending_tasks 只领取注册表中存在的类型，逐条消费为 completed / failed。
+    - 目标检测/向量嵌入/EXIF/地理编码/人脸检测/画面描述/质量评分均已接入真实实现。
 
 扩展点（多 worker）:
     当前按单进程/单调度器设计，逐条领取无竞争。若未来多 worker 并发消费，
@@ -46,12 +43,13 @@ def _get_photo(db: Session, task: Task) -> Photo:
 
 
 def _handle_object_detection(db: Session, task: Task) -> dict:
-    """YOLO 目标检测 → 自动标签"""
+    """YOLO 目标检测 → 结构化标签（写入 ImageDescription.tags）"""
     from app.services.tag_service import generate_tags_for_photo
 
     photo = _get_photo(db, task)
     desc = generate_tags_for_photo(db, photo)
-    labels = desc.tags if desc else []
+    summary = (desc.tags or {}).get("summary", []) if desc else []
+    labels = [item["label"] for item in summary if isinstance(item, dict) and item.get("label")]
     return {"labels": labels, "count": len(labels)}
 
 
@@ -317,4 +315,4 @@ def run_pending_tasks(db: Session, limit: int = 10) -> dict:
     return {"completed": completed, "failed": failed, "total": len(tasks)}
 
 
-__all__ = ["TASK_HANDLERS", "PLACEHOLDER_TASK_TYPES", "run_pending_tasks"]
+__all__ = ["TASK_HANDLERS", "run_pending_tasks"]

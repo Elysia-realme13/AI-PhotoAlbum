@@ -85,7 +85,7 @@
               <img
                 :src="captchaImage"
                 alt="验证码"
-                class="h-10 w-[120px] rounded-lg border border-gray-200 dark:border-dark-border cursor-pointer select-none flex-shrink-0 bg-white"
+                class="h-[50px] w-[140px] rounded-lg border border-gray-200 dark:border-dark-border cursor-pointer select-none flex-shrink-0 bg-white"
                 title="点击刷新验证码"
                 @click="refreshCaptcha"
               />
@@ -95,8 +95,8 @@
           <!-- 记住密码 + 同意协议 -->
           <el-form-item>
             <div class="flex items-center justify-between w-full gap-4">
-              <el-checkbox v-model="rememberPassword" size="small">记住密码</el-checkbox>
-              <el-checkbox v-model="agreedToTerms" size="small">
+              <el-checkbox v-model="rememberPassword" size="small" @keyup.enter="handleLogin">记住密码</el-checkbox>
+              <el-checkbox v-model="agreedToTerms" size="small" @keyup.enter="handleLogin">
                 <span class="text-xs text-gray-400 dark:text-dark-text-secondary">
                   已阅读并同意
                   <router-link to="/terms" target="_blank" class="text-blue-500 hover:text-blue-600">《服务协议》</router-link>
@@ -139,7 +139,7 @@
               <img
                 :src="captchaImage"
                 alt="验证码"
-                class="h-10 w-[120px] rounded-lg border border-gray-200 dark:border-dark-border cursor-pointer select-none flex-shrink-0 bg-white"
+                class="h-[50px] w-[140px] rounded-lg border border-gray-200 dark:border-dark-border cursor-pointer select-none flex-shrink-0 bg-white"
                 title="点击刷新验证码"
                 @click="refreshCaptcha"
               />
@@ -366,6 +366,10 @@ function switchToRegister() {
 
 // ── 登录 ─────────────────────────────
 async function handleLogin() {
+  if (!agreedToTerms.value) {
+    ElMessage.warning('请先阅读并同意服务协议和隐私声明')
+    return
+  }
   // 记录本次登录尝试的用户名，用于切换账号时自动刷新验证码
   lastLoginAttemptUsername.value = loginForm.username.trim()
   loading.value = true

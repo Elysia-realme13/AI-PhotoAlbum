@@ -106,6 +106,8 @@ export const useChatStore = defineStore('chat', () => {
     if (!query.trim() || isStreaming.value) return
 
     // 添加用户消息
+    isStreaming.value = true
+    streamingContent.value = ''
     const userMsg: ChatMessage = {
       id: nextId(),
       role: 'user',
@@ -125,8 +127,6 @@ export const useChatStore = defineStore('chat', () => {
       streaming: true,
     }
     messages.value.push(aiMsg)
-    isStreaming.value = true
-    streamingContent.value = ''
 
     try {
       // 若无当前会话，先创建

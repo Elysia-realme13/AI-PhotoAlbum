@@ -326,3 +326,37 @@ __all__ = [
     "cosine_similarity",
     "DEFAULT_CLUSTER_THRESHOLD",
 ]
+
+
+def cleanup_orphaned_identities(db: Session, owner_id) -> dict:
+    """删除所有没有关联人脸的面部身份聚类（0 张照片的聚类）。
+
+    Args:
+        db: 数据库会话
+        owner_id: 用户 UUID
+
+    Returns:
+        {"deleted": int}
+    """
+    from sqlalchemy import func
+
+    owner_uuid = _to_uuid(owner_id)
+
+    # 查询无人脸的 identity
+    results = (
+        db.query(FaceIdentity)
+        .outerjoin(Face, Face.face_identity_id == FaceIdentity.id)
+        .filter(FaceIdentity.owner_id == owner_uuid)
+        .group_by(FaceIdentity.id)
+        .having(func.count(Face.id) == 0)
+        .all()
+    )
+
+    deleted = 0
+    for identity in results:
+        db.delete(identity)
+        deleted += 1
+
+    db.commit()
+    logger.info(f"已清理 {deleted} 个空面部聚类")
+    return {"deleted": deleted}

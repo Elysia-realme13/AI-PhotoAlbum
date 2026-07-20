@@ -48,9 +48,7 @@ def run_object_detection(photo: Photo, top_k: int = 10) -> List[str]:
 def generate_tags_for_photo(db: Session, photo: Photo) -> Optional[ImageDescription]:
     """
     对一张照片运行检测，将标签写入 ImageDescription
-
-    如果已有 ImageDescription 记录则更新 tags 字段，
-    否则创建新记录。即使检测结果为空也写入空数组。
+    始终存储为简单列表格式 ['dog', 'person']，兼容搜索
     """
     labels = run_object_detection(photo)
 
@@ -58,9 +56,18 @@ def generate_tags_for_photo(db: Session, photo: Photo) -> Optional[ImageDescript
         ImageDescription.photo_id == photo.id
     ).first()
 
+    # 统一旧标签格式：dict → list, list → list
+    existing = []
+    if desc and desc.tags:
+        if isinstance(desc.tags, dict):
+            # 远程代码可能存了完整 YOLO 结果，提取 summary 中的 label
+            existing = [s["label"] for s in desc.tags.get("summary", [])]
+        elif isinstance(desc.tags, list):
+            # 过滤掉不是字符串的元素（如被错误转换的 dict keys）
+            existing = [t for t in desc.tags if isinstance(t, str)]
+    merged = list(set(existing) | set(labels))
     if desc:
-        existing = set(desc.tags or [])
-        desc.tags = list(existing | set(labels))
+        desc.tags = merged
     else:
         import uuid
         desc = ImageDescription(

@@ -53,7 +53,7 @@ CRITICAL INSTRUCTIONS:
    objects: COCO-80 English labels for YOLO filter (optional)
    Examples: keyword=植物, objects=["potted plant"]
    Chinese-to-COCO: 猫=cat 狗=dog 鸟=bird 人=person 车=car
-   花/植物="potted plant"  手机="cell phone"  食物="pizza"/"cake"
+   花/植物/盆栽=\"potted plant\"   注意: tree/flower 不是 COCO 类，请用 keyword 搜索
 
 2. **detection_agent(target_objects, photo_ids)** --- YOLO for known photos.
 3. **face_agent(action, person_name)** --- Face recognition.

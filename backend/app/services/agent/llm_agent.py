@@ -194,50 +194,75 @@ def _execute_tool(
                     results = [r for r in results if r["photo_id"] in face_ids]
 
             # Phase 2: YOLO tag filtering
-            if objects and results:
-                photo_ids_in_results = [r["photo_id"] for r in results]
+            # Phase 2: Direct YOLO tag search (independent of CLIP results)
+            if objects:
                 from uuid import UUID as _UUID
-                _pids = [_UUID(pid) for pid in photo_ids_in_results]
-                rows = (
+                from sqlalchemy import or_
+                from app.models.photo import Photo
+
+                # Build label pattern for all target objects
+                target_lower = {o.lower() for o in objects}
+                owner_uuid = _UUID(owner_id) if owner_id else None
+
+                # Query ImageDescription with photos that have non-null tags
+                tag_rows = (
                     db.query(ImageDescription.photo_id, ImageDescription.tags)
+                    .join(Photo, Photo.id == ImageDescription.photo_id)
                     .filter(
-                        ImageDescription.photo_id.in_(_pids),
                         ImageDescription.tags.isnot(None),
+                        Photo.is_deleted == False,
                     )
                     .all()
                 )
-                tag_map = {str(r.photo_id): r.tags for r in rows}
+                if owner_uuid:
+                    # Re-query with owner filter
+                    tag_rows = (
+                        db.query(ImageDescription.photo_id, ImageDescription.tags)
+                        .join(Photo, Photo.id == ImageDescription.photo_id)
+                        .filter(
+                            ImageDescription.tags.isnot(None),
+                            Photo.owner_id == owner_uuid,
+                            Photo.is_deleted == False,
+                        )
+                        .all()
+                    )
 
-                filtered = []
-                for r in results:
-                    pid = r["photo_id"]
-                    tags = tag_map.get(pid, [])
-                    if not isinstance(tags, list):
-                        tags = []
-
-                    # Flatten tags: tags is a list of lists (YOLO detections per run)
-                    flat_tags = set()
-                    for t in tags:
-                        if isinstance(t, dict):
-                            flat_tags.add(t.get("label", ""))
-                        elif isinstance(t, list):
-                            for item in t:
-                                if isinstance(item, dict):
-                                    flat_tags.add(item.get("label", ""))
-                                elif isinstance(item, str):
-                                    flat_tags.add(item)
-                        elif isinstance(t, str):
-                            flat_tags.add(t)
-
-                    matched = [o for o in objects if o.lower() in flat_tags or any(o.lower() in ft for ft in flat_tags)]
+                tag_results = []
+                for row in tag_rows:
+                    tags = row.tags
+                    if not isinstance(tags, dict):
+                        continue
+                    summary = tags.get("summary", [])
+                    if not isinstance(summary, list):
+                        continue
+                    matched = []
+                    for item in summary:
+                        if isinstance(item, dict) and item.get("label"):
+                            label = item["label"].lower()
+                            for to in target_lower:
+                                if to == label or to in label or label in to:
+                                    matched.append(item["label"])
                     if matched:
-                        r["matched_objects"] = matched
-                        r["yolo_confidence"] = "tag"
-                        filtered.append(r)
+                        tag_results.append({
+                            "photo_id": str(row.photo_id),
+                            "score": 0.5,
+                            "matched_objects": list(set(matched)),
+                            "source": "yolo_tag",
+                        })
 
-                # Sort: more matched objects first, then by CLIP score
-                filtered.sort(key=lambda x: (-len(x.get("matched_objects", [])), -x.get("score", 0)))
-                results = filtered
+                # Merge tag results with CLIP results (tag results take priority)
+                clip_ids = {r["photo_id"] for r in results}
+                for tr in tag_results:
+                    if tr["photo_id"] not in clip_ids:
+                        results.append(tr)
+
+                # Re-sort: matched objects count desc, then CLIP score desc
+                results.sort(key=lambda x: (
+                    -len(x.get("matched_objects", [])),
+                    -x.get("score", 0)
+                ))
+
+            # Phase 3: Person-name filtering (unchanged)
 
             return json.dumps({
                 "found": len(results),

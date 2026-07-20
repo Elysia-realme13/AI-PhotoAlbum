@@ -74,6 +74,26 @@ def get_llm() -> ChatOpenAI:
     return _llm
 
 
+_vision_llm: Optional[ChatOpenAI] = None
+
+
+def get_vision_llm() -> ChatOpenAI:
+    """获取视觉多模态 LLM 实例（用于看图生成描述）"""
+    global _vision_llm
+    if _vision_llm is None:
+        key = settings.VISION_API_KEY or settings.OPENAI_API_KEY
+        url = settings.VISION_BASE_URL or settings.OPENAI_BASE_URL
+        model = settings.VISION_MODEL or settings.OPENAI_MODEL
+        _vision_llm = ChatOpenAI(
+            openai_api_key=key,
+            openai_api_base=url,
+            model=model,
+            temperature=0.7,
+            max_tokens=200,
+        )
+    return _vision_llm
+
+
 # --- Tool definitions -------------------------------------------------------
 
 # Docstrings are read by the LLM, so use natural-language parameter descriptions.

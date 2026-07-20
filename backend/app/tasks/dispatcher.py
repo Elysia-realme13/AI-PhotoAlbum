@@ -146,7 +146,129 @@ TASK_HANDLERS: Dict[TaskType, Callable[[Session, Task], dict]] = {
     TaskType.exif_extract: _handle_exif_extract,
     TaskType.geocode: _handle_geocode,
     TaskType.face_detect: _handle_face_detect,
+    TaskType.image_description: _handle_image_description,
+    TaskType.quality_assessment: _handle_quality_assessment,
 }
+
+def _handle_image_description(db: Session, task: Task) -> dict:
+    """AI 画面描述 — 使用 ChatOpenAI 生成照片的文字描述"""
+    from app.crud.photo import update_processed_tasks
+    from langchain_openai import ChatOpenAI
+    from langchain_core.messages import HumanMessage
+    import base64
+
+    photo = _get_photo(db, task)
+    if not photo:
+        return {"error": "photo not found"}
+
+    try:
+        with open(photo.file_path, "rb") as f:
+            img_b64 = base64.b64encode(f.read()).decode("utf-8")
+
+        llm = ChatOpenAI(model="gpt-4o", temperature=0.3, max_tokens=300)
+        msg = HumanMessage(content=[
+            {"type": "text", "text": "用中文简洁描述这张照片的画面内容。先一句话概括，然后用几个关键词描述。格式：\\n```\\n描述：...\\n关键词：A, B, C\\n```"},
+            {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{img_b64}"}},
+        ])
+        resp = llm.invoke([msg])
+        text = resp.content if hasattr(resp, "content") else str(resp)
+
+        desc_text = ""
+        keywords = ""
+        for line in text.split("\\n"):
+            if line.startswith("描述") or line.startswith("描述："):
+                desc_text = line.split("：", 1)[1] if "：" in line else line
+            elif line.startswith("关键词") or line.startswith("关键词："):
+                keywords = line.split("：", 1)[1] if "：" in line else line
+
+        existing = _get_or_create_description(db, photo.id)
+        existing.description = desc_text or text
+        existing.narrative = keywords or text[:100]
+        db.commit()
+
+        update_processed_tasks(db, photo, "image_description", {"applied": True})
+        return {"applied": True, "description": desc_text or text}
+    except Exception as e:
+        logger.error(f"Image description failed: {e}")
+        update_processed_tasks(db, photo, "image_description", {"error": str(e)})
+        return {"applied": False, "error": str(e)}
+
+
+def _handle_quality_assessment(db: Session, task: Task) -> dict:
+    """美观度/回忆价值评分 — 基于图像属性的启发式评分"""
+    from app.crud.photo import update_processed_tasks
+    from PIL import Image
+    import math
+
+    photo = _get_photo(db, task)
+    if not photo:
+        return {"error": "photo not found"}
+
+    quality = 0.5  # 默认中等
+    memory = 0.5
+
+    try:
+        img = Image.open(photo.file_path)
+        w, h = img.size
+        mega = (w * h) / 1_000_000
+
+        # 质量评分：分辨率越高越好（但非线性）
+        if mega >= 12:
+            quality = 0.85  # 超高清
+        elif mega >= 5:
+            quality = 0.7   # 高清
+        elif mega >= 2:
+            quality = 0.55  # 普通
+        else:
+            quality = 0.4   # 小图
+
+        # 回忆价值：宽幅/特殊比例更有叙事感
+        aspect = max(w, h) / min(w, h) if min(w, h) > 0 else 1
+        if aspect > 2.5 or aspect < 1.1:
+            memory = 0.6  # 全景/特写
+        else:
+            memory = 0.5
+
+        # 有 EXIF 则加分（可能是认真拍摄的）
+        exif_raw = img._getexif() if hasattr(img, "_getexif") else None
+        if exif_raw and len(exif_raw) > 5:
+            quality = min(1.0, quality + 0.1)
+            memory = min(1.0, memory + 0.05)
+
+        img.close()
+
+    except Exception as e:
+        logger.warning(f"Quality assessment failed for {photo.filename}: {e}")
+
+    quality = round(min(1.0, max(0.0, quality)), 2)
+    memory = round(min(1.0, max(0.0, memory)), 2)
+
+    existing = _get_or_create_description(db, photo.id)
+    existing.quality_score = quality
+    existing.memory_score = memory
+    db.commit()
+
+    update_processed_tasks(db, photo, "quality_assessment",
+                           {"quality_score": quality, "memory_score": memory})
+    return {"quality_score": quality, "memory_score": memory}
+
+
+def _get_or_create_description(db, photo_id):
+    """获取或创建 ImageDescription 记录。"""
+    from app.models.description import ImageDescription
+    import uuid
+
+    existing = db.query(ImageDescription).filter(
+        ImageDescription.photo_id == photo_id
+    ).first()
+    if existing:
+        return existing
+
+    desc = ImageDescription(id=uuid.uuid4(), photo_id=photo_id)
+    db.add(desc)
+    db.flush()
+    return desc
+
 
 
 def run_pending_tasks(db: Session, limit: int = 10) -> dict:

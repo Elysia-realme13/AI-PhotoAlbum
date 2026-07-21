@@ -75,10 +75,16 @@ def _handle_image_description(db: Session, task: Task) -> dict:
     from app.models.description import ImageDescription
     desc_row = db.query(ImageDescription).filter(ImageDescription.photo_id == task.photo_id).first()
     if desc_row and desc_row.tags:
-        tags_hint = f" 已检测到物体: {', '.join(desc_row.tags)}。"
+        sum_labels = [s.get("label", "") for s in desc_row.tags.get("summary", []) if isinstance(s, dict)]
+        tags_hint = f" 已检测到物体: {', '.join(sum_labels)}。" if sum_labels else ""
 
     try:
         llm = get_vision_llm()
+        # 检查 API Key 是否为空，为空则直接跳过 LLM 调用走降级
+        from app.config.settings import settings as _settings
+        _key = _settings.VISION_API_KEY or _settings.OPENAI_API_KEY
+        if not _key:
+            raise ValueError('LLM API Key 未配置，降级到 YOLO 标签描述')
         response = llm.invoke([
             SystemMessage(content="你是专业摄影师，用中文简短描述画面（20-50字），包括场景、主体、光线和氛围。"),
             HumanMessage(content=[
@@ -101,7 +107,50 @@ def _handle_image_description(db: Session, task: Task) -> dict:
 
         return {"description": description}
     except Exception as e:
-        return {"error": f"LLM 调用失败: {e}"}
+        logger.warning(f'LLM 描述失败（{e}），降级到 YOLO 标签描述')
+
+    # 降级路径：从 YOLO 标签生成描述
+    try:
+        from app.models.description import ImageDescription as _DescModel
+        from collections import Counter
+        existing = db.query(_DescModel).filter(_DescModel.photo_id == task.photo_id).first()
+        tags = existing.tags if existing else None
+        if tags and isinstance(tags, dict):
+            summary = tags.get("summary", [])
+            labels = [s.get('label', '') for s in summary if isinstance(s, dict) and 'label' in s]
+        elif tags and isinstance(tags, list):
+            labels = [t for t in tags if isinstance(t, str)]
+        else:
+            labels = []
+        items = list(Counter(labels).items()) if labels else []
+        if items:
+            parts = []
+            for label, cnt in items:
+                parts.append(f"{label}\u00d7{cnt}" if cnt > 1 else label)
+            desc_text = "照片中包含：" + "、".join(parts)
+            narrative_text = "照片中的主要元素：" + "、".join(label for label, _ in items[:3])
+        else:
+            desc_text = None
+            narrative_text = None
+        if desc_row:
+            desc_row.description = desc_text
+            desc_row.narrative = narrative_text
+        else:
+            desc_row = _DescModel(
+                id=uuid.uuid4(), photo_id=task.photo_id,
+                description=desc_text, narrative=narrative_text,
+            )
+            db.add(desc_row)
+        db.commit()
+        return {
+            "applied": True,
+            "source": "yolo_fallback",
+            "description": desc_text,
+        }
+    except Exception as e2:
+        logger.error(f'YOLO 标签描述也失败: {e2}')
+        return {'error': f'降级描述也失败: {e2}'}
+
 
 
 def _handle_quality_assessment(db: Session, task: Task) -> dict:
@@ -131,6 +180,11 @@ def _handle_quality_assessment(db: Session, task: Task) -> dict:
 
     try:
         llm = get_vision_llm()
+        # 检查 API Key 是否为空
+        from app.config.settings import settings as _settings
+        _key = _settings.VISION_API_KEY or _settings.OPENAI_API_KEY
+        if not _key:
+            raise ValueError('LLM API Key 未配置，降级到启发式评分')
         response = llm.invoke([
             SystemMessage(content="你是专业摄影评审。严格按以下标准给照片评分(0-1)：\n"
                 "质量分: 清晰度/构图/光线/色彩。模糊/过曝/噪点多→低分，清晰/构图好/光线佳→高分\n"
@@ -152,7 +206,40 @@ def _handle_quality_assessment(db: Session, task: Task) -> dict:
         else:
             quality, memory, reason = 0.5, 0.5, "解析失败"
     except Exception as e:
-        return {"error": f"评分失败: {e}"}
+        logger.warning(f'LLM 评分失败（{e}），降级到启发式评分')
+        # 降级路径：PIL 启发式评分
+        quality = 0.5
+        memory = 0.5
+        try:
+            from PIL import Image as _PILImage
+            import math
+            img = _PILImage.open(photo.file_path)
+            w, h = img.size
+            mega = (w * h) / 1_000_000
+            if mega >= 12:
+                quality = 0.85
+            elif mega >= 5:
+                quality = 0.7
+            elif mega >= 2:
+                quality = 0.55
+            else:
+                quality = 0.4
+            aspect = max(w, h) / min(w, h) if min(w, h) > 0 else 1
+            if aspect > 2.5 or aspect < 1.1:
+                memory = 0.6
+            else:
+                memory = 0.5
+            exif_raw = img._getexif() if hasattr(img, '_getexif') else None
+            if exif_raw and len(exif_raw) > 5:
+                quality = min(1.0, quality + 0.1)
+                memory = min(1.0, memory + 0.05)
+            img.close()
+        except Exception as e2:
+            logger.warning(f'启发式评分也失败: {e2}')
+        quality = round(min(1.0, max(0.0, quality)), 2)
+        memory = round(min(1.0, max(0.0, memory)), 2)
+        reason = "heuristic"
+
 
     quality = round(quality, 2)
     memory = round(memory, 2)

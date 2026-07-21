@@ -12,17 +12,17 @@ def _load_model():
         return True
     try:
         from transformers import ChineseCLIPProcessor, ChineseCLIPModel
-        logger.info(f"Loading CLIP: {MODEL_NAME}")
+        logger.info(f"[CLIP] 开始加载模型: {MODEL_NAME}（首次下载约需 1-3 分钟）")
         _model = ChineseCLIPModel.from_pretrained(MODEL_NAME)
         _processor = ChineseCLIPProcessor.from_pretrained(MODEL_NAME)
+        logger.info(f"[CLIP] 模型加载完成: {MODEL_NAME}")
         return True
     except ImportError:
-        logger.error("Missing transformers/torch. Run: uv add transformers torch")
+        logger.error("缺少 transformers/torch，请执行: uv add transformers torch")
         return False
     except Exception as e:
-        logger.error(f"Model load failed: {e}")
+        logger.error(f"[CLIP] 模型加载失败: {e}")
         return False
-
 def get_image_embedding(image_source: Union[str, bytes]) -> Optional[List[float]]:
     if not _load_model():
         return None

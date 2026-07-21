@@ -295,17 +295,18 @@ def run_supervisor(
             )
             result_data = json.loads(result_json)
 
-            # Collect results from both "photos" and "photo_ids" keys
-            if "photos" in result_data:
-                for p in result_data["photos"]:
-                    pid = p.get("photo_id") or p.get("id")
-                    if pid:
-                        all_photos.append({"photo_id": pid, "score": p.get("score", 0)})
-            if "photo_ids" in result_data:
-                for pid in result_data["photo_ids"]:
-                    all_photos.append({"photo_id": pid, "score": 0.0})
-                shared_photo_ids.extend(result_data["photo_ids"])
-
+            # 每次工具调用前清空，只保留最后一个返回照片的工具的结果
+            # 只在验证类工具中收集照片（detection/face/metadata），跳过原始 CLIP 搜索
+            if tool_name in ("detection_agent", "face_agent", "metadata_agent"):
+                if "photos" in result_data:
+                    for p in result_data["photos"]:
+                        pid = p.get("photo_id") or p.get("id")
+                        if pid:
+                            all_photos.append({"photo_id": pid, "score": p.get("score", 0)})
+                if "photo_ids" in result_data:
+                    for pid in result_data["photo_ids"]:
+                        all_photos.append({"photo_id": pid, "score": 0.0})
+                shared_photo_ids.extend(result_data.get("photo_ids", []))
             tool_results_for_frontend.append({
                 "tool": tool_name,
                 "args": tool_args,
@@ -322,6 +323,7 @@ def run_supervisor(
     reply = response.content if hasattr(response, 'content') else str(response)
 
     seen = set()
+    all_photos.sort(key=lambda p: p.get("score", 0), reverse=True)
     unique_photos = []
     for p in all_photos:
         if p["photo_id"] not in seen:
@@ -330,7 +332,7 @@ def run_supervisor(
 
     return {
         "reply": reply,
-        "results": unique_photos[:20],
+        "results": unique_photos[:5],
         "total": len(unique_photos),
         "tool_calls": tool_results_for_frontend,
     }

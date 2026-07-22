@@ -36,25 +36,25 @@
       <template v-else>
         <div class="max-w-2xl mx-auto pt-4 space-y-6">
           <div class="grid grid-cols-2 gap-4">
-            <div class="bg-blue-50 rounded-lg p-4 border border-blue-200">
-              <div class="text-sm text-blue-600 mb-1">模型文件</div>
-              <div class="text-2xl font-bold text-blue-700">{{ storageInfo.models_size_display || '-' }}</div>
+            <div class="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 border border-blue-200 dark:border-blue-800/40">
+              <div class="text-sm text-blue-600 dark:text-blue-300 mb-1">模型文件</div>
+              <div class="text-2xl font-bold text-blue-700 dark:text-blue-400">{{ storageInfo.models_size_display || '-' }}</div>
             </div>
-            <div class="bg-green-50 rounded-lg p-4 border border-green-200">
-              <div class="text-sm text-green-600 mb-1">数据集</div>
-              <div class="text-2xl font-bold text-green-700">{{ storageInfo.datasets_size_display || '-' }}</div>
+            <div class="bg-green-50 dark:bg-green-900/20 rounded-lg p-4 border border-green-200 dark:border-green-800/40">
+              <div class="text-sm text-green-600 dark:text-green-300 mb-1">数据集</div>
+              <div class="text-2xl font-bold text-green-700 dark:text-green-400">{{ storageInfo.datasets_size_display || '-' }}</div>
             </div>
-            <div class="bg-yellow-50 rounded-lg p-4 border border-yellow-200">
-              <div class="text-sm text-yellow-600 mb-1">日志文件</div>
-              <div class="text-2xl font-bold text-yellow-700">{{ storageInfo.logs_size_display || '-' }}</div>
+            <div class="bg-yellow-50 dark:bg-yellow-900/20 rounded-lg p-4 border border-yellow-200 dark:border-yellow-800/40">
+              <div class="text-sm text-yellow-600 dark:text-yellow-300 mb-1">日志文件</div>
+              <div class="text-2xl font-bold text-yellow-700 dark:text-yellow-400">{{ storageInfo.logs_size_display || '-' }}</div>
             </div>
-            <div class="bg-purple-50 rounded-lg p-4 border border-purple-200">
-              <div class="text-sm text-purple-600 mb-1">总计</div>
-              <div class="text-2xl font-bold text-purple-700">{{ storageInfo.total_size_display || '-' }}</div>
+            <div class="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-4 border border-purple-200 dark:border-purple-800/40">
+              <div class="text-sm text-purple-600 dark:text-purple-300 mb-1">总计</div>
+              <div class="text-2xl font-bold text-purple-700 dark:text-purple-400">{{ storageInfo.total_size_display || '-' }}</div>
             </div>
           </div>
-          <div class="bg-white rounded-lg border p-4">
-            <h4 class="text-sm font-semibold text-gray-700 mb-3">空间清理</h4>
+          <div class="bg-white dark:bg-dark-card rounded-lg border dark:border-dark-border p-4">
+            <h4 class="text-sm font-semibold text-gray-700 dark:text-dark-text mb-3">空间清理</h4>
             <p class="text-sm text-gray-500 mb-4 dark:text-dark-text-secondary">清理失败训练任务产生的临时文件，释放磁盘空间。</p>
             <el-button type="warning" @click="handleCleanStorage" :loading="cleaning">
               <el-icon><Delete /></el-icon> 清理临时文件
@@ -71,7 +71,7 @@
   <!-- 数据集预览对话框 -->
   <el-dialog v-model="previewDialog.visible" :title="previewDialog.data?.name || '数据集预览'" width="700px" top="5vh" destroy-on-close>
     <template v-if="previewDialog.data">
-      <div class="flex gap-4 mb-4 text-sm text-gray-600">
+      <div class="flex gap-4 mb-4 text-sm text-gray-600 dark:text-dark-text-secondary">
         <span>图片数量: {{ previewDialog.data.image_count }}</span>
         <span>类别: {{ previewDialog.data.class_names?.join(', ') || '-' }}</span>
       </div>

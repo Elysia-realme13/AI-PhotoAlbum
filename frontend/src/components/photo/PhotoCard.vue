@@ -1,6 +1,6 @@
 <template>
   <div
-    class="group relative aspect-square rounded-lg overflow-hidden bg-gray-100 cursor-pointer shadow-sm hover:shadow-lg transition-all duration-300 hover:-translate-y-1"
+    class="group relative aspect-square rounded-lg overflow-hidden bg-gray-100 dark:bg-dark-hover cursor-pointer shadow-sm hover:shadow-lg transition-all duration-300 hover:-translate-y-1"
     :class="{ 'ring-2 ring-blue-500': selected }"
     @click="$emit('click')"
   >

@@ -2,7 +2,7 @@
   <div>
     <!-- 加载骨架屏 -->
     <div v-if="loading" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-      <div v-for="i in 12" :key="i" class="aspect-square rounded-lg bg-gray-200 animate-pulse" />
+      <div v-for="i in 12" :key="i" class="aspect-square rounded-lg bg-gray-200 dark:bg-dark-hover animate-pulse" />
     </div>
 
     <!-- 空状态 -->

@@ -1,7 +1,7 @@
 <template>
   <div class="p-4">
     <div class="flex items-center justify-between mb-4">
-      <h2 class="text-lg font-semibold">任务中心</h2>
+      <h2 class="text-lg font-semibold text-gray-800 dark:text-dark-text">任务中心</h2>
       <el-button size="small" @click="refresh" :loading="loading">刷新</el-button>
     </div>
 
@@ -10,9 +10,9 @@
       <div
         v-for="card in statCards"
         :key="card.key"
-        class="rounded-lg border border-gray-200 bg-white px-4 py-3"
+        class="rounded-lg border border-gray-200 dark:border-dark-border bg-white dark:bg-dark-card px-4 py-3"
       >
-        <p class="text-xs text-gray-400">{{ card.label }}</p>
+        <p class="text-xs text-gray-400 dark:text-dark-text-secondary">{{ card.label }}</p>
         <p class="text-xl font-semibold" :class="card.color">{{ card.value }}</p>
       </div>
     </div>
@@ -138,7 +138,7 @@ const filterType = ref<string>('')
 const stats = ref<TaskStats>({ total: 0, pending: 0, running: 0, completed: 0, failed: 0 })
 
 const statCards = computed(() => [
-  { key: 'total', label: '总计', value: stats.value.total, color: 'text-gray-700' },
+  { key: 'total', label: '总计', value: stats.value.total, color: 'text-gray-700 dark:text-dark-text' },
   { key: 'pending', label: '等待中', value: stats.value.pending, color: 'text-blue-400' },
   { key: 'running', label: '执行中', value: stats.value.running, color: 'text-blue-600' },
   { key: 'completed', label: '已完成', value: stats.value.completed, color: 'text-green-600' },

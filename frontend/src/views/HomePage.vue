@@ -1,24 +1,24 @@
 <template>
   <div>
-    <h2 class="text-2xl font-bold text-gray-800 mb-6">首页</h2>
+    <h2 class="text-2xl font-bold text-gray-800 dark:text-dark-text mb-6">首页</h2>
 
     <!-- 加载骨架屏 -->
     <div v-if="loading">
       <div class="grid grid-cols-4 gap-4 mb-6">
-        <div v-for="i in 4" :key="i" class="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
+        <div v-for="i in 4" :key="i" class="bg-white dark:bg-dark-card rounded-xl p-5 shadow-sm border border-gray-100 dark:border-dark-border">
           <div class="flex items-center justify-between">
             <div class="flex-1">
-              <div class="h-3 bg-gray-200 rounded w-16 mb-3 animate-pulse" />
-              <div class="h-8 bg-gray-200 rounded w-12 animate-pulse" />
+              <div class="h-3 bg-gray-200 dark:bg-dark-hover rounded w-16 mb-3 animate-pulse" />
+              <div class="h-8 bg-gray-200 dark:bg-dark-hover rounded w-12 animate-pulse" />
             </div>
-            <div class="w-12 h-12 rounded-lg bg-gray-200 animate-pulse" />
+            <div class="w-12 h-12 rounded-lg bg-gray-200 dark:bg-dark-hover animate-pulse" />
           </div>
         </div>
       </div>
-      <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-        <div class="h-5 bg-gray-200 rounded w-24 mb-4 animate-pulse" />
+      <div class="bg-white dark:bg-dark-card rounded-xl shadow-sm border border-gray-100 dark:border-dark-border p-5">
+        <div class="h-5 bg-gray-200 dark:bg-dark-hover rounded w-24 mb-4 animate-pulse" />
         <div class="grid grid-cols-6 gap-3">
-          <div v-for="i in 6" :key="i" class="aspect-square bg-gray-200 rounded-lg animate-pulse" />
+          <div v-for="i in 6" :key="i" class="aspect-square bg-gray-200 dark:bg-dark-hover rounded-lg animate-pulse" />
         </div>
       </div>
     </div>
@@ -26,46 +26,46 @@
     <template v-else>
       <!-- 统计卡片 -->
       <div class="grid grid-cols-4 gap-4 mb-6">
-        <div class="bg-white rounded-xl p-5 shadow-sm border border-gray-100 hover-scale cursor-pointer" @click="router.push('/photos')">
+        <div class="bg-white dark:bg-dark-card rounded-xl p-5 shadow-sm border border-gray-100 dark:border-dark-border hover-scale cursor-pointer" @click="router.push('/photos')">
           <div class="flex items-center justify-between">
             <div>
-              <p class="text-gray-500 text-sm">总照片数</p>
-              <p class="text-3xl font-bold text-gray-800 mt-1">{{ stats.photos }}</p>
+              <p class="text-gray-500 dark:text-dark-text-secondary text-sm">总照片数</p>
+              <p class="text-3xl font-bold text-gray-800 dark:text-dark-text mt-1">{{ stats.photos }}</p>
             </div>
-            <div class="w-12 h-12 rounded-lg bg-blue-50 flex items-center justify-center">
+            <div class="w-12 h-12 rounded-lg bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center">
               <el-icon :size="24" color="#409EFF"><PictureFilled /></el-icon>
             </div>
           </div>
         </div>
-        <div class="bg-white rounded-xl p-5 shadow-sm border border-gray-100 hover-scale cursor-pointer" @click="router.push('/albums')">
+        <div class="bg-white dark:bg-dark-card rounded-xl p-5 shadow-sm border border-gray-100 dark:border-dark-border hover-scale cursor-pointer" @click="router.push('/albums')">
           <div class="flex items-center justify-between">
             <div>
-              <p class="text-gray-500 text-sm">相册数</p>
-              <p class="text-3xl font-bold text-gray-800 mt-1">{{ stats.albums }}</p>
+              <p class="text-gray-500 dark:text-dark-text-secondary text-sm">相册数</p>
+              <p class="text-3xl font-bold text-gray-800 dark:text-dark-text mt-1">{{ stats.albums }}</p>
             </div>
-            <div class="w-12 h-12 rounded-lg bg-green-50 flex items-center justify-center">
+            <div class="w-12 h-12 rounded-lg bg-green-50 dark:bg-green-900/30 flex items-center justify-center">
               <el-icon :size="24" color="#67C23A"><Folder /></el-icon>
             </div>
           </div>
         </div>
-        <div class="bg-white rounded-xl p-5 shadow-sm border border-gray-100 hover-scale cursor-pointer" @click="router.push('/faces')">
+        <div class="bg-white dark:bg-dark-card rounded-xl p-5 shadow-sm border border-gray-100 dark:border-dark-border hover-scale cursor-pointer" @click="router.push('/faces')">
           <div class="flex items-center justify-between">
             <div>
-              <p class="text-gray-500 text-sm">识别人物</p>
-              <p class="text-3xl font-bold text-gray-800 mt-1">{{ stats.faces ?? '--' }}</p>
+              <p class="text-gray-500 dark:text-dark-text-secondary text-sm">识别人物</p>
+              <p class="text-3xl font-bold text-gray-800 dark:text-dark-text mt-1">{{ stats.faces ?? '--' }}</p>
             </div>
-            <div class="w-12 h-12 rounded-lg bg-purple-50 flex items-center justify-center">
+            <div class="w-12 h-12 rounded-lg bg-purple-50 dark:bg-purple-900/30 flex items-center justify-center">
               <el-icon :size="24" color="#9C27B0"><UserFilled /></el-icon>
             </div>
           </div>
         </div>
-        <div class="bg-white rounded-xl p-5 shadow-sm border border-gray-100 hover-scale cursor-pointer" @click="router.push('/map')">
+        <div class="bg-white dark:bg-dark-card rounded-xl p-5 shadow-sm border border-gray-100 dark:border-dark-border hover-scale cursor-pointer" @click="router.push('/map')">
           <div class="flex items-center justify-between">
             <div>
-              <p class="text-gray-500 text-sm">{{ stats.cities > 0 ? '足迹城市' : '拍摄地点' }}</p>
-              <p class="text-3xl font-bold text-gray-800 mt-1">{{ stats.cities > 0 ? stats.cities : stats.locations }}</p>
+              <p class="text-gray-500 dark:text-dark-text-secondary text-sm">{{ stats.cities > 0 ? '足迹城市' : '拍摄地点' }}</p>
+              <p class="text-3xl font-bold text-gray-800 dark:text-dark-text mt-1">{{ stats.cities > 0 ? stats.cities : stats.locations }}</p>
             </div>
-            <div class="w-12 h-12 rounded-lg bg-orange-50 flex items-center justify-center">
+            <div class="w-12 h-12 rounded-lg bg-orange-50 dark:bg-orange-900/30 flex items-center justify-center">
               <el-icon :size="24" color="#E6A23C"><Location /></el-icon>
             </div>
           </div>
@@ -76,16 +76,16 @@
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         <!-- 左：最近上传 -->
         <div
-          class="bg-white rounded-xl shadow-sm border border-gray-100 p-5"
+          class="bg-white dark:bg-dark-card rounded-xl shadow-sm border border-gray-100 dark:border-dark-border p-5"
           :class="{ 'lg:col-span-2': heatmapData.length === 0 }"
         >
-          <h3 class="text-lg font-semibold text-gray-800 mb-4">最近上传</h3>
+          <h3 class="text-lg font-semibold text-gray-800 dark:text-dark-text mb-4">最近上传</h3>
           <el-empty v-if="recentPhotos.length === 0" description="还没有照片，快去上传吧！" />
           <div v-else class="grid grid-cols-3 gap-3">
             <div
               v-for="(photo, index) in recentPhotos"
               :key="photo.id"
-              class="group relative aspect-square bg-gray-100 rounded-lg overflow-hidden cursor-pointer"
+              class="group relative aspect-square bg-gray-100 dark:bg-dark-hover rounded-lg overflow-hidden cursor-pointer"
               @click="handlePreview(photo, index)"
             >
               <img :src="photoApi.thumbnailUrl(photo.id)" class="w-full h-full object-cover group-hover:opacity-80 transition-opacity" />
@@ -101,7 +101,7 @@
         </div>
 
         <!-- 右：拍摄热度 / 月度统计（合并卡片，按钮切换） -->
-        <div v-if="heatmapData.length > 0" class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+        <div v-if="heatmapData.length > 0" class="bg-white dark:bg-dark-card rounded-xl shadow-sm border border-gray-100 dark:border-dark-border p-5">
           <div class="flex items-center justify-between mb-4">
             <el-segmented v-model="viewMode" :options="segmentOptions" size="small" />
             <el-date-picker
@@ -133,7 +133,7 @@
                 <div
                   v-for="w in weekLabels"
                   :key="w"
-                  class="text-center text-xs text-gray-400 py-1"
+                  class="text-center text-xs text-gray-400 dark:text-dark-text-secondary py-1"
                 >
                   {{ w }}
                 </div>
@@ -143,7 +143,7 @@
                   <div
                     v-for="(cell, ci) in week"
                     :key="ci"
-                    class="relative h-9 rounded-md flex items-center justify-center text-xs text-slate-800"
+                    class="relative h-9 rounded-md flex items-center justify-center text-xs text-slate-800 dark:text-dark-text"
                     :class="{ 'ring-1 ring-blue-400': cell?.isToday }"
                     :style="cell ? cellStyle(cell.count) : {}"
                     :title="cell ? cell.date + '：' + cell.count + ' 张' : ''"
@@ -201,6 +201,7 @@ import { photoApi } from '@/api/photo'
 import { albumApi } from '@/api/album'
 import { mapApi } from '@/api/map'
 import { faceApi } from '@/api/face'
+import { useThemeStore } from '@/stores/theme'
 import PhotoDetailDrawer from '@/components/photo/PhotoDetailDrawer.vue'
 import type { PhotoItem } from '@/types/photo'
 
@@ -208,6 +209,7 @@ import type { PhotoItem } from '@/types/photo'
 use([CanvasRenderer, BarChart, GridComponent, TooltipComponent])
 
 const router = useRouter()
+const themeStore = useThemeStore()
 
 const loading = ref(true)
 
@@ -308,30 +310,42 @@ const monthlyTotals = computed(() => {
   return totals
 })
 
-const barOption = computed(() => ({
-  tooltip: {
-    trigger: 'axis',
-    formatter: (params: Array<{ dataIndex: number; value: number }>) => {
-      const p = params[0]
-      return `${monthLabels[p.dataIndex]}：${p.value} 张`
+const barOption = computed(() => {
+  const dark = themeStore.theme === 'dark'
+  const axisText = dark ? '#94a3b8' : '#606266'
+  const axisLine = dark ? '#2a2a4a' : '#e0e0e0'
+  return {
+    tooltip: {
+      trigger: 'axis',
+      formatter: (params: Array<{ dataIndex: number; value: number }>) => {
+        const p = params[0]
+        return `${monthLabels[p.dataIndex]}：${p.value} 张`
+      },
     },
-  },
-  grid: { top: 20, left: 10, right: 20, bottom: 10, containLabel: true },
-  xAxis: {
-    type: 'category',
-    data: monthLabels,
-    axisTick: { show: false },
-  },
-  yAxis: { type: 'value', minInterval: 1 },
-  series: [
-    {
-      type: 'bar',
-      data: monthlyTotals.value,
-      itemStyle: { color: '#409EFF', borderRadius: [4, 4, 0, 0] },
-      barMaxWidth: 28,
+    grid: { top: 20, left: 10, right: 20, bottom: 10, containLabel: true },
+    xAxis: {
+      type: 'category',
+      data: monthLabels,
+      axisTick: { show: false },
+      axisLabel: { color: axisText },
+      axisLine: { lineStyle: { color: axisLine } },
     },
-  ],
-}))
+    yAxis: {
+      type: 'value',
+      minInterval: 1,
+      axisLabel: { color: axisText },
+      splitLine: { lineStyle: { color: axisLine } },
+    },
+    series: [
+      {
+        type: 'bar',
+        data: monthlyTotals.value,
+        itemStyle: { color: '#409EFF', borderRadius: [4, 4, 0, 0] },
+        barMaxWidth: 28,
+      },
+    ],
+  }
+})
 
 // 点击柱子切换到对应月份，与日历联动
 function handleBarClick(params: { dataIndex: number }) {

@@ -2,27 +2,20 @@
 
 ## 项目概述
 
-使用 YOLO 在 LVIS 数据集上进行目标检测模型微调（fine-tuning）。
+使用 YOLO 在 LVIS v1 数据集（300 类，118,287 训练图）上进行目标检测模型微调（fine-tuning）。
 
 ## 环境要求
 
 - **Python 3.12 64 位**（32 位无法安装 PyTorch）
-- **Windows 11 / Linux**
-- **NVIDIA GPU（推荐）**，CUDA 支持
+- **Linux**（推荐）或 Windows 11
+- **NVIDIA GPU**，CUDA 支持
 
 验证 Python 是否为 64 位：
-```powershell
+```bash
 python -c "import struct; print('64-bit' if struct.calcsize('P') == 8 else '32-bit')"
 ```
 
-## 1. 安装 64 位 Python
-
-如果当前是 32 位，使用 winget 安装 64 位：
-```powershell
-winget install Python.Python.3.12 --architecture x64
-```
-
-## 2. 安装依赖
+## 1. 安装依赖
 
 ```bash
 cd backend
@@ -32,79 +25,122 @@ uv sync
 核心依赖：`ultralytics>=8.3.0`、`torch>=2.1.0`、`pycocotools>=2.0.7`、`PyYAML>=6.0` 等。
 
 验证安装：
-```powershell
+```bash
 python -c "import torch; print(f'PyTorch {torch.__version__}'); print(f'CUDA 可用: {torch.cuda.is_available()}')"
 ```
 
-## 3. 目录架构
+## 2. 目录架构
 
 ```
-<project_root>/                            ← 项目根目录（脚本自动定位）
+<project_root>/
 ├── backend/
-│   └── app/services/train/                 ← 训练脚本
-│       ├── __init__.py
-│       ├── requirements.txt
-│       ├── config.py                       ← 超参数配置
-│       ├── data_converter.py               ← LVIS → YOLO 格式转换
-│       └── train_lvis.py                   ← 主训练脚本
-├── frontend/
+│   ├── app/services/train/                 ← 训练脚本
+│   │   ├── config.py                       ← 超参数配置
+│   │   ├── data_converter.py               ← LVIS → YOLO 格式转换
+│   │   └── train_lvis.py                   ← 主训练脚本
+│   └── lvis_finetune/lvis_yolo26n/         ← 训练输出（Ultralytics runs）
+│       └── weights/                        ← checkpoint
 ├── data/
-│   ├── uploads/lvis/                       ← LVIS 数据集根目录
-│   │   ├── images/                         ← 图片（YOLO 要求含 images 子目录）
-│   │   │   ├── train2017/                  ← 训练图片 (100,170 张, 18 GB)
-│   │   │   └── val2017/                    ← 验证图片 (19,809 张, 1 GB)
-│   │   ├── labels/                         ← YOLO 格式标签（自动生成）
-│   │   │   ├── train2017/                  ← 训练标签
-│   │   │   └── val2017/                    ← 验证标签
+│   ├── uploads/lvis/                       ← LVIS 数据集
+│   │   ├── images/train2017/               ← 训练图片 (118,287 张, ~18 GB)
+│   │   ├── images/val2017/                 ← 验证图片 (5,000 张, ~1 GB)
+│   │   ├── labels/                         ← YOLO 标签（自动生成）
 │   │   └── annotations/
-│   │       ├── lvis_v1_train.json          ← 训练注解 (1 GB)
-│   │       └── lvis_v1_val.json            ← 验证注解 (192 MB)
-│   └── models/lvis_finetuned/              ← 训练输出（自动生成）
-│       ├── dataset.yaml                    ← YOLO 数据集描述
-│       ├── best.pt                         ← 最佳模型权重
-│       ├── last.pt                         ← 最后一个 epoch 权重
-│       └── dataset_meta.yaml               ← 训练元信息
+│   │       ├── lvis_v1_train.json          ← 训练注解 (~1 GB)
+│   │       └── lvis_v1_val.json            ← 验证注解 (~192 MB)
+│   └── models/lvis_finetuned/              ← 最终模型输出
+│       └── dataset.yaml
 └── docker-compose.yml
 ```
 
-### 创建目录命令：
-```powershell
-mkdir -p "<project_root>/data/uploads/lvis/images/train2017"
-mkdir -p "<project_root>/data/uploads/lvis/images/val2017"
-mkdir -p "<project_root>/data/uploads/lvis/annotations"
-```
-
-> **注意**：`data/` 必须放在项目根目录，不能放在 `train/` 下面。脚本 `get_project_root()` 会向上查找同时包含 `data/` 和 `backend/` 的目录。
-
-## 4. 训练命令
+## 3. 训练命令
 
 在 **backend/** 目录执行：
 
-```powershell
-cd <project_root>/backend
+```bash
+cd backend
 
-# 基础训练（默认参数）
-uv run python -m app.services.train.train_lvis --device 0
+# 基础训练（默认参数：batch=16, workers=8）
+python -m app.services.train.train_lvis --device 0
 
-# 自定义参数
-uv run python -m app.services.train.train_lvis --model yolo26n.pt --epochs 50 --batch 8 --device 0
-
-# 从 checkpoint 恢复
-uv run python -m app.services.train.train_lvis --resume "runs/detect/lvis_yolo26s/weights/last.pt" --device 0
+# 指定参数
+python -m app.services.train.train_lvis \
+  --model yolo26n.pt --epochs 100 --batch 16 --device 0
 ```
 
-## 5. GPU 指定
+> **后台运行**（推荐，防 SSH 断开）：
+> ```bash
+> nohup python -u -m app.services.train.train_lvis \
+>   --model yolo26n.pt --device 0 --epochs 100 --batch 192 --workers 16 \
+>   --lvis-root /path/to/data/uploads/lvis \
+>   --output-dir /path/to/data/models/lvis_finetuned \
+>   > train.log 2>&1 &
+> ```
 
-`--device` 参数用法：
+## 4. GPU 选参与实测对照
 
-| 参数值 | 说明 |
-|--------|------|
-| `--device 0` | 使用 GPU 0（独显） |
-| `--device 0,1` | 多 GPU 并行 |
-| `--device cpu` | 使用 CPU |
-| 不传或 `""` | 自动选择 |
+> **模型**: yolo26n (2.76M 参数)，LVIS v1，640×640
 
-> Windows 上 PyTorch CUDA 只能识别 NVIDIA 独显（核显不支持 CUDA），所以 `--device 0` 就是独显，无需额外配置。
+### 实测参数
+
+| | RTX 5090 (32 GB) | RTX PRO 6000 (96 GB, 110GB 容器) |
+|---|---|---|
+| **batch** | 72 | 192 |
+| **workers** | 16 ⚠️ 上限 | 16 ⚠️ 上限 |
+| **cache** | 无 | 无 |
+| **显存占用** | ~26 GB (81%) | ~81 GB (85%) |
+| **内存占用** | ~40 GB | ~67 GB |
+| **速度** | ~3.8 it/s | ~1.4 it/s |
+| **图片吞吐** | ~270 img/s | ~270 img/s |
+| **每 epoch** | ~7 分钟 | ~7 分钟 |
+
+### 为什么吞吐量相同？
+
+yolo26n 只有 2.76M 参数，计算量极小。**瓶颈在磁盘 I/O + 图像解码**，不在 GPU 算力。更大 batch 的收益主要是梯度估计更稳定、BatchNorm 统计更准确。
+
+### 怎么选 batch？
+
+显存与 batch 大致线性关系：**每张 640×640 图约 0.36 GB 显存**。预留 10-15% 余量：
+
+| GPU 显存 | 推荐 batch |
+|----------|-----------|
+| 24 GB | 48–56 |
+| 32 GB | 64–80 |
+| 48 GB | 96–120 |
+| 80 GB | 160–200 |
+| 96 GB | 192–240 |
+
+### workers 安全上限
+
+LVIS 标注数据量大（300 类），每个 dataloader worker 额外持有一份数据副本：
+
+| workers | RTX 5090 | RTX PRO 6000 (110GB 容器) |
+|---------|----------|--------------------------|
+| 8 | ✅ | ✅ |
+| 16 | ✅ | ✅ |
+| 20 | ⚠️ 显存 93% | ❌ 内存 >100GB，逼近 OOM |
+| 24 | ❌ CUDA OOM | — |
+
+**结论：workers=16 是两卡通用安全上限。**
+
+## 5. 命令行参数
+
+| 参数 | 默认值 | 说明 |
+|------|--------|------|
+| `--model` | `yolo26n.pt` | 预训练模型，也可是 checkpoint 路径 |
+| `--epochs` | `100` | 训练轮数 |
+| `--batch` | `16` | 批次大小 |
+| `--workers` | `8` | 数据加载线程数 |
+| `--imgsz` | `640` | 训练图片尺寸 |
+| `--lr0` | `0.01` | 初始学习率 |
+| `--device` | `""` | `0` / `0,1` / `cpu` / `""`(自动) |
+| `--cache` | `false` | `false` / `ram` / `disk`（见下方说明） |
+| `--lvis-root` | `data/uploads/lvis` | LVIS 数据集根目录 |
+| `--output-dir` | `data/models/lvis_finetuned` | 模型输出目录 |
+| `--resume` | `""` | 从 checkpoint 恢复（不能改参数） |
+| `--no-verbose` | `false` | 启用详细进度条（默认简洁单行） |
+
+完整参数见 `config.py` 的 `TrainConfig` 类（约 40 个，含数据增强）。
 
 ## 6. 训练流程
 
@@ -113,46 +149,119 @@ uv run python -m app.services.train.train_lvis --resume "runs/detect/lvis_yolo26
 | 步骤 | 说明 |
 |------|------|
 | Step 1/4 | 转换 LVIS 注解为 YOLO 格式（过滤低频类别，保留 Top-300） |
-| Step 2/4 | 加载预训练模型（自动下载 yolo26n.pt） |
+| Step 2/4 | 加载预训练模型 |
 | Step 3/4 | 执行 fine-tuning |
 | Step 4/4 | 保存最佳模型到 `data/models/lvis_finetuned/` |
 
-## 7. 可调参数
-
-| 参数 | 默认值 | 说明 |
-|------|--------|------|
-| `--model` | `yolo26n.pt` | 预训练模型（可选 yolo26s.pt / yolo26n.pt） |
-| `--epochs` | `100` | 训练轮数 |
-| `--batch` | `16` | 批次大小 |
-| `--imgsz` | `640` | 训练图片尺寸 |
-| `--lr0` | `0.01` | 初始学习率 |
-| `--device` | `""` | 训练设备 |
-| `--min-instances` | `10` | 类别最少实例数（低于此值过滤） |
-| `--max-categories` | `300` | 最多训练类别数 |
-| `--resume` | `""` | 从 checkpoint 恢复 |
-
-完整参数见 `config.py` 的 `TrainConfig` 类（约 40 个参数，含数据增强等）。
-
-## 8. 训练输出
+## 7. 训练输出
 
 ```
 data/uploads/lvis/labels/                   ← YOLO 格式标签（自动生成）
-├── train2017/                              ← 训练标签
-└── val2017/                                ← 验证标签
+├── train2017/
+└── val2017/
 
 data/models/lvis_finetuned/                 ← 模型输出
-├── best.pt                                 ← 最佳模型权重
-├── last.pt                                 ← 最后一个 epoch 权重
-├── model.onnx                              ← ONNX 导出
-├── dataset.yaml                            ← 数据集描述
-└── dataset_meta.yaml                       ← 训练元信息
+├── best.pt / last.pt
+├── dataset.yaml
+└── dataset_meta.yaml
 
-backend/runs/detect/lvis_yolo26s/           ← 训练报告（自动生成）
-├── results.png                             ← 训练曲线
-├── confusion_matrix.png                    ← 混淆矩阵
-├── F1_curve.png                            ← F1 曲线
-├── PR_curve.png                            ← PR 曲线
+backend/lvis_finetune/lvis_yolo26n/         ← Ultralytics 训练报告
+├── results.png / confusion_matrix.png / ... 
 └── weights/
-    ├── best.pt                             ← 最佳权重
-    └── last.pt                             ← 最新权重
+    ├── best.pt / last.pt / epoch*.pt
 ```
+
+## 8. 监控命令
+
+```bash
+# 实时看训练日志
+tail -f train.log
+
+# 看 GPU
+watch -n 2 nvidia-smi
+
+# 看进程
+ps aux | grep train_lvis | grep -v grep
+```
+
+## 9. 常见问题
+
+### Q: `--cache ram` 报 OOM？
+
+LVIS 训练集图片缓存需 ~97GB RAM。**注意**：容器/云主机用 `free` 命令看到的可能是宿主机内存，真实 cgroup 限制才是上限。
+- 容器 <128GB：**不要用** `--cache ram`
+- 容器 ≥128GB：可以用，但会消耗大量内存
+
+警告 `cache='ram' may produce non-deterministic training results` 可忽略，不影响效果。
+
+### Q: 怎么换参数继续训练？
+
+`--resume` 不能改参数。用 checkpoint 作为 `--model` 启动新训练：
+
+```bash
+# ❌ 参数会被忽略
+python -m app.services.train.train_lvis --resume last.pt --batch 192
+
+# ✅ 正确做法
+python -m app.services.train.train_lvis \
+  --model lvis_finetune/lvis_yolo26n/weights/last.pt \
+  --epochs 27 --batch 192 --workers 16
+```
+
+> 注意：这样不是真正的 resume（optimizer state 会重置），但权重从 checkpoint 继承。
+
+### Q: 跨机器迁移训练？
+
+需拷贝 4 个目录：
+1. `data/uploads/lvis/` — 数据集
+2. `data/models/lvis_finetuned/` — dataset.yaml
+3. `backend/lvis_finetune/lvis_yolo26n/weights/` — checkpoint
+4. `backend/app/services/train/` — 训练脚本
+
+> dataset.yaml 中的绝对路径需更新为新机器路径。
+
+### Q: 训练日志终端换行闪烁？
+
+默认已启用 `verbose=False`（简洁单行输出）。详情见 [README.md](./README.md#4-日志换行闪烁)。如需恢复详细输出，加 `--no-verbose`。
+
+### Q: GPU 利用率不高？
+
+yolo26n 参数极少（2.76M），计算瓶颈不在 GPU，考虑换更大模型（见下节）。
+
+## 10. 模型选型与升级建议
+
+> 场景：yolo26n 在 RTX PRO 6000 96GB 上 GPU 利用率仅 50-80%，瓶颈在数据加载。换更大模型能让 GPU 真正跑满。
+
+### 各模型参数对比
+
+| 模型 | 参数量 | 推荐 batch (96GB) | GPU 利用率 | 每 epoch 时长 | mAP 提升 |
+|------|--------|------------------|------------|---------------|----------|
+| yolo26n（当前） | 2.76M | 192 | 50-80% | ~7 min | 基线 |
+| yolo26s | ~7M | 128-160 | 85-95% | ~7-8 min | +3~5 |
+| yolo26m | ~16M | 64-96 | 95-100% | ~8-10 min | +5~8 |
+| yolo26l | ~25M | 48-64 | 100% | ~10-12 min | +8~10 |
+
+### 换模型的收益
+
+1. **GPU 利用率**：计算量增大后，GPU 不再等数据，利用率飙到 95%+
+2. **精度提升**：大模型在复杂场景（密集、遮挡、小目标）上的 mAP 显著高于 nano 版本
+3. **训练时间可控**：每 epoch 仅多 1-3 分钟，总训练时间变化不大
+
+### 换模型的代价
+
+1. **模型文件更大**：部署时推理延迟也更高
+2. **Batch 需下调**：换大模型后先保守测试，找到显存 90% 的甜点值
+3. **需重新调参**：学习率、warmup 等可能需要微调
+
+### 升级命令示例
+
+```bash
+# 当前 yolo26n 跑完后，换 yolo26m 对比
+nohup python -u -m app.services.train.train_lvis \
+  --model yolo26m.pt --device 0 --epochs 27 --batch 64 --workers 16 \
+  --lvis-root /path/to/data/uploads/lvis \
+  --output-dir /path/to/data/models/lvis_finetuned \
+  > train.log 2>&1 &
+```
+
+> 启动后观察 `nvidia-smi`：GPU 利用率 ≥95%、显存 ~80GB 为佳。若显存余量多，逐步上调 batch 到 80、96。

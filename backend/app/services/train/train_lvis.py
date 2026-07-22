@@ -62,6 +62,10 @@ def parse_args():
                         help="Training image size")
     parser.add_argument("--lr0", type=float, default=0.01,
                         help="Initial learning rate")
+    parser.add_argument("--workers", type=int, default=8,
+                        help="Number of data loading workers (recommend 16 for RTX 5090)")
+    parser.add_argument("--cache", default="false",
+                        help="Image cache: false/ram/disk. RAM cache needs ~97GB for full LVIS; keep false on 90GB containers")
     parser.add_argument("--device", default="",
                         help='Training device: "0" for GPU 0, "cpu" for CPU, "" for auto')
 
@@ -80,15 +84,14 @@ def parse_args():
                         help="Resume from a previous checkpoint path")
     parser.add_argument("--pretrained", action="store_true", default=True,
                         help="Use pretrained weights")
+    parser.add_argument("--no-verbose", action="store_true", default=False,
+                        help="Enable verbose progress bar (wider terminal output)")
 
     return parser.parse_args()
 
 
 def main():
     """Entry point for YOLO LVIS fine-tuning"""
-    # Prevent Ultralytics/TQDM from reprinting progress lines when terminal is narrow
-    os.environ.setdefault("COLUMNS", "200")
-
     args = parse_args()
     project_root = get_project_root()
 
@@ -106,6 +109,7 @@ def main():
         imgsz=args.imgsz,
         lr0=args.lr0,
         device=args.device,
+        workers=args.workers,
         min_instances=args.min_instances,
         max_categories=args.max_categories,
     )
@@ -188,6 +192,9 @@ def main():
             cos_lr=config.cos_lr,
             device=config.device,
             workers=config.workers,
+            cache=("ram" if str(args.cache).lower() == "true"
+                   else False if str(args.cache).lower() in ("false", "none", "0")
+                   else args.cache),
             patience=config.patience,
             project=config.project,
             name=config.name,
@@ -210,6 +217,7 @@ def main():
             fliplr=config.fliplr,
             mosaic=config.mosaic,
             mixup=config.mixup,
+            verbose=True if args.no_verbose else False,  # Compact output by default to avoid line wrapping
         )
 
     # ── Step 4: Export and save model ──────────────────────

@@ -30,7 +30,7 @@
           {{ isDropActive ? '松开鼠标即可上传' : '拖拽照片到此处，或点击选择' }}
         </div>
         <template #tip>
-          <div class="text-xs text-gray-400 mt-1">支持 JPG、PNG、HEIC、GIF、WebP 等格式，可拖入含图片的文件夹</div>
+          <div class="text-xs text-gray-400 dark:text-dark-text-secondary mt-1">支持 JPG、PNG、HEIC、GIF、WebP 等格式，可拖入含图片的文件夹</div>
         </template>
       </el-upload>
     </div>
@@ -39,7 +39,7 @@
     <div v-if="uploading" class="mt-4">
       <div class="flex items-center justify-between mb-1">
         <span class="text-sm text-gray-600 dark:text-dark-text-secondary">{{ uploadingFile?.name }}</span>
-        <span class="text-sm text-gray-400">{{ progress }}%</span>
+        <span class="text-sm text-gray-400 dark:text-dark-text-secondary">{{ progress }}%</span>
       </div>
       <el-progress :percentage="progress" :stroke-width="6" />
     </div>

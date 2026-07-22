@@ -10,7 +10,7 @@
       </div>
       <div
         v-else
-        class="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center"
+        class="w-8 h-8 rounded-full bg-gray-300 dark:bg-dark-hover flex items-center justify-center"
       >
         <el-icon :size="16" color="white"><UserFilled /></el-icon>
       </div>
@@ -22,7 +22,7 @@
         'max-w-[75%] rounded-xl px-4 py-3',
         msg.role === 'user'
           ? 'bg-blue-500 text-white'
-          : 'bg-white border border-gray-100 shadow-sm text-gray-800',
+          : 'bg-white dark:bg-dark-card border border-gray-100 dark:border-dark-border shadow-sm text-gray-800 dark:text-dark-text',
       ]"
     >
       <!-- Markdown 渲染（AI 消息） -->
@@ -51,7 +51,7 @@
           <div
             v-for="(hit, index) in visibleResults"
             :key="hit.photo_id"
-            class="group relative aspect-square rounded-lg overflow-hidden bg-gray-100 cursor-pointer"
+            class="group relative aspect-square rounded-lg overflow-hidden bg-gray-100 dark:bg-dark-hover cursor-pointer"
             @click="openPreview(index)"
           >
             <img
@@ -232,5 +232,24 @@ function openPreview(index: number) {
 }
 .markdown-body :deep(strong) {
   font-weight: 600;
+}
+
+/* 暗色模式覆盖 */
+html.dark .markdown-body :deep(code) {
+  background: rgba(255, 255, 255, 0.1);
+}
+html.dark .markdown-body :deep(pre) {
+  background: #0f172a;
+}
+html.dark .markdown-body :deep(th),
+html.dark .markdown-body :deep(td) {
+  border-color: #2a2a4a;
+}
+html.dark .markdown-body :deep(th) {
+  background: #233044;
+}
+html.dark .markdown-body :deep(blockquote) {
+  border-left-color: #2a2a4a;
+  color: #94a3b8;
 }
 </style>

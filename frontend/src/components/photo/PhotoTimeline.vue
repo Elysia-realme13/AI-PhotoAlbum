@@ -17,7 +17,7 @@
           <div class="flex items-center gap-3">
             <div
               v-if="group.cover_photo"
-              class="w-20 h-20 rounded-lg overflow-hidden bg-gray-100 cursor-pointer shrink-0"
+              class="w-20 h-20 rounded-lg overflow-hidden bg-gray-100 dark:bg-dark-hover cursor-pointer shrink-0"
               @click="group.cover_photo && emit('detail', group.cover_photo.id)"
             >
               <img
@@ -28,7 +28,7 @@
             </div>
             <div>
               <p class="text-sm font-medium text-gray-800 dark:text-dark-text">{{ group.date }}</p>
-              <p class="text-xs text-gray-400">{{ group.count }} 张照片</p>
+              <p class="text-xs text-gray-400 dark:text-dark-text-secondary">{{ group.count }} 张照片</p>
             </div>
           </div>
         </el-timeline-item>

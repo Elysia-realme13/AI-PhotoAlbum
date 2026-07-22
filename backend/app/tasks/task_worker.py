@@ -302,8 +302,6 @@ def _handle_face_detect(db: Session, task: Task) -> dict:
         return {"faces": len(faces)}
     except ImportError:
         return {"faces": 0, "note": "insightface 未安装"}
-    except Exception as e:
-        return {"error": f"人脸检测失败: {e}"}
 
 
 def _handle_face_cluster(db: Session, task: Task) -> dict:

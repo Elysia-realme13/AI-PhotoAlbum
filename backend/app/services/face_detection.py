@@ -33,9 +33,6 @@ def _load_model():
     except ImportError:
         logger.warning("insightface 未安装，人脸检测不可用。安装: uv add insightface onnxruntime")
         return None
-    except Exception as e:
-        logger.error(f"InsightFace 模型加载失败: {e}")
-        return None
 
 
 def detect_faces(image_path: str) -> Optional[List[dict]]:

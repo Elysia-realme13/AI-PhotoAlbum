@@ -149,7 +149,7 @@ def _get_query_embedding(text: str) -> Optional[List[float]]:
 
 def _vector_search(db: Session, vector_str: str, top_k: int, owner_id, photo_ids=None) -> List[dict]:
     """通用的 pgvector cosine 相似度检索"""
-    sql_str = """
+    sql_str = r"""
         SELECT iv.photo_id,
                1 - (iv.embedding <=> :query_vec\:\:vector) AS cosine_similarity
         FROM image_vectors iv
@@ -159,7 +159,7 @@ def _vector_search(db: Session, vector_str: str, top_k: int, owner_id, photo_ids
 
     if owner_id:
         owner_str = str(owner_id)
-        sql_str += """
+        sql_str += r"""
             AND iv.photo_id IN (
                 SELECT p.id FROM photos p
                 WHERE p.owner_id = :owner_id\:\:uuid AND p.is_deleted = false
@@ -168,7 +168,7 @@ def _vector_search(db: Session, vector_str: str, top_k: int, owner_id, photo_ids
         params["owner_id"] = owner_str
 
     if photo_ids and len(photo_ids) > 0:
-        placeholders = ",".join(f":pid_{i}\:\:uuid" for i in range(len(photo_ids)))
+        placeholders = ",".join(rf":pid_{i}\:\:uuid" for i in range(len(photo_ids)))
         sql_str += f" AND iv.photo_id IN ({placeholders})"
         for i, pid in enumerate(photo_ids):
             params[f"pid_{i}"] = pid

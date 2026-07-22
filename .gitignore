@@ -62,7 +62,17 @@ backend/data/models/
 *.tmp
 *.temp
 
-# ── Others ──────────────────────────────────────────────
+# ── Training artifacts (local only, not pushed) ────────
+backend/lvis_finetune/
 /backend/runs/
-*.zip
+
+# ── Pretrained model weights (download separately) ─────
 yolo11n.pt
+yolo26n.pt
+yolo26m.pt
+backend/yolo11n.pt
+backend/yolo26n.pt
+backend/yolo26m.pt
+
+# ── Others ──────────────────────────────────────────────
+*.zip

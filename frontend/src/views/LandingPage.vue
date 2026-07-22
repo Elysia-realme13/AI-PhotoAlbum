@@ -470,7 +470,7 @@ const steps = [
   {
     icon: Promotion,
     title: '随心浏览',
-    desc: '按人物、地点、时间、场景浏览，自然语言搜索，享受智能相册体验。',
+    desc: '按人物、地点、时间、场景随心浏览，享受智能相册的每一刻。',
     gradient: 'from-purple-500 to-pink-500',
   },
 ]

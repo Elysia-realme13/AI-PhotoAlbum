@@ -1,5 +1,18 @@
 ﻿## 📝 最近更新
 
+> **2026-07-22** — 人脸检测全链路修复 + 后端任务异常透明化
+
+### 🔧 人脸检测修复
+- **模型路径修正** — `face_detection.py` 加 `INSIGHTFACE_HOME` 指向 `data/insightface_home/`，匹配 Docker volume 映射
+- **聚类 owner_id 修复** — `_handle_face_detect` 补传 `owner_id` 给 `update_face_clusters`，身份不再 `owner_id=NULL` 导致前端查不到
+- **异常穿透** — 移除吞噬所有异常的 `except Exception`，模型下载/网络超时等真实错误穿透到任务系统，任务中心正确显示“失败”
+
+### 📤 上传体验改进
+- **进度条修复** — `store.uploadPhoto` 透传 `onProgress` 回调到 API 层，`UploadDialog` 实时更新进度
+
+### 🧹 其他
+- **侧边栏精简** — 搜索导航项（尚待开发）暂注释隐藏
+
 > **2026-07-17** — AI Agent 全面升级 + 自动标签系统
 
 ### 🤖 AI Agent 智能化
@@ -111,21 +124,22 @@
 - [x] 前端照片浏览页（网格 + 详情 + Lightbox 灯箱）
 - [x] 前端上传组件（拖拽上传 + 进度条）
 
-### Phase 3 — AI 能力集成 🚧 进行中
+### Phase 3 — AI 能力集成 ✅ 已完成
 
 - [x] 任务基础设施（Task 模型、CRUD、5 种任务类型、上传自动创建）
 - [x] YOLO 目标检测服务（80 类 COCO，画框标注）
 - [x] 人脸增量聚类服务（余弦相似度，FaceIdentity 自动归并）
 - [x] 交互式命名确认服务（pending 会话机制）
 - [x] Face API 全部端点（身份列表/照片/更新/合并/命名绑定）
+- [x] InsightFace 人脸检测 + 512 维特征提取
+- [x] LLM 图片描述生成（description + narrative + quality/memory 评分）
+- [x] TaskManager 异步任务队列（APScheduler + Worker 轮询）
+- [x] 反向地理编码（Nominatim GPS → 省/市/区 + 地址）
 - [x] Search API 语义检索（jieba + pgvector cosine 相似度）
 - [x] Agent API 对话（会话 CRUD + 消息持久化 + 以图搜图）
 - [ ] ONNX 模型管理（下载/加载/释放）
-- [ ] InsightFace 人脸检测 + 512 维特征提取
 - [ ] EfficientNet 场景分类（人物/动物/风景/文档/通用 5 类）
 - [ ] CLIP ViT-B-32 图文向量嵌入（当前为预留接口）
-- [ ] LLM 图片描述生成（description + narrative + quality/memory 评分）
-- [ ] TaskManager 异步任务队列（APScheduler）
 - [ ] AI 分析进度前端展示
 
 ### Phase 4 — 相册与人物 🚧 进行中
@@ -151,7 +165,6 @@
 
 ### Phase 6 — 足迹地图与收尾 🚧 进行中
 
-- [ ] 反向地理编码（GPS → 省/市/区 + 地址）
 - [ ] 足迹数据查询 API（时间轴/城市统计/景区统计）
 - [x] 前端足迹地图页面（Leaflet + 照片聚合标记）
 - [x] 首页 Dashboard（统计卡片 + 最近照片 + 热度图）
@@ -212,22 +225,22 @@ AI-PhotoAlbum/
 │       │   ├── deps.py             # 依赖注入（认证/DB会话）
 │       │   ├── auth.py             # ✅ POST /auth/register, /auth/login, GET /auth/me
 │       │   ├── system.py           # ✅ GET /api/health
-      │       │   ├── photo.py            # ✅ 照片 CRUD + 上传 + 文件 + 回收站
-      │       │   ├── tasks.py            # ✅ 异步任务查询 + 统计
-      │       │   ├── album.py            # ✅ 相册管理 CRUD
-      │       │   ├── face.py             # ✅ 人脸管理（身份列表/照片/更新/合并/命名）
-      │       │   ├── search.py           # ✅ 智能搜索（语义/关键词/标签）
-      │       │   └── agent.py            # ✅ Agent 对话（会话/消息/以图搜图）
+│       │   ├── photo.py            # ✅ 照片 CRUD + 上传 + 文件 + 回收站
+│       │   ├── tasks.py            # ✅ 异步任务查询 + 统计
+│       │   ├── album.py            # ✅ 相册管理 CRUD
+│       │   ├── face.py             # ✅ 人脸管理（身份列表/照片/更新/合并/命名）
+│       │   ├── search.py           # ✅ 智能搜索（语义/关键词/标签）
+│       │   └── agent.py            # ✅ Agent 对话（会话/消息/以图搜图）
 │       │
-      │       ├── services/               # 业务服务层
-      │       │   ├── photo_service.py    # ✅ 照片上传编排
-      │       │   ├── exif_service.py     # ✅ EXIF 元数据提取
-      │       │   ├── thumbnail.py        # ✅ 缩略图生成
-      │       │   ├── detection_service.py # ✅ YOLO 目标检测
-      │       │   ├── face_cluster_service.py  # ✅ 人脸增量聚类
-      │       │   ├── name_confirmation_service.py  # ✅ 命名确认
-      │       │   ├── search_service.py   # ✅ CLIP 检索 + jieba 分词
-      │       │   └── agent/              # ✅ LangGraph 检索代理 + 对话
+│       ├── services/               # 业务服务层
+│       │   ├── photo_service.py    # ✅ 照片上传编排
+│       │   ├── exif_service.py     # ✅ EXIF 元数据提取
+│       │   ├── thumbnail.py        # ✅ 缩略图生成
+│       │   ├── detection_service.py # ✅ YOLO 目标检测
+│       │   ├── face_cluster_service.py  # ✅ 人脸增量聚类
+│       │   ├── name_confirmation_service.py  # ✅ 命名确认
+│       │   ├── search_service.py   # ✅ CLIP 检索 + jieba 分词
+│       │   └── agent/              # ✅ LangGraph 检索代理 + 对话
 │       │
 │       ├── tasks/                  # 🚧 异步任务
 │       └── middleware/
@@ -302,6 +315,20 @@ AI-PhotoAlbum/
 │   └── logs/                       # 应用日志
 │
 └── tests/                          # 测试目录
+```
+
+### 📦 AI 模型文件说明
+
+人脸检测（InsightFace）、目标检测（YOLO）等 AI 模型在首次调用时**自动下载**到 `data/` 目录下。如需手动下载或恢复：
+
+```bash
+# InsightFace buffalo_l（人脸检测 + 512 维特征提取）
+# 下载地址：https://github.com/deepinsight/insightface/releases/download/v0.7/buffalo_l.zip
+# 解压到：data/insightface_home/models/buffalo_l/
+# 包含 5 个 ONNX 文件：det_10g.onnx, 1k3d68.onnx, 2d106det.onnx, genderage.onnx, w600k_r50.onnx
+
+# YOLO 模型（目标检测）
+# 首次调用 Ultralytics 时自动下载到 backend/.venv/Lib/site-packages/ultralytics/ 缓存目录
 ```
 
 ---

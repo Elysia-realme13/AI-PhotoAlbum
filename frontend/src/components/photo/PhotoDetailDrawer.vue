@@ -56,7 +56,7 @@
           </el-descriptions-item>
         </template>
         <el-descriptions-item v-else label="位置">
-          <span class="text-gray-400">无位置信息</span>
+          <span class="text-gray-400 dark:text-dark-text-secondary">无位置信息</span>
         </el-descriptions-item>
       </el-descriptions>
 
@@ -76,7 +76,7 @@
           </div>
         </el-descriptions-item>
         <el-descriptions-item v-if="aiDesc" label="画面描述">
-          <span class="text-sm text-gray-700">{{ aiDesc }}</span>
+          <span class="text-sm text-gray-700 dark:text-dark-text">{{ aiDesc }}</span>
         </el-descriptions-item>
         <el-descriptions-item v-if="detail?.description?.narrative" label="一句话">
           {{ detail?.description?.narrative }}
@@ -90,7 +90,7 @@
           </span>
         </el-descriptions-item>
         <el-descriptions-item v-if="!aiTags.length && !aiDesc && qualityScore == null && memoryScore == null" label="AI 分析">
-          <span class="text-gray-400 text-sm">暂未分析（上传后系统会自动分析）</span>
+          <span class="text-gray-400 dark:text-dark-text-secondary text-sm">暂未分析（上传后系统会自动分析）</span>
         </el-descriptions-item>
       </el-descriptions>
 
@@ -121,19 +121,19 @@
       <div v-if="albumsLoading" class="py-4">
         <el-skeleton :rows="3" animated />
       </div>
-      <div v-else-if="userAlbums.length === 0" class="py-4 text-center text-gray-400">
+      <div v-else-if="userAlbums.length === 0" class="py-4 text-center text-gray-400 dark:text-dark-text-secondary">
         还没有相册，请先在相册页面创建
       </div>
       <div v-else class="space-y-2">
         <div
           v-for="album in userAlbums"
           :key="album.id"
-          class="flex items-center justify-between px-3 py-2 rounded-lg border border-gray-200 hover:bg-gray-50 cursor-pointer"
+          class="flex items-center justify-between px-3 py-2 rounded-lg border border-gray-200 dark:border-dark-border hover:bg-gray-50 dark:hover:bg-dark-hover cursor-pointer"
           @click="handleAddToAlbum(album)"
         >
           <div>
             <p class="text-sm font-medium">{{ album.name }}</p>
-            <p class="text-xs text-gray-400">{{ album.photo_count }} 张照片</p>
+            <p class="text-xs text-gray-400 dark:text-dark-text-secondary">{{ album.photo_count }} 张照片</p>
           </div>
           <el-icon v-if="addedAlbumIds.has(album.id)" color="#67C23A" :size="18"><Check /></el-icon>
         </div>
@@ -142,7 +142,7 @@
 
     <!-- 重新分析对话框 -->
     <el-dialog v-model="reanalyzeVisible" title="重新分析" width="380px" append-to-body>
-      <p class="text-xs text-gray-400 mb-3">选择需要重新执行的 AI 分析任务：</p>
+      <p class="text-xs text-gray-400 dark:text-dark-text-secondary mb-3">选择需要重新执行的 AI 分析任务：</p>
       <el-checkbox-group v-model="reanalyzeTasks" class="flex flex-col gap-1">
         <el-checkbox
           v-for="opt in REANALYZE_TASK_OPTIONS"

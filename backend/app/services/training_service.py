@@ -165,7 +165,7 @@ class _MetricCallback(TrainingCallback):
         """写入训练日志到文件"""
         try:
             import re
-            line = re.sub('\x1b\[[0-9;]*[a-zA-Z]', '', line)
+            line = re.sub(r'\x1b\[[0-9;]*[a-zA-Z]', '', line)
             _task_log_lines.setdefault(task_id, []).append(line)
             from app.database.session import SessionLocal
             db = SessionLocal()

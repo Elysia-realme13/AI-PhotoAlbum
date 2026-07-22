@@ -69,31 +69,42 @@ class TrainingCallback:
 
 
 class LogCollector:
-    """日志收集器，充当 stdout/stderr 的缓冲区"""
+    """日志收集器，充当 stdout/stderr 的缓冲区
+
+    正确处理 tqdm 进度条的 \\r 刷新：
+    - \\r 表示回到行首覆盖当前行，因此遇到 \\r 时清空当前缓冲行
+    - 只有 \\n 才表示一行日志真正完成
+    """
 
     def __init__(self, task_id: str, callback: Optional[Callable] = None):
         self.task_id = task_id
         self.callback = callback
         self.lines: list = []
         self._buffer = ""
+        self._current_line = ""
 
     def write(self, text: str):
-        self._buffer += text
-        if "\n" in self._buffer:
-            lines = self._buffer.split("\n")
-            for line in lines[:-1]:
+        for char in text:
+            if char == "\r":
+                # \r: 回到行首，丢弃当前行内容（tqdm 进度条刷新）
+                self._current_line = ""
+            elif char == "\n":
+                # \n: 一行结束，输出并重置
+                line = self._current_line
+                self._current_line = ""
                 if line.strip():
                     self.lines.append(line)
                     if self.callback:
                         self.callback(self.task_id, line)
-            self._buffer = lines[-1]
+            else:
+                self._current_line += char
 
     def flush(self):
-        if self._buffer.strip():
-            self.lines.append(self._buffer)
+        if self._current_line.strip():
+            self.lines.append(self._current_line)
             if self.callback:
-                self.callback(self.task_id, self._buffer)
-            self._buffer = ""
+                self.callback(self.task_id, self._current_line)
+            self._current_line = ""
 
 
 # ── 主力训练函数 ─────────────────────────────────────────────────
@@ -152,7 +163,7 @@ def run_training(
             "project": str(project_dir),
             "name": task_name,
             "exist_ok": True,
-            "verbose": True,
+            "verbose": False,  # 禁用 tqdm 进度条，避免 \r 刷新导致日志混乱
             "val": True,
             "amp": True,
         }
@@ -191,22 +202,43 @@ def run_training(
         
         if checkpoint_path and Path(checkpoint_path).exists():
             logger.info(f"[训练器] 从 checkpoint 恢复训练: {checkpoint_path}")
-            model = YOLO(checkpoint_path)
-            train_kwargs["resume"] = True
-            # 读取保存的 epoch 信息
+
+            # ── 修改 checkpoint 中的 train_args 以支持参数覆盖 ──────
+            # Ultralytics resume=True 会从 checkpoint 恢复全部训练参数，
+            # 忽略传入的新参数。因此需要直接修改 checkpoint 内的 train_args。
             ckpt = torch.load(checkpoint_path, map_location="cpu")
             start_epoch = ckpt.get("epoch", 0) if isinstance(ckpt, dict) else 0
+
+            if isinstance(ckpt, dict) and "train_args" in ckpt:
+                # 用用户新传入的参数覆盖 checkpoint 中的旧参数
+                overridden_keys = []
+                for key, new_val in train_kwargs.items():
+                    if key in ("data", "project", "name", "exist_ok", "resume",
+                               "verbose", "val", "amp"):
+                        continue  # 这些参数不需要从 checkpoint 覆盖
+                    old_val = ckpt["train_args"].get(key)
+                    if old_val != new_val:
+                        ckpt["train_args"][key] = new_val
+                        overridden_keys.append(f"{key}: {old_val} → {new_val}")
+
+                if overridden_keys:
+                    logger.info(f"[训练器] 覆盖 checkpoint 参数: {', '.join(overridden_keys)}")
+                    # 保存修改后的 checkpoint 到临时文件
+                    import tempfile
+                    modified_ckpt_path = str(Path(checkpoint_path).parent / "resume_modified.pt")
+                    torch.save(ckpt, modified_ckpt_path)
+                    model = YOLO(modified_ckpt_path)
+                else:
+                    model = YOLO(checkpoint_path)
+            else:
+                model = YOLO(checkpoint_path)
             del ckpt
+
+            train_kwargs["resume"] = True
         else:
             start_epoch = 0
             logger.info(f"[训练器] 加载预训练模型: {pretrained}")
             model = YOLO(pretrained)
-            # 确保加载预训练权重
-            if Path(pretrained).exists() or "/" in pretrained:
-                pass  # 直接加载
-            else:
-                # 尝试从 ultralytics 仓库加载
-                pass
 
         # ── 注册 ultralytics 回调 ──────────────────────────────
         # 使用 ultralytics 内置回调系统拦截 epoch 事件

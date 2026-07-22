@@ -332,7 +332,7 @@ def run_supervisor(
 
     return {
         "reply": reply,
-        "results": unique_photos[:5],
+        "results": unique_photos,
         "total": len(unique_photos),
         "tool_calls": tool_results_for_frontend,
     }

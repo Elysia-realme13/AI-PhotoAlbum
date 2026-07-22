@@ -168,7 +168,7 @@ def send_message(
     # 4. Save assistant reply
     assistant_payload = {
         "text": reply,
-        "results": results[:20],
+        "results": results,
         "total": total,
     }
 
@@ -194,7 +194,7 @@ def send_message(
 
     return {
         "reply": reply,
-        "results": results[:20],
+        "results": results,
         "total": total,
         "needs_confirmation": False,
         "pending_candidates": [],

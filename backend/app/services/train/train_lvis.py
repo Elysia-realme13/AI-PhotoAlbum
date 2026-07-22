@@ -84,8 +84,13 @@ def parse_args():
                         help="Resume from a previous checkpoint path")
     parser.add_argument("--pretrained", action="store_true", default=True,
                         help="Use pretrained weights")
-    parser.add_argument("--no-verbose", action="store_true", default=False,
-                        help="Enable verbose progress bar (wider terminal output)")
+    parser.add_argument("--verbose", action="store_true", default=False,
+                        help="Enable verbose progress bar (tqdm). Default off to avoid "
+                             "terminal line-wrapping issues on narrow windows.")
+    parser.add_argument("--ncols", type=int, default=0,
+                        help="Force tqdm progress bar width (column count). "
+                             "0=auto-detect terminal width. Use this to prevent "
+                             "line wrapping when verbose is enabled.")
 
     return parser.parse_args()
 
@@ -175,9 +180,45 @@ def main():
     print(f"\n[Step 3/4] Starting fine-tuning...")
     print(f"  Dataset: {data_meta['nc']} classes, {os.path.basename(yaml_path)}")
 
+    # 设置终端宽度环境变量，避免 tqdm 进度条换行
+    if args.verbose and args.ncols > 0:
+        os.environ["COLUMNS"] = str(args.ncols)
+
     if args.resume:
-        # Resume: use checkpoint's original training params
-        results = model.train(resume=True)
+        # ── 断点重训：修改 checkpoint 中的 train_args 以支持参数覆盖 ──
+        # Ultralytics resume=True 会从 checkpoint 恢复全部训练参数，
+        # 忽略任何新传入的参数。因此需要直接修改 checkpoint 内的 train_args。
+        import torch as _torch
+        ckpt = _torch.load(args.resume, map_location="cpu")
+        if isinstance(ckpt, dict) and "train_args" in ckpt:
+            overrides = {
+                "lr0": config.lr0,
+                "batch": config.batch,
+                "workers": config.workers,
+                "imgsz": config.imgsz,
+            }
+            overridden_keys = []
+            for k, v in overrides.items():
+                old = ckpt["train_args"].get(k)
+                if old != v:
+                    ckpt["train_args"][k] = v
+                    overridden_keys.append(f"{k}: {old} → {v}")
+            if overridden_keys:
+                print(f"  覆盖 checkpoint 参数: {', '.join(overridden_keys)}")
+                modified_path = os.path.join(
+                    os.path.dirname(args.resume), "resume_modified.pt")
+                _torch.save(ckpt, modified_path)
+                model = YOLO(modified_path)
+            else:
+                model = YOLO(args.resume)
+        else:
+            model = YOLO(args.resume)
+        del ckpt
+
+        results = model.train(
+            resume=True,
+            verbose=args.verbose,
+        )
     else:
         # Fresh training: use config params
         results = model.train(
@@ -217,7 +258,7 @@ def main():
             fliplr=config.fliplr,
             mosaic=config.mosaic,
             mixup=config.mixup,
-            verbose=True if args.no_verbose else False,  # Compact output by default to avoid line wrapping
+            verbose=args.verbose,  # 默认关闭 tqdm 进度条避免换行
         )
 
     # ── Step 4: Export and save model ──────────────────────

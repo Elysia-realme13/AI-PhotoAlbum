@@ -3,7 +3,7 @@ name = "ai-photo-album-backend"
 version = "0.1.0"
 description = "AI智能相册后端服务"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.11,<3.14"
 dependencies = [
     # Web 框架
     "fastapi>=0.115.0",

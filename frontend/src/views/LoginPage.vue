@@ -160,7 +160,7 @@
 
           <el-form-item>
             <el-button type="primary" size="large" class="w-full" :loading="loading" :disabled="!agreedToTerms" @click="handleRegister">
-              注 册并登录
+              注册并登录
             </el-button>
           </el-form-item>
         </el-form>

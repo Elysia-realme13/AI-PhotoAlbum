@@ -36,4 +36,9 @@ export const taskApi = {
   cancel(id: string) {
     return request.delete(`/tasks/${id}`)
   },
+
+  /** 为存量照片补建反向地理编码任务（有 GPS 但城市未解析） */
+  geocodeBackfill() {
+    return request.post<{ created: number }>('/tasks/geocode-backfill')
+  },
 }

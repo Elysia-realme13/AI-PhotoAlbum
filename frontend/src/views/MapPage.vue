@@ -10,6 +10,17 @@
         <span v-if="cities.length > 0">
           覆盖 <strong class="text-gray-800 dark:text-dark-text">{{ cities.length }}</strong> 个城市
         </span>
+        <span v-else-if="!loading && locations.length > 0">
+          覆盖 <strong class="text-gray-800 dark:text-dark-text">{{ locations.length }}</strong> 个拍摄地点
+        </span>
+        <el-button
+          v-if="!loading && locations.length > 0"
+          size="small"
+          :loading="backfilling"
+          @click="handleGeocodeBackfill"
+        >
+          重新解析拍摄地点
+        </el-button>
       </div>
     </div>
 
@@ -36,7 +47,9 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { Loading } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
 import { mapApi } from '@/api/map'
+import { taskApi } from '@/api/tasks'
 import { photoApi } from '@/api/photo'
 import { wgs84ToGcj02 } from '@/utils/coord'
 import type { PhotoLocation } from '@/types/map'
@@ -48,6 +61,7 @@ import markerShadow from 'leaflet/dist/images/marker-shadow.png'
 
 const mapContainer = ref<HTMLElement | null>(null)
 const loading = ref(true)
+const backfilling = ref(false)
 const locations = ref<PhotoLocation[]>([])
 
 let mapInstance: any = null
@@ -170,6 +184,24 @@ async function fetchLocations() {
     // handled by interceptor
   } finally {
     loading.value = false
+  }
+}
+
+async function handleGeocodeBackfill() {
+  backfilling.value = true
+  try {
+    const res = await taskApi.geocodeBackfill()
+    const created = res.data?.created ?? 0
+    if (created > 0) {
+      ElMessage.success(`已创建 ${created} 个解析任务，稍后刷新可查看城市信息`)
+    } else {
+      ElMessage.info('没有需要重新解析的照片')
+    }
+  } catch (error) {
+    console.error('[MapPage] 重新解析失败:', error)
+    // handled by interceptor
+  } finally {
+    backfilling.value = false
   }
 }
 

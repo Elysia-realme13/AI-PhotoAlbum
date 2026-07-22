@@ -22,11 +22,29 @@ export interface TaskInfo {
   result?: Record<string, unknown>
 }
 
+/** 标签摘要项（对应后端 tags.summary 元素） */
+export interface TagSummaryItem {
+  label: string
+  count: number
+  max_confidence: number
+}
+
+/** 标签字典结构（对应后端 dict 格式：detections/summary/total/model） */
+export interface TagDict {
+  detections?: Detection[]
+  summary?: TagSummaryItem[]
+  total?: number
+  model?: string
+}
+
+/** 标签字段：兼容旧的字符串数组与新的字典结构 */
+export type PhotoTags = string[] | TagDict
+
 /** AI 描述信息（对应后端 ImageDescription 表） */
 export interface ImageDescription {
   description?: string | null
   narrative?: string | null
-  tags?: string[] | null
+  tags?: PhotoTags | null
   quality_score?: number | null
   memory_score?: number | null
 }
@@ -45,7 +63,7 @@ export interface PhotoItem {
   md5?: string
   is_deleted?: boolean
   deleted_at?: string
-  tags?: string[] | null
+  tags?: PhotoTags | null
   quality_score?: number | null
   processed_tasks?: Record<string, boolean>
   thumbnail_url?: string

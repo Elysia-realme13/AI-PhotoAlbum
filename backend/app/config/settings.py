@@ -64,6 +64,9 @@ class Settings(BaseSettings):
 
     # -- 反向地理编码 ------------------------------------
     GEOCODING_ENABLED: bool = True
+    # 离线行政区边界（市级，随仓库分发）；命中则返回中文省/市名，无需联网
+    GEO_BOUNDARY_FILE: str = "./data/geo/china_city.geojson"
+    # 离线未命中（境外坐标/数据缺失）时回退的在线 Nominatim 端点
     NOMINATIM_URL: str = "https://nominatim.openstreetmap.org/reverse"
     NOMINATIM_USER_AGENT: str = "AI-PhotoAlbum/0.1 (self-hosted)"
     GEOCODING_LANG: str = "zh-CN"
@@ -96,7 +99,14 @@ for _n in (4, 3):
 else:
     _PROJECT_ROOT = _FILE.parents[2]  # fallback
 
-_RELATIVE_PATH_FIELDS = ["UPLOAD_DIR", "THUMBNAIL_DIR", "AVATAR_DIR", "MODELS_DIR", "LOGS_DIR"]
+_RELATIVE_PATH_FIELDS = [
+    "UPLOAD_DIR",
+    "THUMBNAIL_DIR",
+    "AVATAR_DIR",
+    "MODELS_DIR",
+    "LOGS_DIR",
+    "GEO_BOUNDARY_FILE",
+]
 for _field in _RELATIVE_PATH_FIELDS:
     _val: str = getattr(settings, _field)
     if _val.startswith("./"):

@@ -13,9 +13,9 @@
     />
 
     <!-- 检测标签 -->
-    <div v-if="photo.tags?.summary?.length" class="absolute bottom-0 left-0 right-0 px-2 pb-1 flex flex-wrap gap-1">
+    <div v-if="tagSummary.length" class="absolute bottom-0 left-0 right-0 px-2 pb-1 flex flex-wrap gap-1">
       <span
-        v-for="tag in photo.tags.summary.slice(0, 4)"
+        v-for="tag in tagSummary.slice(0, 4)"
         :key="tag.label"
         class="px-1.5 py-0.5 rounded text-[10px] font-medium leading-tight"
         :style="'background: ' + (tag.max_confidence >= 0.8 ? '#166534cc' : '#854d0ecc') + '; color: white;'"
@@ -87,8 +87,9 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
 import { Delete, InfoFilled, Check, RefreshRight } from '@element-plus/icons-vue'
-import type { PhotoItem } from '@/types/photo'
+import type { PhotoItem, TagSummaryItem } from '@/types/photo'
 import { photoApi } from '@/api/photo'
 
 const props = defineProps<{
@@ -97,6 +98,13 @@ const props = defineProps<{
   selected?: boolean
   recycleMode?: boolean
 }>()
+
+// 标签兼容字典结构：仅当 tags 为对象且含 summary 时提取，否则空数组
+const tagSummary = computed<TagSummaryItem[]>(() => {
+  const t = props.photo.tags
+  if (t && !Array.isArray(t) && Array.isArray(t.summary)) return t.summary
+  return []
+})
 
 defineEmits<{
   click: []

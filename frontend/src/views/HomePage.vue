@@ -62,8 +62,8 @@
         <div class="bg-white rounded-xl p-5 shadow-sm border border-gray-100 hover-scale cursor-pointer" @click="router.push('/map')">
           <div class="flex items-center justify-between">
             <div>
-              <p class="text-gray-500 text-sm">足迹城市</p>
-              <p class="text-3xl font-bold text-gray-800 mt-1">{{ stats.cities }}</p>
+              <p class="text-gray-500 text-sm">{{ stats.cities > 0 ? '足迹城市' : '拍摄地点' }}</p>
+              <p class="text-3xl font-bold text-gray-800 mt-1">{{ stats.cities > 0 ? stats.cities : stats.locations }}</p>
             </div>
             <div class="w-12 h-12 rounded-lg bg-orange-50 flex items-center justify-center">
               <el-icon :size="24" color="#E6A23C"><Location /></el-icon>
@@ -216,6 +216,7 @@ const stats = ref({
   albums: 0,
   faces: null as number | null,
   cities: 0,
+  locations: 0,
 })
 
 const recentPhotos = ref<PhotoItem[]>([])
@@ -419,6 +420,8 @@ async function fetchData() {
       else if (loc.province) citySet.add(loc.province)
     }
     stats.value.cities = citySet.size
+    // 无城市解析结果时回退展示有位置的照片数，避免误导为 0
+    stats.value.locations = (locationsRes.data || []).length
   } catch {
     // handled by interceptor
   } finally {

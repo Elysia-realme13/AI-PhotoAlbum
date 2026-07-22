@@ -124,12 +124,32 @@
           </p>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <!-- 第一行：2 个 -->
+        <div class="flex flex-wrap justify-center gap-6 mb-6">
           <div
-            v-for="(feature, i) in features"
+            v-for="(feature, i) in features.slice(0, 2)"
             :key="feature.title"
             :style="{ transitionDelay: `${0.05 + i * 0.07}s` }"
-            class="feature-card group relative p-8 rounded-2xl bg-gray-50 dark:bg-dark-card border border-gray-100 dark:border-dark-border hover:border-blue-300 dark:hover:border-blue-700 hover:shadow-xl hover:-translate-y-1 transition-all duration-500 overflow-hidden"
+            class="feature-card group relative p-8 rounded-2xl bg-gray-50 dark:bg-dark-card border border-gray-100 dark:border-dark-border hover:border-blue-300 dark:hover:border-blue-700 hover:shadow-xl hover:-translate-y-1 transition-all duration-500 overflow-hidden w-full md:w-[calc(50%-12px)]"
+          >
+            <!-- 卡片背景光效 -->
+            <div class="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 bg-gradient-to-br from-blue-50/50 via-transparent to-transparent dark:from-blue-900/10" />
+            <div class="relative z-10">
+              <div class="w-12 h-12 rounded-xl mb-5 flex items-center justify-center text-white bg-gradient-to-br group-hover:scale-110 group-hover:rotate-3 transition-transform duration-300" :class="feature.gradient">
+                <el-icon :size="24"><component :is="feature.icon" /></el-icon>
+              </div>
+              <h3 class="text-lg font-semibold text-gray-800 dark:text-dark-text mb-2">{{ feature.title }}</h3>
+              <p class="text-gray-500 dark:text-dark-text-secondary text-sm leading-relaxed">{{ feature.desc }}</p>
+            </div>
+          </div>
+        </div>
+        <!-- 第二行：3 个 -->
+        <div class="flex flex-wrap justify-center gap-6">
+          <div
+            v-for="(feature, i) in features.slice(2)"
+            :key="feature.title"
+            :style="{ transitionDelay: `${0.05 + (i + 2) * 0.07}s` }"
+            class="feature-card group relative p-8 rounded-2xl bg-gray-50 dark:bg-dark-card border border-gray-100 dark:border-dark-border hover:border-blue-300 dark:hover:border-blue-700 hover:shadow-xl hover:-translate-y-1 transition-all duration-500 overflow-hidden w-full md:w-[calc(50%-12px)] lg:w-[calc(33.333%-16px)]"
           >
             <!-- 卡片背景光效 -->
             <div class="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 bg-gradient-to-br from-blue-50/50 via-transparent to-transparent dark:from-blue-900/10" />
@@ -166,17 +186,17 @@
             v-for="(step, i) in steps"
             :key="i"
             :style="{ transitionDelay: `${0.05 + i * 0.1}s` }"
-            class="step-card relative text-center"
+            class="step-card group relative text-center p-6 rounded-2xl hover:bg-gray-50/40 dark:hover:bg-dark-card/40 hover:-translate-y-1 hover:shadow-lg transition-all duration-500 cursor-default"
           >
             <div class="relative inline-flex mb-6">
-              <div class="w-24 h-24 rounded-2xl flex items-center justify-center text-white bg-gradient-to-br shadow-lg" :class="step.gradient">
+              <div class="w-24 h-24 rounded-2xl flex items-center justify-center text-white bg-gradient-to-br shadow-lg group-hover:scale-110 group-hover:rotate-6 transition-transform duration-500" :class="step.gradient">
                 <el-icon :size="36"><component :is="step.icon" /></el-icon>
               </div>
-              <div class="absolute -top-2 -right-2 w-8 h-8 rounded-full bg-white dark:bg-dark-card border-2 border-gray-200 dark:border-dark-border flex items-center justify-center text-sm font-bold text-gray-600 dark:text-dark-text-secondary">
+              <div class="absolute -top-2 -right-2 w-8 h-8 rounded-full bg-white dark:bg-dark-card border-2 border-gray-200 dark:border-dark-border flex items-center justify-center text-sm font-bold text-gray-600 dark:text-dark-text-secondary transition-colors duration-300">
                 {{ i + 1 }}
               </div>
             </div>
-            <h3 class="text-xl font-bold text-gray-800 dark:text-dark-text mb-2">{{ step.title }}</h3>
+            <h3 class="text-xl font-bold text-gray-800 dark:text-dark-text mb-2 transition-colors duration-300">{{ step.title }}</h3>
             <p class="text-gray-500 dark:text-dark-text-secondary text-sm leading-relaxed">{{ step.desc }}</p>
           </div>
         </div>
@@ -197,9 +217,12 @@
         </div>
 
         <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-          <div
+          <a
             v-for="(tech, i) in techs"
             :key="tech.name"
+            :href="tech.url"
+            target="_blank"
+            rel="noopener noreferrer"
             :style="{ transitionDelay: `${0.02 + i * 0.03}s` }"
             class="tech-item flex flex-col items-center gap-2 p-4 rounded-xl bg-gray-50 dark:bg-dark-card border border-gray-100 dark:border-dark-border hover:border-blue-200 dark:hover:border-blue-800 hover:shadow-md hover:-translate-y-1 transition-all duration-300"
           >
@@ -207,7 +230,7 @@
               {{ tech.abbr }}
             </div>
             <span class="text-xs text-gray-600 dark:text-dark-text-secondary font-medium">{{ tech.name }}</span>
-          </div>
+          </a>
         </div>
       </section>
 
@@ -230,12 +253,12 @@
             v-for="(scene, idx) in scenes"
             :key="idx"
             :style="{ transitionDelay: `${0.05 + idx * 0.1}s` }"
-            class="scene-card relative overflow-hidden rounded-2xl bg-gradient-to-br p-8 text-white group cursor-default"
+            class="scene-card relative overflow-hidden rounded-2xl bg-gradient-to-br p-8 text-white group cursor-default hover:-translate-y-1 hover:shadow-2xl transition-all duration-500"
             :class="scene.gradient"
           >
-            <div class="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2 group-hover:scale-150 transition-transform duration-700" />
-            <el-icon :size="36" class="mb-4 opacity-90 group-hover:scale-110 transition-transform duration-300"><component :is="scene.icon" /></el-icon>
-            <h3 class="text-xl font-bold mb-2">{{ scene.title }}</h3>
+            <div class="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2 group-hover:scale-[2.5] transition-transform duration-700 ease-out" />
+            <el-icon :size="36" class="mb-4 opacity-90 group-hover:scale-110 group-hover:-translate-y-1 transition-all duration-300"><component :is="scene.icon" /></el-icon>
+            <h3 class="text-xl font-bold mb-2 transition-transform duration-300 group-hover:translate-x-1">{{ scene.title }}</h3>
             <p class="text-white/80 text-sm leading-relaxed">{{ scene.desc }}</p>
           </div>
         </div>
@@ -280,7 +303,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, onUnmounted } from 'vue'
 import {
-  PictureFilled, StarFilled, Camera, Search, ChatDotRound,
+  PictureFilled, StarFilled, Camera, ChatDotRound,
   VideoPlay, DataBoard, TrendCharts, UserFilled, Folder, Location,
   ArrowDown, Upload, Setting, Promotion,
 } from '@element-plus/icons-vue'
@@ -308,6 +331,8 @@ function useRevealOnScroll() {
         entries.forEach((entry) => {
           if (entry.isIntersecting) {
             entry.target.classList.add('visible')
+            // 揭示后取消监听，减少不必要的计算
+            observer.value?.unobserve(entry.target)
           }
         })
       },
@@ -402,12 +427,6 @@ onUnmounted(() => {
 // ── 功能列表 ─────────────────────────
 const features = [
   {
-    icon: Search,
-    title: '智能搜索',
-    desc: '支持自然语言搜索照片，输入「去年夏天在海边拍的照片」即可精准定位，也支持以图搜图。',
-    gradient: 'from-blue-500 to-blue-600',
-  },
-  {
     icon: UserFilled,
     title: '人脸识别',
     desc: '自动检测并聚类人脸，一键命名后即可按人物浏览照片，轻松找到家人朋友的所有瞬间。',
@@ -456,25 +475,25 @@ const steps = [
   {
     icon: Promotion,
     title: '随心浏览',
-    desc: '按人物、地点、时间、场景浏览，自然语言搜索，享受智能相册体验。',
+    desc: '按人物、地点、时间、场景随心浏览，享受智能相册的每一刻。',
     gradient: 'from-purple-500 to-pink-500',
   },
 ]
 
 // ── 技术栈 ───────────────────────────
 const techs = [
-  { name: 'FastAPI', abbr: 'FA', color: 'bg-teal-500' },
-  { name: 'Vue 3', abbr: 'V3', color: 'bg-emerald-500' },
-  { name: 'PostgreSQL', abbr: 'PG', color: 'bg-blue-500' },
-  { name: 'pgvector', abbr: 'PV', color: 'bg-indigo-500' },
-  { name: 'LangChain', abbr: 'LC', color: 'bg-green-500' },
-  { name: 'InsightFace', abbr: 'IF', color: 'bg-orange-500' },
-  { name: 'CLIP', abbr: 'CL', color: 'bg-purple-500' },
-  { name: 'YOLO11', abbr: 'YO', color: 'bg-red-500' },
-  { name: 'ONNX', abbr: 'ON', color: 'bg-cyan-500' },
-  { name: 'Docker', abbr: 'DK', color: 'bg-sky-500' },
-  { name: 'Element Plus', abbr: 'EP', color: 'bg-blue-400' },
-  { name: 'TailwindCSS', abbr: 'TW', color: 'bg-teal-400' },
+  { name: 'FastAPI', abbr: 'FA', color: 'bg-teal-500', url: 'https://fastapi.tiangolo.com/' },
+  { name: 'Vue 3', abbr: 'V3', color: 'bg-emerald-500', url: 'https://vuejs.org/' },
+  { name: 'PostgreSQL', abbr: 'PG', color: 'bg-blue-500', url: 'https://www.postgresql.org/' },
+  { name: 'pgvector', abbr: 'PV', color: 'bg-indigo-500', url: 'https://github.com/pgvector/pgvector' },
+  { name: 'LangChain', abbr: 'LC', color: 'bg-green-500', url: 'https://www.langchain.com/' },
+  { name: 'InsightFace', abbr: 'IF', color: 'bg-orange-500', url: 'https://insightface.ai/' },
+  { name: 'CLIP', abbr: 'CL', color: 'bg-purple-500', url: 'https://openai.com/index/clip/' },
+  { name: 'YOLO26', abbr: 'YO', color: 'bg-red-500', url: 'https://docs.ultralytics.com/' },
+  { name: 'ONNX', abbr: 'ON', color: 'bg-cyan-500', url: 'https://onnx.ai/' },
+  { name: 'Docker', abbr: 'DK', color: 'bg-sky-500', url: 'https://www.docker.com/' },
+  { name: 'Element Plus', abbr: 'EP', color: 'bg-blue-400', url: 'https://element-plus.org/' },
+  { name: 'TailwindCSS', abbr: 'TW', color: 'bg-teal-400', url: 'https://tailwindcss.com/' },
 ]
 
 // ── 使用场景 ─────────────────────────
@@ -522,10 +541,10 @@ const scenes = [
   66% { transform: translateY(5px) rotate(-3deg); opacity: 0.08; }
 }
 
-.floating-slow { animation: floatSlow 8s ease-in-out infinite; }
-.floating-medium { animation: floatMedium 10s ease-in-out infinite; }
-.floating-fast { animation: floatFast 6s ease-in-out infinite; }
-.floating-icon { animation: floatIcon 7s ease-in-out infinite; }
+.floating-slow { animation: floatSlow 8s ease-in-out infinite; will-change: transform; }
+.floating-medium { animation: floatMedium 10s ease-in-out infinite; will-change: transform; }
+.floating-fast { animation: floatFast 6s ease-in-out infinite; will-change: transform; }
+.floating-icon { animation: floatIcon 7s ease-in-out infinite; will-change: transform, opacity; }
 
 /* 渐变文字动画 */
 @keyframes gradientShift {
@@ -536,12 +555,13 @@ const scenes = [
 .animate-gradient {
   animation: gradientShift 4s ease-in-out infinite;
   background-size: 200% auto;
+  will-change: background-position;
 }
 
 /* 脉冲小点 */
 @keyframes pulseDot {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.4; }
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.9); }
 }
 .pulse-dot {
   animation: pulseDot 2s ease-in-out infinite;
@@ -554,7 +574,7 @@ const scenes = [
   100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
 }
 .btn-pulse {
-  animation: btnPulse 2s infinite;
+  animation: btnPulse 2.5s infinite;
 }
 
 /* ═══════════ 滚动揭示动画 ═══════════ */
@@ -570,7 +590,8 @@ const scenes = [
 .stat-item {
   opacity: 0;
   transform: translateY(30px);
-  transition: opacity 0.7s ease-out, transform 0.7s ease-out;
+  transition: opacity 0.7s cubic-bezier(0.25, 0.46, 0.45, 0.94), transform 0.7s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  will-change: transform, opacity;
 }
 
 .reveal-up-delayed { transition-delay: 0.15s; }
@@ -598,11 +619,40 @@ const scenes = [
   opacity: 0;
   transform: scaleX(0);
   transform-origin: left center;
-  transition: opacity 0.6s ease-out, transform 0.8s ease-out;
+  transition: opacity 0.6s ease-out, transform 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  will-change: transform, opacity;
 }
 .steps-line.visible {
   opacity: 1;
   transform: scaleX(1);
+}
+
+/* 功能卡片 hover 增强 */
+.feature-card {
+  transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+.feature-card:hover {
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+}
+
+/* ═══════════ 无障碍：减少动画 ═══════════ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  .floating-slow,
+  .floating-medium,
+  .floating-fast,
+  .floating-icon,
+  .animate-gradient,
+  .pulse-dot,
+  .btn-pulse {
+    animation: none !important;
+  }
 }
 
 /* ═══════════ 暗色模式适配 ═══════════ */

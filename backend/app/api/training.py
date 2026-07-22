@@ -48,6 +48,7 @@ def create_training_task(
             db=db,
             description=data.description,
             dataset_id=data.dataset_id,
+            user_id=current_user.id,
         )
         return TrainingTaskResponse.model_validate(task)
     except ValueError as e:
@@ -89,6 +90,7 @@ def create_training_task_with_dataset(
                 filename=file.filename,
                 db=db,
                 description=description,
+                user_id=current_user.id,
             )
         elif dataset_id:
             task = training_service.create_task(
@@ -98,6 +100,7 @@ def create_training_task_with_dataset(
                 db=db,
                 description=description,
                 dataset_id=dataset_id,
+                user_id=current_user.id,
             )
         else:
             raise HTTPException(
@@ -125,7 +128,7 @@ def list_training_tasks(
 ):
     """获取训练任务列表"""
     try:
-        query = db.query(TrainingTask).options(joinedload(TrainingTask.dataset_rel)).order_by(TrainingTask.created_at.desc())
+        query = db.query(TrainingTask).options(joinedload(TrainingTask.dataset_rel)).filter(TrainingTask.user_id == current_user.id).order_by(TrainingTask.created_at.desc())
         if status:
             query = query.filter(TrainingTask.status == status)
         tasks = query.all()
@@ -154,6 +157,8 @@ def get_training_task(
     """获取训练任务详情（含指标数据）"""
     try:
         task = db.query(TrainingTask).filter(TrainingTask.id == uuid.UUID(task_id)).first()
+        if not task or str(task.user_id) != str(current_user.id):
+            raise HTTPException(status_code=404, detail="训练任务不存在")
     except ValueError:
         raise HTTPException(status_code=400, detail="无效的任务 ID")
 
@@ -183,12 +188,16 @@ def start_training(
     """启动训练"""
     try:
         task = db.query(TrainingTask).filter(TrainingTask.id == uuid.UUID(task_id)).first()
+        if not task or str(task.user_id) != str(current_user.id):
+            raise HTTPException(status_code=404, detail="训练任务不存在")
     except ValueError:
         raise HTTPException(status_code=400, detail="无效的任务 ID")
 
     if not task:
         raise HTTPException(status_code=404, detail="训练任务不存在")
 
+    if not task or str(task.user_id) != str(current_user.id):
+        raise HTTPException(status_code=404, detail="任务不存在")
     if task.status not in ("pending", "paused", "failed"):
         raise HTTPException(status_code=400, detail=f"当前状态不允许启动: {task.status}")
 
@@ -249,7 +258,7 @@ def delete_training_task(
 ):
     """删除训练任务及关联文件"""
     try:
-        success = training_service.delete_training_task(task_id, db)
+        success = training_service.delete_training_task(task_id, db, user_id=current_user.id)
         if not success:
             raise HTTPException(status_code=404, detail="训练任务不存在")
         return {"message": "训练任务已删除"}

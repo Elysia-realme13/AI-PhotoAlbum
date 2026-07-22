@@ -24,7 +24,7 @@ def list_models(
 ):
     """获取所有训练完成的模型列表"""
     try:
-        models = training_service.get_models(db)
+        models = training_service.get_models(db, user_id=current_user.id)
         return {"total": len(models), "items": models}
     except Exception as e:
         logger.error(f"获取模型列表失败: {e}", exc_info=True)
@@ -39,7 +39,7 @@ def get_model_detail(
 ):
     """获取模型详情（含训练指标数据）"""
     try:
-        detail = training_service.get_model_detail(model_name, db)
+        detail = training_service.get_model_detail(model_name, db, user_id=current_user.id)
         if "error" in detail:
             raise HTTPException(status_code=404, detail=detail["error"])
         return detail
@@ -107,7 +107,7 @@ def import_model(
 
     try:
         file_bytes = file.file.read()
-        training_service.import_model(file_bytes, file.filename, model_name, db)
+        training_service.import_model(file_bytes, file.filename, model_name, db, user_id=current_user.id)
         return {"message": f"模型 {model_name} 导入成功", "model_name": model_name}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -161,7 +161,7 @@ def delete_model(
     current_user: User = Depends(get_required_user),
 ):
     """删除模型"""
-    success = training_service.delete_model(model_name, db)
+    success = training_service.delete_model(model_name, db, user_id=current_user.id)
     if not success:
         raise HTTPException(status_code=404, detail="模型不存在")
     return {"message": f"模型 '{model_name}' 已删除"}

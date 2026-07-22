@@ -29,9 +29,11 @@ class Dataset(Base):
     class_count = Column(Integer, default=0, comment="类别数量")
     file_size = Column(Integer, default=0, comment="数据集大小（字节）")
     created_at = Column(DateTime, default=datetime.now, comment="创建时间")
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True, comment="所属用户")
 
     # 关联关系
     tasks = relationship("TrainingTask", back_populates="dataset_rel", lazy="dynamic")
+    owner = relationship("User", backref="datasets")
 
     def __repr__(self):
         return f"<Dataset {self.name} ({self.image_count} imgs, {self.class_count} classes)>"
@@ -67,6 +69,7 @@ class TrainingTask(Base):
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now, comment="更新时间")
     started_at = Column(DateTime, nullable=True, comment="开始训练时间")
     completed_at = Column(DateTime, nullable=True, comment="完成时间")
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True, comment="所属用户")
 
     # 关联关系
     dataset_rel = relationship("Dataset", back_populates="tasks")
@@ -74,6 +77,7 @@ class TrainingTask(Base):
         "TrainingMetric", back_populates="task", cascade="all, delete-orphan",
         order_by="TrainingMetric.epoch",
     )
+    owner = relationship("User", backref="training_tasks")
 
     __table_args__ = (
         Index("idx_training_status", "status"),

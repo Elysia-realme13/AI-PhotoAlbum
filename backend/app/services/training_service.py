@@ -184,7 +184,7 @@ class _MetricCallback(TrainingCallback):
 #  Dataset Management
 # ══════════════════════════════════════════════════════════════════
 
-def upload_dataset(file_bytes: bytes, filename: str, db: Session) -> Dataset:
+def upload_dataset(file_bytes: bytes, filename: str, db: Session, user_id=None) -> Dataset:
     """上传并解压数据集压缩包
 
     支持格式: zip / tar / tar.gz / tgz / tar.bz2 / 7z / rar
@@ -274,6 +274,7 @@ def upload_dataset(file_bytes: bytes, filename: str, db: Session) -> Dataset:
 
     dataset = Dataset(
         name=stem,
+        user_id=user_id,
         path=str(dataset_dir),
         image_count=image_count,
         class_names=class_names if class_names else [],
@@ -350,9 +351,11 @@ def create_dataset_yaml(dataset: Dataset, val_split: float = 0.2,
     return yaml_path
 
 
-def get_dataset_preview(dataset_id: str, db: Session) -> Dict[str, Any]:
+def get_dataset_preview(dataset_id: str, db: Session, user_id=None) -> Dict[str, Any]:
     """获取数据集预览信息"""
     dataset = db.query(Dataset).filter(Dataset.id == uuid.UUID(dataset_id)).first()
+    if dataset and user_id and str(dataset.user_id) != str(user_id):
+        return False
     if not dataset:
         return {"error": "数据集不存在"}
     dataset_path = Path(dataset.path)
@@ -385,9 +388,11 @@ def get_dataset_preview(dataset_id: str, db: Session) -> Dict[str, Any]:
     }
 
 
-def delete_dataset(dataset_id: str, db: Session) -> bool:
+def delete_dataset(dataset_id: str, db: Session, user_id=None) -> bool:
     """删除数据集（包括文件）"""
     dataset = db.query(Dataset).filter(Dataset.id == uuid.UUID(dataset_id)).first()
+    if dataset and user_id and str(dataset.user_id) != str(user_id):
+        return False
     if not dataset:
         return False
     task_count = db.query(TrainingTask).filter(
@@ -410,13 +415,15 @@ def delete_dataset(dataset_id: str, db: Session) -> bool:
 
 def create_task(task_name: str, model_name: str, config: dict, db: Session,
                 description: Optional[str] = None,
-                dataset_id: Optional[str] = None) -> TrainingTask:
+                dataset_id: Optional[str] = None,
+                user_id=None) -> TrainingTask:
     """创建训练任务"""
     existing = db.query(TrainingTask).filter(TrainingTask.model_name == model_name).first()
     if existing:
         raise ValueError(f"模型名称 '{model_name}' 已被使用")
     task = TrainingTask(
         task_name=task_name,
+        user_id=user_id,
         model_name=model_name,
         description=description,
         dataset_id=uuid.UUID(dataset_id) if dataset_id else None,
@@ -439,18 +446,20 @@ def create_task_with_dataset(
     filename: str,
     db: Session,
     description: Optional[str] = None,
+    user_id=None,
 ) -> TrainingTask:
     """一键上传数据集并创建训练任务
 
     与先调用 upload_dataset 再调用 create_task 等效，
     但保证在一次请求中完成，前端无需先切换到“数据集管理”上传。
     """
-    dataset = upload_dataset(file_bytes, filename, db)
+    dataset = upload_dataset(file_bytes, filename, db, user_id=user_id)
     task = create_task(
         task_name=task_name,
         model_name=model_name,
         config=config,
         db=db,
+        user_id=user_id,
         description=description,
         dataset_id=str(dataset.id),
     )
@@ -703,10 +712,12 @@ def get_task_logs(task_id: str, db: Session) -> Dict[str, Any]:
         return {"lines": [], "total": 0}
 
 
-def delete_training_task(task_id: str, db: Session) -> bool:
+def delete_training_task(task_id: str, db: Session, user_id=None) -> bool:
     """删除训练任务（包括模型文件）"""
     task = db.query(TrainingTask).filter(TrainingTask.id == uuid.UUID(task_id)).first()
     if not task:
+        return False
+    if user_id and str(task.user_id) != str(user_id):
         return False
     if task.status == "running":
         stop_training(task_id)
@@ -739,10 +750,11 @@ def _resolve_model_file(model_name: str) -> Optional[str]:
     return str(candidate) if candidate.exists() else None
 
 
-def get_models(db: Session) -> List[Dict[str, Any]]:
+def get_models(db: Session, user_id=None) -> List[Dict[str, Any]]:
     """获取所有训练完成的模型列表"""
     tasks = (db.query(TrainingTask)
              .filter(TrainingTask.status.in_(["completed", "failed", "running", "paused"]))
+             .filter(TrainingTask.user_id == user_id if user_id else True)
              .order_by(TrainingTask.completed_at.desc()).all())
     default_model = _get_default_model()
     models = []
@@ -794,9 +806,11 @@ def get_models(db: Session) -> List[Dict[str, Any]]:
     return models
 
 
-def get_model_detail(model_name: str, db: Session) -> Dict[str, Any]:
+def get_model_detail(model_name: str, db: Session, user_id=None) -> Dict[str, Any]:
     """获取模型详情"""
     task = db.query(TrainingTask).filter(TrainingTask.model_name == model_name).first()
+    if task and user_id and str(task.user_id) != str(user_id):
+        return {"error": "model not found"}
     if not task:
         return {"error": "模型不存在"}
     metrics = get_task_metrics(str(task.id), db)
@@ -874,7 +888,7 @@ def export_model(model_name: str, format: str = "pt") -> Optional[str]:
     return None
 
 
-def import_model(file_bytes: bytes, filename: str, model_name: str, db: Session) -> bool:
+def import_model(file_bytes: bytes, filename: str, model_name: str, db: Session, user_id=None) -> bool:
     """导入已有的模型文件"""
     ext = Path(filename).suffix
     if ext not in (".pt", ".pth", ".onnx"):
@@ -888,6 +902,7 @@ def import_model(file_bytes: bytes, filename: str, model_name: str, db: Session)
         description=f"从文件 {filename} 导入",
         status="completed",
         config={"imported": True, "source": filename},
+        user_id=user_id,
         model_path=str(target_path),
         current_epoch=0,
         total_epochs=0,
@@ -903,6 +918,8 @@ def import_model(file_bytes: bytes, filename: str, model_name: str, db: Session)
 def update_model(model_name: str, task_name: str, description: Optional[str], db: Session) -> Dict[str, Any]:
     """更新模型的任务名称和描述"""
     task = db.query(TrainingTask).filter(TrainingTask.model_name == model_name).first()
+    if task and user_id and str(task.user_id) != str(user_id):
+        return {"error": "model not found"}
     if not task:
         return {"error": "模型不存在"}
     task.task_name = task_name
@@ -912,9 +929,11 @@ def update_model(model_name: str, task_name: str, description: Optional[str], db
     db.refresh(task)
     return {"message": f"模型 {model_name} 已更新"}
 
-def delete_model(model_name: str, db: Session) -> bool:
+def delete_model(model_name: str, db: Session, user_id=None) -> bool:
     """删除模型及对应的训练任务"""
     task = db.query(TrainingTask).filter(TrainingTask.model_name == model_name).first()
+    if task and user_id and str(task.user_id) != str(user_id):
+        return {"error": "model not found"}
     if not task:
         return False
     # 如果删除的是默认模型，清除默认设置

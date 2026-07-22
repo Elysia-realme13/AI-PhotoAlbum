@@ -49,7 +49,7 @@ def upload_dataset(
         if len(file_bytes) == 0:
             raise HTTPException(status_code=400, detail="上传的文件为空")
 
-        dataset = training_service.upload_dataset(file_bytes, file.filename, db)
+        dataset = training_service.upload_dataset(file_bytes, file.filename, db, user_id=current_user.id)
         return DatasetResponse.model_validate(dataset)
     except Exception as e:
         logger.error(f"上传数据集失败: {e}", exc_info=True)
@@ -63,7 +63,7 @@ def list_datasets(
 ):
     """获取所有数据集列表"""
     try:
-        datasets = db.query(Dataset).order_by(Dataset.created_at.desc()).all()
+        datasets = db.query(Dataset).filter(Dataset.user_id == current_user.id).order_by(Dataset.created_at.desc()).all()
         items = [DatasetResponse.model_validate(d) for d in datasets]
         return {"total": len(items), "items": items}
     except Exception as e:
@@ -78,7 +78,7 @@ def preview_dataset(
     current_user: User = Depends(get_required_user),
 ):
     """预览数据集（类别列表和样例图片）"""
-    preview = training_service.get_dataset_preview(dataset_id, db)
+    preview = training_service.get_dataset_preview(dataset_id, db, user_id=current_user.id)
     if "error" in preview:
         raise HTTPException(status_code=404, detail=preview["error"])
     return DatasetPreviewResponse(**preview)
@@ -91,7 +91,7 @@ def delete_dataset(
     current_user: User = Depends(get_required_user),
 ):
     """删除数据集"""
-    success = training_service.delete_dataset(dataset_id, db)
+    success = training_service.delete_dataset(dataset_id, db, user_id=current_user.id)
     if not success:
         raise HTTPException(status_code=404, detail="数据集不存在")
     return {"message": "数据集已删除"}

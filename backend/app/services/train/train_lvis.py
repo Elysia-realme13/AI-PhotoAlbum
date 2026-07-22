@@ -19,6 +19,14 @@ import os
 import sys
 from pathlib import Path
 
+# ── 强制禁用 pin_memory，避免 DataLoader 多进程崩溃 ──
+import torch.utils.data
+_orig_dl_init = torch.utils.data.DataLoader.__init__
+def _patched_dl_init(self, *args, **kwargs):
+    kwargs['pin_memory'] = False
+    _orig_dl_init(self, *args, **kwargs)
+torch.utils.data.DataLoader.__init__ = _patched_dl_init
+
 
 def get_project_root() -> str:
     """Get project root (where data/ lives)"""
@@ -84,13 +92,6 @@ def parse_args():
                         help="Resume from a previous checkpoint path")
     parser.add_argument("--pretrained", action="store_true", default=True,
                         help="Use pretrained weights")
-    parser.add_argument("--verbose", action="store_true", default=False,
-                        help="Enable verbose progress bar (tqdm). Default off to avoid "
-                             "terminal line-wrapping issues on narrow windows.")
-    parser.add_argument("--ncols", type=int, default=0,
-                        help="Force tqdm progress bar width (column count). "
-                             "0=auto-detect terminal width. Use this to prevent "
-                             "line wrapping when verbose is enabled.")
 
     return parser.parse_args()
 
@@ -180,16 +181,12 @@ def main():
     print(f"\n[Step 3/4] Starting fine-tuning...")
     print(f"  Dataset: {data_meta['nc']} classes, {os.path.basename(yaml_path)}")
 
-    # 设置终端宽度环境变量，避免 tqdm 进度条换行
-    if args.verbose and args.ncols > 0:
-        os.environ["COLUMNS"] = str(args.ncols)
-
     if args.resume:
         # ── 断点重训：修改 checkpoint 中的 train_args 以支持参数覆盖 ──
         # Ultralytics resume=True 会从 checkpoint 恢复全部训练参数，
         # 忽略任何新传入的参数。因此需要直接修改 checkpoint 内的 train_args。
         import torch as _torch
-        ckpt = _torch.load(args.resume, map_location="cpu")
+        ckpt = _torch.load(args.resume, map_location="cpu", weights_only=False)
         if isinstance(ckpt, dict) and "train_args" in ckpt:
             overrides = {
                 "lr0": config.lr0,
@@ -217,7 +214,6 @@ def main():
 
         results = model.train(
             resume=True,
-            verbose=args.verbose,
         )
     else:
         # Fresh training: use config params
@@ -258,7 +254,6 @@ def main():
             fliplr=config.fliplr,
             mosaic=config.mosaic,
             mixup=config.mixup,
-            verbose=args.verbose,  # 默认关闭 tqdm 进度条避免换行
         )
 
     # ── Step 4: Export and save model ──────────────────────

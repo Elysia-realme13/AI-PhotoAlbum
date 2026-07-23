@@ -53,6 +53,10 @@ class TrainConfig:
     fliplr: float = 0.5
     mosaic: float = 1.0
     mixup: float = 0.1
+    cutmix: float = 0.0
+    erasing: float = 0.4
+    auto_augment: str = "randaugment"
+    close_mosaic: int = 10
 
     # ── Training control ───────────────────────────────────
     device: str = ""

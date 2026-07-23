@@ -191,7 +191,7 @@ async def upload_single_photo(
     md5 = _compute_md5(content)
 
     # 2. 去重检查
-    existing = get_photos_by_md5(db, md5)
+    existing = get_photos_by_md5(db, md5, owner_id=owner_id)
     if existing:
         logger.info(f"MD5 重复，跳过: {file.filename} → {existing.filename}")
         return {

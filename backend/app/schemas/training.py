@@ -1,4 +1,4 @@
-"""
+﻿"""
 训练与管理模块的 Pydantic Schemas
 
 定义训练任务、数据集、模型管理相关的请求/响应模型
@@ -57,7 +57,7 @@ class DatasetPreviewResponse(BaseModel):
 
 class TrainingConfig(BaseModel):
     """训练超参数配置"""
-    pretrained_model: str = "yolo26n.pt"
+    pretrained_model: str = "best.pt"
     imgsz: int = 640
     epochs: int = 100
     batch: int = 16

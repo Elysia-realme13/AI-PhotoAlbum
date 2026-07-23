@@ -19,6 +19,14 @@ import os
 import sys
 from pathlib import Path
 
+# ── 强制禁用 pin_memory，避免 DataLoader 多进程崩溃 ──
+import torch.utils.data
+_orig_dl_init = torch.utils.data.DataLoader.__init__
+def _patched_dl_init(self, *args, **kwargs):
+    kwargs['pin_memory'] = False
+    _orig_dl_init(self, *args, **kwargs)
+torch.utils.data.DataLoader.__init__ = _patched_dl_init
+
 
 def get_project_root() -> str:
     """Get project root (where data/ lives)"""
@@ -68,6 +76,26 @@ def parse_args():
                         help="Image cache: false/ram/disk. RAM cache needs ~97GB for full LVIS; keep false on 90GB containers")
     parser.add_argument("--device", default="",
                         help='Training device: "0" for GPU 0, "cpu" for CPU, "" for auto')
+    parser.add_argument("--patience", type=int, default=20,
+                        help="Early stopping patience (epochs)")
+
+    # Augmentation
+    parser.add_argument("--mosaic", type=float, default=1.0,
+                        help="Mosaic augmentation probability")
+    parser.add_argument("--mixup", type=float, default=0.1,
+                        help="MixUp augmentation probability")
+    parser.add_argument("--cutmix", type=float, default=0.0,
+                        help="CutMix augmentation probability")
+    parser.add_argument("--erasing", type=float, default=0.4,
+                        help="Random erasing probability")
+    parser.add_argument("--degrees", type=float, default=0.0,
+                        help="Rotation augmentation degrees")
+    parser.add_argument("--hsv-v", type=float, default=0.4,
+                        help="HSV value augmentation")
+    parser.add_argument("--auto-augment", default="randaugment",
+                        help="Auto augmentation policy (randaugment/augmix/None)")
+    parser.add_argument("--close-mosaic", type=int, default=10,
+                        help="Close mosaic in last N epochs")
 
     # Data
     parser.add_argument("--lvis-root", default="data/uploads/lvis",
@@ -84,13 +112,6 @@ def parse_args():
                         help="Resume from a previous checkpoint path")
     parser.add_argument("--pretrained", action="store_true", default=True,
                         help="Use pretrained weights")
-    parser.add_argument("--verbose", action="store_true", default=False,
-                        help="Enable verbose progress bar (tqdm). Default off to avoid "
-                             "terminal line-wrapping issues on narrow windows.")
-    parser.add_argument("--ncols", type=int, default=0,
-                        help="Force tqdm progress bar width (column count). "
-                             "0=auto-detect terminal width. Use this to prevent "
-                             "line wrapping when verbose is enabled.")
 
     return parser.parse_args()
 
@@ -115,8 +136,17 @@ def main():
         lr0=args.lr0,
         device=args.device,
         workers=args.workers,
+        patience=args.patience,
         min_instances=args.min_instances,
         max_categories=args.max_categories,
+        mosaic=args.mosaic,
+        mixup=args.mixup,
+        cutmix=args.cutmix,
+        erasing=args.erasing,
+        degrees=args.degrees,
+        hsv_v=args.hsv_v,
+        auto_augment=args.auto_augment,
+        close_mosaic=args.close_mosaic,
     )
     config = resolve_paths(config, project_root)
 
@@ -180,22 +210,33 @@ def main():
     print(f"\n[Step 3/4] Starting fine-tuning...")
     print(f"  Dataset: {data_meta['nc']} classes, {os.path.basename(yaml_path)}")
 
-    # 设置终端宽度环境变量，避免 tqdm 进度条换行
-    if args.verbose and args.ncols > 0:
-        os.environ["COLUMNS"] = str(args.ncols)
-
     if args.resume:
         # ── 断点重训：修改 checkpoint 中的 train_args 以支持参数覆盖 ──
         # Ultralytics resume=True 会从 checkpoint 恢复全部训练参数，
         # 忽略任何新传入的参数。因此需要直接修改 checkpoint 内的 train_args。
         import torch as _torch
-        ckpt = _torch.load(args.resume, map_location="cpu")
+        ckpt = _torch.load(args.resume, map_location="cpu", weights_only=False)
         if isinstance(ckpt, dict) and "train_args" in ckpt:
+            # cache 值转换：与 fresh training 路径保持一致
+            _cache_val = ("ram" if str(args.cache).lower() == "true"
+                          else False if str(args.cache).lower() in ("false", "none", "0")
+                          else args.cache)
             overrides = {
                 "lr0": config.lr0,
                 "batch": config.batch,
                 "workers": config.workers,
                 "imgsz": config.imgsz,
+                "epochs": config.epochs,
+                "patience": config.patience,
+                "mosaic": config.mosaic,
+                "mixup": config.mixup,
+                "cutmix": config.cutmix,
+                "erasing": config.erasing,
+                "degrees": config.degrees,
+                "hsv_v": config.hsv_v,
+                "auto_augment": config.auto_augment,
+                "close_mosaic": config.close_mosaic,
+                "cache": _cache_val,
             }
             overridden_keys = []
             for k, v in overrides.items():
@@ -217,7 +258,6 @@ def main():
 
         results = model.train(
             resume=True,
-            verbose=args.verbose,
         )
     else:
         # Fresh training: use config params
@@ -258,7 +298,10 @@ def main():
             fliplr=config.fliplr,
             mosaic=config.mosaic,
             mixup=config.mixup,
-            verbose=args.verbose,  # 默认关闭 tqdm 进度条避免换行
+            cutmix=config.cutmix,
+            erasing=config.erasing,
+            auto_augment=config.auto_augment,
+            close_mosaic=config.close_mosaic,
         )
 
     # ── Step 4: Export and save model ──────────────────────

@@ -1,4 +1,4 @@
-"""
+﻿"""
 Face API — identity CRUD and clustering
 GET   /api/faces/identities            — list all identities
 GET   /api/faces/identities/{id}/photos — identity photos
@@ -16,6 +16,7 @@ from app.database.session import get_db
 from app.api.deps import get_required_user
 from app.models.user import User
 from app.models.face import Face, FaceIdentity
+from app.models.photo import Photo
 from app.services.face_cluster_service import get_representative_faces, get_cluster_face_photos
 from app.services.name_confirmation_service import confirm_name, find_clusters_by_name
 from app.schemas.response import BaseResponse
@@ -85,12 +86,14 @@ def list_identities(
     query = (
         db.query(
             FaceIdentity,
-            func.count(Face.photo_id.distinct()).label("face_count"),
+            func.count(Photo.id.distinct()).label("face_count"),
         )
-        .outerjoin(Face, Face.face_identity_id == FaceIdentity.id)
+        .join(Face, Face.face_identity_id == FaceIdentity.id)
+        .join(Photo, Photo.id == Face.photo_id)
         .filter(
             FaceIdentity.owner_id == owner_uuid,
             FaceIdentity.is_hidden == False,
+            Photo.is_deleted == False,
         )
     )
     if q:
@@ -100,7 +103,7 @@ def list_identities(
         .group_by(FaceIdentity.id)
         .order_by(
             FaceIdentity.identity_name.is_(None).asc(),
-            func.count(Face.photo_id.distinct()).desc(),
+            func.count(Photo.id.distinct()).desc(),
         )
         .all()
     )
@@ -143,6 +146,7 @@ def identity_photos(
     photos = (
         db.query(Photo)
         .filter(Photo.id.in_([_uuid.UUID(pid) for pid in photo_ids]))
+        .filter(Photo.is_deleted == False)
         .order_by(Photo.photo_time.desc())
         .all()
     )
@@ -264,6 +268,22 @@ def bind_name(
     identity.identity_name = req.name
     db.commit()
     return {"message": "name set", "cluster_id": req.cluster_id, "name": req.name}
+
+# ── DELETE /{identity_id} ── 强制删除单个人物及其所有人脸记录
+
+@router.delete("/{identity_id}")
+def delete_identity(
+    identity_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_required_user),
+):
+    """强制删除指定身份聚类及其关联的所有人脸记录"""
+    identity = _get_identity_or_404(db, identity_id, str(current_user.id))
+    face_count = db.query(Face).filter(Face.face_identity_id == identity.id).count()
+    db.query(Face).filter(Face.face_identity_id == identity.id).delete(synchronize_session=False)
+    db.delete(identity)
+    db.commit()
+    return {"message": f"已删除人物及其 {face_count} 条人脸记录", "identity_id": identity_id, "face_count": face_count}
 # ── POST /cleanup ────────────────────────────────────────────
 
 @router.post("/cleanup")

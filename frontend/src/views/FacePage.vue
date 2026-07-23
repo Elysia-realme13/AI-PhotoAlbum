@@ -80,7 +80,7 @@
             </p>
             <p class="text-xs text-gray-400 dark:text-dark-text-secondary mt-0.5">{{ person.face_count }} 张照片</p>
 
-            <!-- hover 重命名按钮（合并模式下隐藏） -->
+            <!-- hover 重命名/删除按钮（合并模式下隐藏） -->
             <button
               v-if="!mergeMode"
               class="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/40 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-blue-500"
@@ -88,6 +88,14 @@
               title="重命名"
             >
               <el-icon :size="14"><EditPen /></el-icon>
+            </button>
+            <button
+              v-if="!mergeMode"
+              class="absolute top-2 left-2 w-7 h-7 rounded-full bg-black/40 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-500"
+              @click.stop="deletePerson(person)"
+              title="强制删除"
+            >
+              <el-icon :size="14"><Delete /></el-icon>
             </button>
           </div>
         </div>
@@ -174,7 +182,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { ArrowLeft, InfoFilled, EditPen, Check, Search } from '@element-plus/icons-vue'
+import { ArrowLeft, InfoFilled, EditPen, Check, Search, Delete } from '@element-plus/icons-vue'
 import { photoApi } from '@/api/photo'
 import { faceApi } from '@/api/face'
 import PhotoDetailDrawer from '@/components/photo/PhotoDetailDrawer.vue'
@@ -246,6 +254,23 @@ function backToList() {
 }
 
 // ── 重命名 ─────────────────────────
+
+async function deletePerson(person: FaceCluster) {
+  const label = person.identity_name || '未命名'
+  try {
+    await ElMessageBox.confirm(
+      `确定删除「${label}」吗？将同时删除其 ${person.face_count} 条人脸记录。此操作不可撤销。`,
+      '强制删除人物',
+      { confirmButtonText: '删除', cancelButtonText: '取消', type: 'warning' }
+    )
+    await faceApi.deleteIdentity(person.identity_id)
+    ElMessage.success(`已删除「${label}」`)
+    fetchIdentities(searchQuery.value.trim() || undefined)
+  } catch {
+    // 取消
+  }
+}
+
 async function renamePerson(person: FaceCluster) {
   try {
     const { value } = await ElMessageBox.prompt('请输入人物名称', '重命名', {

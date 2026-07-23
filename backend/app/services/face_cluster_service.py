@@ -1,4 +1,4 @@
-"""
+﻿"""
 人脸增量聚类服务
 
 功能：
@@ -15,6 +15,7 @@ from typing import List, Optional, Tuple
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 from app.models.face import Face, FaceIdentity
+from app.models.photo import Photo
 
 logger = logging.getLogger(__name__)
 
@@ -221,9 +222,11 @@ def get_representative_faces(
     cid = _to_uuid(cluster_id)
     faces = (
         db.query(Face)
+        .join(Photo, Photo.id == Face.photo_id)
         .filter(
             Face.face_identity_id == cid,
             Face.face_feature.isnot(None),
+            Photo.is_deleted == False,
         )
         .order_by(sa_desc(Face.confidence))
         .limit(top_k)
@@ -264,17 +267,20 @@ def get_unamed_clusters(
     """
     owner_uuid = _to_uuid(owner_id)
 
-    # 查询所有未命名的 identity，附带人脸数
+    # 查询所有未命名的 identity，附带人脸数（仅统计非删除照片中有效特征的人脸）
     identities = (
         db.query(
             FaceIdentity,
             func.count(Face.id).label("face_count"),
         )
-        .outerjoin(Face, Face.face_identity_id == FaceIdentity.id)
+        .join(Face, Face.face_identity_id == FaceIdentity.id)
+        .join(Photo, Photo.id == Face.photo_id)
         .filter(
             FaceIdentity.owner_id == owner_uuid,
             FaceIdentity.identity_name.is_(None),
             FaceIdentity.is_hidden == False,
+            Photo.is_deleted == False,
+            Face.face_feature.isnot(None),
         )
         .group_by(FaceIdentity.id)
         .having(func.count(Face.id) >= min_face_count)
@@ -311,7 +317,15 @@ def get_cluster_face_photos(
         photo_id 字符串列表
     """
     cid = _to_uuid(cluster_id)
-    faces = db.query(Face).filter(Face.face_identity_id == cid).all()
+    faces = (
+        db.query(Face)
+        .join(Photo, Photo.id == Face.photo_id)
+        .filter(
+            Face.face_identity_id == cid,
+            Photo.is_deleted == False,
+        )
+        .all()
+    )
     photo_ids = list(set(str(f.photo_id) for f in faces))
     return photo_ids
 
@@ -329,20 +343,79 @@ __all__ = [
 
 
 def cleanup_orphaned_identities(db: Session, owner_id) -> dict:
-    """删除所有没有关联人脸的面部身份聚类（0 张照片的聚类）。
+    """删除没有任何人脸关联的身份聚类，并先清理指向已删除照片的孤立人脸记录。
+
+    步骤：
+      1. 删除所有 photo_id 指向已软删除或不存在的照片的 Face 记录
+      2. 删除 Face 记录数为 0 的 FaceIdentity
 
     Args:
         db: 数据库会话
         owner_id: 用户 UUID
 
     Returns:
-        {"deleted": int}
+        {"deleted": int, "orphan_faces": int}
     """
     from sqlalchemy import func
+    import logging
+    logger = logging.getLogger(__name__)
+
+    import os
 
     owner_uuid = _to_uuid(owner_id)
+    orphan_faces = 0
+    deleted = 0
 
-    # 查询无人脸的 identity
+    # Step 0: 删除照片文件已丢失的人脸记录
+    faces_with_missing_files = (
+        db.query(Face)
+        .join(Photo, Photo.id == Face.photo_id)
+        .filter(
+            Photo.is_deleted == False,
+            Face.face_identity_id.isnot(None),
+        )
+        .all()
+    )
+    missing_face_ids = [f.id for f in faces_with_missing_files if not os.path.exists(f.photo.file_path)]
+    if missing_face_ids:
+        db.query(Face).filter(Face.id.in_(missing_face_ids)).delete(synchronize_session=False)
+        orphan_faces += len(missing_face_ids)
+        logger.info(f"清理 {len(missing_face_ids)} 条文件缺失的人脸记录")
+
+    # Step 1: 删除指向已软删除照片的 Face 记录
+    soft_deleted_faces = (
+        db.query(Face)
+        .join(Photo, Photo.id == Face.photo_id)
+        .filter(
+            Photo.is_deleted == True,
+            Face.face_identity_id.isnot(None),
+        )
+        .all()
+    )
+    if soft_deleted_faces:
+        face_ids = [f.id for f in soft_deleted_faces]
+        db.query(Face).filter(Face.id.in_(face_ids)).delete(synchronize_session=False)
+        orphan_faces += len(face_ids)
+        logger.info(f"清理 {len(face_ids)} 条指向已删除照片的人脸记录")
+
+    # Step 2: 删除 Face 记录中 photo_id 指向不存在的照片的记录
+    # (数据库层级联应该已处理这种情况，但作为安全网保留)
+    dangling_faces = (
+        db.query(Face)
+        .outerjoin(Photo, Photo.id == Face.photo_id)
+        .filter(
+            Photo.id.is_(None),  # Photo 记录不存在
+            Face.face_identity_id.isnot(None),
+        )
+        .all()
+    )
+    if dangling_faces:
+        face_ids = [f.id for f in dangling_faces]
+        db.query(Face).filter(Face.id.in_(face_ids)).delete(synchronize_session=False)
+        orphan_faces += len(face_ids)
+        logger.info(f"清理 {len(face_ids)} 条指向不存在照片的人脸记录")
+
+    # Step 3: 清理现在没有任何 Face 记录的 FaceIdentity
     results = (
         db.query(FaceIdentity)
         .outerjoin(Face, Face.face_identity_id == FaceIdentity.id)
@@ -351,12 +424,11 @@ def cleanup_orphaned_identities(db: Session, owner_id) -> dict:
         .having(func.count(Face.id) == 0)
         .all()
     )
-
-    deleted = 0
     for identity in results:
         db.delete(identity)
         deleted += 1
 
     db.commit()
-    logger.info(f"已清理 {deleted} 个空面部聚类")
-    return {"deleted": deleted}
+    if deleted or orphan_faces:
+        logger.info(f"已清理: {orphan_faces} 条孤立人脸, {deleted} 个空身份聚类")
+    return {"deleted": deleted, "orphan_faces": orphan_faces}

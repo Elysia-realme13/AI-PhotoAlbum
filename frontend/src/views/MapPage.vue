@@ -8,7 +8,22 @@
           共 <strong class="text-gray-800 dark:text-dark-text">{{ locations.length }}</strong> 张照片有拍摄位置
         </span>
         <span v-if="cities.length > 0">
-          覆盖 <strong class="text-gray-800 dark:text-dark-text">{{ cities.length }}</strong> 个城市
+          覆盖
+          <el-popover placement="bottom-start" :width="220" trigger="click" popper-class="city-popover">
+            <template #reference>
+              <strong class="text-gray-800 dark:text-dark-text cursor-pointer hover:text-orange-500 inline-flex items-center gap-1" @click.stop>
+                {{ cities.length }} 个城市
+                <el-icon :size="14" class="text-gray-400"><ArrowDown /></el-icon>
+              </strong>
+            </template>
+            <div class="max-h-60 overflow-y-auto">
+              <div v-for="(item, idx) in cityList" :key="idx" class="py-2 px-1 text-sm text-gray-700 dark:text-gray-200 border-b border-gray-100 dark:border-dark-border last:border-0 flex items-center gap-2">
+                <el-icon :size="14" color="#E6A23C"><Location /></el-icon>
+                <span>{{ item.label }}</span>
+                <span class="text-xs text-gray-400 ml-auto">{{ item.count }}张</span>
+              </div>
+            </div>
+          </el-popover>
         </span>
         <span v-else-if="!loading && locations.length > 0">
           覆盖 <strong class="text-gray-800 dark:text-dark-text">{{ locations.length }}</strong> 个拍摄地点
@@ -31,7 +46,6 @@
         <p>加载地图数据中...</p>
       </div>
     </div>
-
     <!-- 空状态 -->
     <div v-else-if="locations.length === 0" class="flex-1 bg-gray-50 dark:bg-dark-hover rounded-xl flex items-center justify-center">
       <el-empty description="还没有带 GPS 信息的照片，上传照片时会自动提取拍摄位置">
@@ -46,7 +60,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed } from 'vue'
-import { Loading } from '@element-plus/icons-vue'
+import { ArrowDown, Loading } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { mapApi } from '@/api/map'
 import { taskApi } from '@/api/tasks'
@@ -62,7 +76,7 @@ import markerShadow from 'leaflet/dist/images/marker-shadow.png'
 const mapContainer = ref<HTMLElement | null>(null)
 const loading = ref(true)
 const backfilling = ref(false)
-const locations = ref<PhotoLocation[]>([])
+const locations = ref<PhotoLocation[]>([]); const cityList = ref<{ label: string; count: number }[]>([])
 
 let mapInstance: any = null
 let resizeObserver: ResizeObserver | null = null
@@ -179,6 +193,13 @@ async function fetchLocations() {
   try {
     const res = await mapApi.getLocations()
     locations.value = res.data
+    const cityMap = new Map<string, { label: string; count: number }>()
+    for (const loc of res.data || []) {
+      const label = [loc.province, loc.city].filter(Boolean).join('')
+      if (!cityMap.has(label)) { cityMap.set(label, { label, count: 0 }) }
+      cityMap.get(label)!.count++
+    }
+    cityList.value = Array.from(cityMap.values()).sort((a, b) => b.count - a.count)
   } catch (error) {
     console.error('[MapPage] 获取位置失败:', error)
     // handled by interceptor

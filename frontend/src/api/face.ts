@@ -40,4 +40,9 @@ export const faceApi = {
       target_id: targetClusterId,
     })
   },
+
+  /** 强制删除某个人物及其所有关联人脸 */
+  deleteIdentity(clusterId: string) {
+    return request.delete(`/faces/identities/${clusterId}`)
+  },
 }

@@ -23,6 +23,7 @@ from app.database.storage import storage
 from app.models.user import User
 from app.schemas.photo import BatchPhotoRequest, PhotoListItem
 from app.schemas.response import BaseResponse, PaginatedData
+from app.services.face_cluster_service import cleanup_orphaned_identities
 
 logger = logging.getLogger("app.api.recycle_bin")
 
@@ -62,6 +63,10 @@ def empty_recycle_bin(
             thumb_path.unlink()
         permanent_delete_photo(db, photo)
         count += 1
+    # 清理没有任何人脸关联的 FaceIdentity（孤立身份）
+    if count > 0:
+        cleanup_orphaned_identities(db, current_user.id)
+
     return {"message": f"已清空回收站，共删除 {count} 张照片", "count": count}
 
 
@@ -78,7 +83,7 @@ def permanent_delete(
     if not photo.is_deleted:
         raise HTTPException(400, "请先移入回收站再彻底删除")
     permanent_delete_photo(db, photo)
-    return {"message": "已永久删除", "photo_id": photo_id}
+    cleanup_orphaned_identities(db, current_user.id)
 
 
 @router.post("/batch/restore", response_model=BaseResponse[dict])
@@ -124,6 +129,11 @@ def batch_permanent_delete_photos(
             logger.warning(f"删除缩略图失败 {thumb_path}: {e}")
 
     success, fail = batch_permanent_delete(db, photo_ids, current_user.id)
+
+    # 清理没有任何人脸关联的 FaceIdentity（孤立身份）
+    if success > 0:
+        cleanup_orphaned_identities(db, current_user.id)
+
     return BaseResponse(data={"success_count": success, "fail_count": fail})
 
 

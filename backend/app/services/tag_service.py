@@ -1,4 +1,4 @@
-"""
+﻿"""
 标签服务 — YOLO 目标检测 → 自动生成照片标签
 
 流程:
@@ -39,7 +39,7 @@ def run_object_detection(photo: Photo, top_k: int = 10) -> List[dict]:
 def generate_tags_for_photo(db: Session, photo: Photo) -> Optional[ImageDescription]:
     """对一张照片运行检测，将标签写入 ImageDescription.tags（dict 格式）"""
     items = run_object_detection(photo)
-    tags_payload = {"detections": [], "summary": items, "total": len(items), "model": "yolo26n.pt"}
+    tags_payload = {"detections": [], "summary": items, "total": len(items), "model": "best.pt"}
 
     desc = db.query(ImageDescription).filter(
         ImageDescription.photo_id == photo.id
@@ -54,7 +54,7 @@ def generate_tags_for_photo(db: Session, photo: Photo) -> Optional[ImageDescript
         for old in old_summary:
             if isinstance(old, dict) and old.get("label") and old["label"] not in new_labels:
                 merged.append(old)
-        tags_payload = {"detections": [], "summary": merged, "total": len(merged), "model": "yolo26n.pt"}
+        tags_payload = {"detections": [], "summary": merged, "total": len(merged), "model": "best.pt"}
         desc.tags = tags_payload
     else:
         import uuid

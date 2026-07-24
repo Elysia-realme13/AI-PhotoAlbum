@@ -16,7 +16,8 @@ from app.models.description import ImageDescription
 from app.services.detection_service import (
     detect_objects_from_bytes,
     get_detection_summary,
-    COCO_CLASSES,
+    get_model_class_names,
+    # COCO_CLASSES,
 )
 
 logger = logging.getLogger(__name__)
@@ -108,11 +109,12 @@ def run_detection_agent(
         return {"found": 0, "photos": [], "detections": []}
 
     # Validate against COCO classes
-    invalid = [o for o in target_objects if o.lower() not in COCO_CLASSES]
+    class_names = get_model_class_names()
+    invalid = [o for o in target_objects if o.lower() not in class_names]
     if invalid:
-        logger.warning(f"Non-COCO object(s) ignored: {invalid}")
-
-    valid_objects = [o for o in target_objects if o.lower() in COCO_CLASSES]
+        logger.warning(f"Unknown object(s) ignored: {invalid}")
+        
+    valid_objects = [o for o in target_objects if o.lower() in class_names]
     if not valid_objects:
         return {"found": 0, "photos": [], "detections": []}
 
@@ -156,5 +158,6 @@ def run_detection_agent(
 __all__ = [
     "detect_objects_in_photos",
     "run_detection_agent",
-    "COCO_CLASSES",
+    "get_model_class_names",
+    # "COCO_CLASSES",
 ]

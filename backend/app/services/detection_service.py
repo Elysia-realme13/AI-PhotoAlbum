@@ -35,9 +35,10 @@ COCO_CLASSES = [
 # ── 全局模型缓存（避免每次调用重新加载） ─────────────────────────
 _model = None
 _model_name: Optional[str] = None
+_class_names: Optional[dict] = None    # 新增：缓存模型输出的类名映射 {0: "person", ...}
 
 # 默认模型名称
-DEFAULT_MODEL = str(Path(settings.MODELS_DIR) / "yolo26n.pt")
+DEFAULT_MODEL = str(Path(settings.MODELS_DIR) / "best.pt")
 
 
 def _get_model(model_name: str = DEFAULT_MODEL):
@@ -45,12 +46,12 @@ def _get_model(model_name: str = DEFAULT_MODEL):
     获取（缓存）YOLO 模型实例
 
     Args:
-        model_name: 模型名称，如 yolo26n.pt / yolo26s.pt
+        model_name: 模型名称，如 best.pt / yolo26s.pt
 
     Returns:
         Ultralytics YOLO 模型实例，或 None（加载失败时）
     """
-    global _model, _model_name
+    global _model, _model_name, _class_names
 
     if _model is not None and _model_name == model_name:
         return _model
@@ -61,6 +62,7 @@ def _get_model(model_name: str = DEFAULT_MODEL):
         logger.info(f"正在加载 YOLO 模型: {model_name} ...")
         _model = YOLO(model_name)
         _model_name = model_name
+        _class_names = _model.names            # 新增：缓存类名
         logger.info(f"YOLO 模型加载完成: {model_name}")
         return _model
     except ImportError:
@@ -71,6 +73,24 @@ def _get_model(model_name: str = DEFAULT_MODEL):
     except Exception as e:
         logger.error(f"YOLO 模型加载失败: {e}")
         return None
+    
+def _get_class_name(cls_id: int) -> str:
+    """从模型缓存的类名映射中查找标签，适用于任意训练数据集（COCO / LVIS / 自定义）"""
+    global _class_names
+    if _class_names and cls_id in _class_names:
+        return _class_names[cls_id]
+    return f"class_{cls_id}"
+
+
+def get_model_class_names() -> set:
+    """返回当前加载模型的所有类别名称（小写），用于目标对象验证"""
+    global _class_names
+    if _class_names is None:
+        _get_model()
+    if _class_names:
+        return {name.lower() for name in _class_names.values()}
+    # 模型加载失败时回退到 COCO 80 类
+    return set(COCO_CLASSES)
 
 
 def detect_objects(
@@ -182,7 +202,8 @@ def detect_objects(
 
             cls_id = int(boxes.cls[i].item())
             conf = float(boxes.conf[i].item())
-            label = COCO_CLASSES[cls_id] if 0 <= cls_id < len(COCO_CLASSES) else f"class_{cls_id}"
+            # label = COCO_CLASSES[cls_id] if 0 <= cls_id < len(COCO_CLASSES) else f"class_{cls_id}"
+            label = _get_class_name(cls_id)
 
             result["detections"].append({
                 "label": label,
@@ -417,6 +438,7 @@ __all__ = [
     "detect_objects_from_bytes",
     "get_detection_summary",
     "draw_detections",
+    "get_model_class_names",
     "COCO_CLASSES",
     "DEFAULT_MODEL",
 ]

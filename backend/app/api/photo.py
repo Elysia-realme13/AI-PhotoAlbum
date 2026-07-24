@@ -35,6 +35,7 @@ from app.schemas.photo import (
 from app.schemas.response import BaseResponse, PaginatedData
 from app.services.photo_service import upload_single_photo
 from app.services.thumbnail import generate_thumbnail_bytes, optimize_image_bytes
+from app.services.face_cluster_service import cleanup_orphaned_identities
 
 logger = logging.getLogger("app.api.photo")
 
@@ -564,6 +565,8 @@ def delete_photo(
         if os.path.exists(photo.file_path):
             storage.delete_file(photo.file_path)
         photo_crud.permanent_delete_photo(db, photo)
+        # 清理没有任何人脸关联的 FaceIdentity
+        cleanup_orphaned_identities(db, current_user.id)
         return BaseResponse(msg="照片已永久删除", data=None)
     else:
         photo = photo_crud.soft_delete_photo(db, photo)

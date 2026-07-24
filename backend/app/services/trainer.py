@@ -1,4 +1,4 @@
-"""
+﻿"""
 YOLO 训练执行器
 
 封装 ultralytics YOLO 的训练逻辑，支持：
@@ -191,7 +191,7 @@ def run_training(
         train_kwargs["device"] = device
 
         # ── 加载预训练模型或 checkpoint ─────────────────────────
-        pretrained = config.get("pretrained_model", "yolo26n.pt")
+        pretrained = config.get("pretrained_model", "best.pt")
 
 
         # 将裸文件名解析到 data/models 目录，避免 YOLO 下载到当前工作目录

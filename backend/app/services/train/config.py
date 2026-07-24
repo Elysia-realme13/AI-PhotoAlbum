@@ -1,4 +1,4 @@
-"""
+﻿"""
 YOLO LVIS fine-tuning configuration
 
 All path references use the project root as base (/data/... resolved at runtime).
@@ -14,7 +14,7 @@ class TrainConfig:
     """Training hyperparameters and paths"""
 
     # ── Model ──────────────────────────────────────────────
-    model_name: str = "yolo26n.pt"
+    model_name: str = "best.pt"
     """Base pretrained model (Ultralytics YOLO26 nano). Also supports yolo26s.pt / yolo26m.pt"""
 
     # ── Data paths (relative to project root) ──────────────

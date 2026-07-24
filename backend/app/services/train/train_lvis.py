@@ -1,4 +1,4 @@
-"""
+﻿"""
 YOLO LVIS fine-tuning script.
 
 Usage:
@@ -58,8 +58,8 @@ def parse_args():
     parser = argparse.ArgumentParser(description="Fine-tune YOLO on LVIS dataset")
 
     # Model
-    parser.add_argument("--model", default="yolo26n.pt",
-                        help="Pretrained YOLO model (e.g. yolo26n.pt, yolo26s.pt)")
+    parser.add_argument("--model", default="best.pt",
+                        help="Pretrained YOLO model (e.g. best.pt, yolo26s.pt)")
 
     # Training
     parser.add_argument("--epochs", type=int, default=100,
@@ -151,7 +151,7 @@ def main():
     config = resolve_paths(config, project_root)
 
     # Auto-derive save directory name from model name
-    # yolo26n.pt → lvis_yolo26n, yolo26s.pt → lvis_yolo26s
+    # best.pt → lvis_best, yolo26n.pt → lvis_yolo26n, yolo26s.pt → lvis_yolo26s
     if not args.resume:
         model_base = os.path.splitext(os.path.basename(config.model_name))[0]
         config.name = f"lvis_{model_base}"

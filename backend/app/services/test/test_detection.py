@@ -7,6 +7,10 @@ from app.services.detection_service import (
     COCO_CLASSES, get_detection_summary, draw_detections,
     detect_objects, DEFAULT_MODEL,
 )
+from app.services.detection_service import (
+    COCO_CLASSES, get_detection_summary, draw_detections,
+    detect_objects, DEFAULT_MODEL, get_model_class_names,
+)
 
 
 class TestCOCOClasses:
@@ -26,6 +30,19 @@ class TestCOCOClasses:
         assert COCO_CLASSES[0] == "person"
         assert COCO_CLASSES[2] == "car"
 
+class TestModelClassNames:
+    def test_fallback_to_coco_when_no_model(self):
+        """无模型加载时回退到 COCO 80 类"""
+        import app.services.detection_service as ds
+        old = ds._class_names
+        ds._class_names = None
+        try:
+            names = get_model_class_names()
+            assert len(names) == 80
+            assert "person" in names
+        finally:
+            ds._class_names = old
+            
 
 class TestDetectionSummary:
     def test_empty(self):
@@ -59,7 +76,7 @@ class TestDetectObjects:
         assert result["error"] == "YOLO 妯″瀷鍔犺浇澶辫触"
 
     def test_default_model_name(self):
-        assert DEFAULT_MODEL == "yolo26n.pt"
+        assert "best.pt" in DEFAULT_MODEL
 
 
 class TestDrawDetections:

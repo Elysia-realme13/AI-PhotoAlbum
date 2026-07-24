@@ -54,7 +54,7 @@ def process_photo_detection(
             "detections": detections,
             "summary": summary,
             "total": result.get("total", 0),
-            "model": result.get("model", "yolo26n.pt"),
+            "model": result.get("model", "best.pt"),
         }
 
         # 3. Upsert ImageDescription.tags

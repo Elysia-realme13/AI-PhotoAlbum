@@ -111,9 +111,12 @@ def get_photo_detail(
     return query.first()
 
 
-def get_photos_by_md5(db: Session, md5: str) -> Optional[Photo]:
-    """通过 MD5 查找已存在的照片（去重用）"""
-    return db.query(Photo).filter(Photo.md5 == md5, Photo.is_deleted == False).first()
+def get_photos_by_md5(db: Session, md5: str, owner_id: Optional[uuid.UUID] = None) -> Optional[Photo]:
+    """通过 MD5 查找已存在的照片（去重用，按用户隔离）"""
+    query = db.query(Photo).filter(Photo.md5 == md5, Photo.is_deleted == False)
+    if owner_id:
+        query = query.filter(Photo.owner_id == owner_id)
+    return query.first()
 
 
 def get_photo_list(
@@ -407,6 +410,7 @@ def get_map_photos(
             Photo.is_deleted == False,
             PhotoMetadata.latitude.isnot(None),
             PhotoMetadata.longitude.isnot(None),
+            PhotoMetadata.city.isnot(None),
         )
     )
     if sw_lat and sw_lng and ne_lat and ne_lng:
